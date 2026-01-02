@@ -46,7 +46,7 @@
   - Update `/src/modules/Category/schema.ts` to PostgreSQL types
   - Create `/src/modules/Category/schema.test.ts` for type validation
 
-- [ ] **Step 6**: Convert SavingsBucket module schema to PostgreSQL **AND** create schema validation test
+- [x] **Step 6**: Convert SavingsBucket module schema to PostgreSQL **AND** create schema validation test
   - Update `/src/modules/SavingsBucket/schema.ts` to PostgreSQL types
   - Create `/src/modules/SavingsBucket/schema.test.ts` for type validation
 

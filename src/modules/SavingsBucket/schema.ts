@@ -1,16 +1,16 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // Drizzle schema
-export const savingsBuckets = sqliteTable("savings_buckets", {
+export const savingsBuckets = pgTable("savings_buckets", {
   id: text("id").primaryKey(), // UUID as text
   name: text("name").notNull().unique(),
   description: text("description"),
-  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
-  created_at: integer("created_at", { mode: "timestamp" }).$default(
+  archived: boolean("archived").notNull().default(false),
+  created_at: timestamp("created_at", { withTimezone: true }).$default(
     () => new Date(),
   ),
-  updated_at: integer("updated_at", { mode: "timestamp" }).$default(
+  updated_at: timestamp("updated_at", { withTimezone: true }).$default(
     () => new Date(),
   ),
 });
