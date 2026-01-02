@@ -55,7 +55,7 @@
   - Update enum definitions for PostgreSQL compatibility
   - Create `/src/modules/Transaction/schema.test.ts` for type validation
 
-- [ ] **Step 8**: Convert Budget module schema to PostgreSQL **AND** create schema validation test
+- [x] **Step 8**: Convert Budget module schema to PostgreSQL **AND** create schema validation test
   - Update `/src/modules/Budget/schema.ts` to PostgreSQL types
   - Create `/src/modules/Budget/schema.test.ts` for type validation
 

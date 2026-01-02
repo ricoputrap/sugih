@@ -1,23 +1,24 @@
 import {
-  sqliteTable,
+  pgTable,
   text,
-  integer,
+  bigint,
+  timestamp,
   uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+} from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // Drizzle schema
-export const budgets = sqliteTable(
+export const budgets = pgTable(
   "budgets",
   {
     id: text("id").primaryKey(), // UUID as text
     month: text("month").notNull(), // ISO format YYYY-MM-01
     category_id: text("category_id").notNull(),
-    amount_idr: integer("amount_idr").notNull(), // Signed integer in Rupiah
-    created_at: integer("created_at", { mode: "timestamp" }).$default(
+    amount_idr: bigint("amount_idr", { mode: "number" }).notNull(), // Signed bigint in Rupiah
+    created_at: timestamp("created_at", { withTimezone: true }).$default(
       () => new Date(),
     ),
-    updated_at: integer("updated_at", { mode: "timestamp" }).$default(
+    updated_at: timestamp("updated_at", { withTimezone: true }).$default(
       () => new Date(),
     ),
   },
@@ -32,7 +33,10 @@ export const budgets = sqliteTable(
 // Zod schemas for validation
 export const BudgetMonthSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-01$/, "Month must be in YYYY-MM-01 format");
+  .regex(
+    /^\d{4}-(0[1-9]|1[0-2])-01$/,
+    "Month must be in YYYY-MM-01 format with valid month (01-12)",
+  );
 
 export const BudgetItemSchema = z.object({
   categoryId: z.uuid("Invalid category ID"),
