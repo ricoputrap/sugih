@@ -102,12 +102,12 @@ Deliverable: SQLite DB initialized with all tables + constraints + migration his
   - `POST /api/wallets`
   - `PATCH /api/wallets/:id`
   - `DELETE /api/wallets/:id`
-- [ ] **Step 3A.4**: UI components (shadcn)
+- [x] **Step 3A.4**: UI components (shadcn)
   - Install: `button`, `input`, `dialog`, `form`, `table`, `dropdown-menu`, `toast`
   - `WalletTable`, `WalletDialogForm`
-- [ ] **Step 3A.5**: Page assembly
+- [x] **Step 3A.5**: Page assembly
   - `src/app/wallets/page.tsx` (client-first: fetch via API)
-- [ ] **Step 3A.6**: Verification
+- [x] **Step 3A.6**: Verification
   - Can create/update/archive wallets; list excludes archived by default.
 
 ### Phase 3B: Category Module (Expense-only)

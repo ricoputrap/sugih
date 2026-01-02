@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Toaster } from "@/components/ui/sonner";
 import {
   LayoutDashboard,
   Receipt,
@@ -142,6 +145,7 @@ export default function RootLayout({
             <main className="p-8">{children}</main>
           </div>
         </div>
+        <Toaster />
       </body>
     </html>
   );
