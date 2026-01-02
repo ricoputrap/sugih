@@ -3,7 +3,7 @@
  * Converts ZodError into a structured format for API responses
  */
 
-import { ZodError, ZodIssue } from "zod";
+import { ZodError } from "zod";
 
 export interface FormattedZodError {
   field: string;
@@ -16,7 +16,7 @@ export function formatZodError(error: ZodError): FormattedZodError[] {
   return error.issues.map(formatZodIssue);
 }
 
-export function formatZodIssue(issue: ZodIssue): FormattedZodError {
+export function formatZodIssue(issue: any): FormattedZodError {
   return {
     field: issue.path.join("."),
     message: issue.message,
