@@ -27,29 +27,33 @@
   - Create `src/` root (if not present) and move/keep Next.js app under `src/app/**`.
   - Create `src/modules/` and `src/db/` directories.
   - Decide a consistent import alias (e.g. `@/`).
-- [ ] **Step 1.2**: Install dependencies
+- [x] **Step 1.2**: Install dependencies
   - DB/migrations: `drizzle-orm`, `drizzle-kit`, `better-sqlite3`
   - Validation: `zod`
   - Utilities: `nanoid` or `uuid` (for IDs), `date-fns` (optional for month boundaries)
-- [ ] **Step 1.3**: Create DB files
+- [x] **Step 1.3**: Create DB files
   - `drizzle.config.ts` pointing at SQLite file `./sqlite.db` and migrations folder.
   - `src/db/client.ts`: open a singleton `better-sqlite3` connection and expose helpers:
     - `db` connection
     - `all/get/run` wrappers with prepared statements
-- [ ] **Step 1.4**: Create schema entrypoint
+- [x] **Step 1.4**: Create schema entrypoint
   - `src/db/schema.ts` exports module schemas (or re-exports from each module).
-- [ ] **Step 1.5**: Initialize shadcn UI + Tailwind wiring
+- [x] **Step 1.5**: Initialize shadcn UI + Tailwind wiring
   - Run `shadcn init`
   - Ensure `globals.css` includes Tailwind and shadcn base styles.
-- [ ] **Step 1.6**: Add baseline UI shell
+- [x] **Step 1.6**: Add baseline UI shell
   - Desktop-first layout in `src/app/layout.tsx`:
     - Left sidebar nav: Dashboard, Transactions, Budgets, Reference (Wallets, Categories, Savings)
-- [ ] **Step 1.7**: Add error handling + response helpers
+- [x] **Step 1.7**: Add error handling + response helpers
   - `src/lib/http.ts`: `ok(data)`, `badRequest(message, issues?)`, `serverError()`
   - `src/lib/zod.ts`: helper to format Zod errors
-- [ ] **Step 1.8**: Verification
+- [x] **Step 1.8**: Verification
   - Create a simple API route: `GET /api/health` -> runs `SELECT 1` against SQLite.
   - Confirm dev server works and health returns OK.
+
+Deliverable: app boots, shadcn set up, DB connection verified, project structure established.
+
+## Phase 2: Database Schema + Migrations (Core Tables)
 
 Deliverable: app boots, shadcn set up, DB connection verified, project structure established.
 
