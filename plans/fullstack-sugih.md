@@ -55,35 +55,29 @@ Deliverable: app boots, shadcn set up, DB connection verified, project structure
 
 ## Phase 2: Database Schema + Migrations (Core Tables)
 
-Deliverable: app boots, shadcn set up, DB connection verified, project structure established.
-
----
-
-## Phase 2: Database Schema + Migrations (Core Tables)
-
 > Goal: implement the schema from the SDD with SQLite-friendly constraints.
 
-- [ ] **Step 2.1**: Define core tables using Drizzle (migrations only)
+- [x] **Step 2.1**: Define core tables using Drizzle (migrations only)
   - Create module schemas (recommended split):
     - `src/modules/Wallet/schema.ts`
     - `src/modules/Category/schema.ts` (expense-only)
     - `src/modules/SavingsBucket/schema.ts`
     - `src/modules/Transaction/schema.ts` (events + postings)
     - `src/modules/Budget/schema.ts`
-- [ ] **Step 2.2**: Schema details (align to SDD)
+- [x] **Step 2.2**: Schema details (align to SDD)
   - `wallets`: `id`, `name` unique, `type`, `currency` default `IDR`, `archived`, timestamps
   - `categories`: `id`, `name` unique, `archived`, timestamps
   - `savings_buckets`: `id`, `name` unique, `description`, `archived`, timestamps
   - `transaction_events`: `id`, `occurred_at`, `type`, `note`, `payee`, `category_id` nullable, `deleted_at` nullable, timestamps, `idempotency_key` unique nullable
   - `postings`: `id`, `event_id`, `wallet_id` nullable, `savings_bucket_id` nullable, `amount_idr` (signed int), `created_at`
   - `budgets`: `id`, `month` (ISO `YYYY-MM-01`), `category_id`, `amount_idr`, unique `(month, category_id)`
-- [ ] **Step 2.3**: Add SQLite-level constraints where possible
+- [x] **Step 2.3**: Add SQLite-level constraints where possible
   - `CHECK(amount_idr != 0)`
   - `CHECK((wallet_id IS NULL) != (savings_bucket_id IS NULL))` (XOR to ensure exactly one is set)
   - `CHECK(type IN (...))`
-- [ ] **Step 2.4**: Generate & apply migration
+- [x] **Step 2.4**: Generate & apply migration
   - Run `drizzle-kit generate` and apply (push/migrate, per your setup).
-- [ ] **Step 2.5**: Seed minimal reference data (optional)
+- [x] **Step 2.5**: Seed minimal reference data (optional)
   - A small script or route to add default wallets/categories for quick start.
 
 Deliverable: SQLite DB initialized with all tables + constraints + migration history.
@@ -98,12 +92,12 @@ Deliverable: SQLite DB initialized with all tables + constraints + migration his
 
 - [ ] **Step 3A.1**: `src/modules/Wallet/schema.ts`
   - Zod: `WalletCreateSchema`, `WalletUpdateSchema`, `WalletIdSchema`
-- [ ] **Step 3A.2**: `src/modules/Wallet/actions.ts` (Raw SQL)
+- [x] **Step 3A.2**: `src/modules/Wallet/actions.ts` (Raw SQL)
   - `listWallets()`
   - `createWallet(input)`
   - `updateWallet(id, input)`
   - `archiveWallet(id)` (soft archive)
-- [ ] **Step 3A.3**: API routes
+- [x] **Step 3A.3**: API routes
   - `GET /api/wallets`
   - `POST /api/wallets`
   - `PATCH /api/wallets/:id`
