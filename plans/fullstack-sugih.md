@@ -23,7 +23,7 @@
 
 ## Phase 1: Infrastructure & Foundation (SQLite + Drizzle + Zod + shadcn)
 
-- [ ] **Step 1.1**: Create project structure
+- [x] **Step 1.1**: Create project structure
   - Create `src/` root (if not present) and move/keep Next.js app under `src/app/**`.
   - Create `src/modules/` and `src/db/` directories.
   - Decide a consistent import alias (e.g. `@/`).
