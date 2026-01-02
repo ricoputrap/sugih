@@ -42,7 +42,7 @@
   - Update type mappings (text → varchar, integer → timestamp handling)
   - Create `/src/modules/Wallet/schema.test.ts` to validate PostgreSQL types
 
-- [ ] **Step 5**: Convert Category module schema to PostgreSQL **AND** create schema validation test
+- [x] **Step 5**: Convert Category module schema to PostgreSQL **AND** create schema validation test
   - Update `/src/modules/Category/schema.ts` to PostgreSQL types
   - Create `/src/modules/Category/schema.test.ts` for type validation
 
