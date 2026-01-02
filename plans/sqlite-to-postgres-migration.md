@@ -37,7 +37,7 @@
   - Create `/src/db/drizzle-config.test.ts` to verify Drizzle setup
   - Update package.json scripts for PostgreSQL migrations
 
-- [ ] **Step 4**: Convert Wallet module schema to PostgreSQL **AND** create schema validation test
+- [x] **Step 4**: Convert Wallet module schema to PostgreSQL **AND** create schema validation test
   - Update `/src/modules/Wallet/schema.ts` from `sqliteTable` to `pgTable`
   - Update type mappings (text → varchar, integer → timestamp handling)
   - Create `/src/modules/Wallet/schema.test.ts` to validate PostgreSQL types

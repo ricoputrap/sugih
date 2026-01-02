@@ -1,19 +1,19 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // Drizzle schema
-export const wallets = sqliteTable("wallets", {
+export const wallets = pgTable("wallets", {
   id: text("id").primaryKey(), // UUID as text
   name: text("name").notNull().unique(),
   type: text("type", { enum: ["cash", "bank", "ewallet", "other"] })
     .notNull()
     .default("bank"),
   currency: text("currency").notNull().default("IDR"),
-  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
-  created_at: integer("created_at", { mode: "timestamp" }).$default(
+  archived: boolean("archived").notNull().default(false),
+  created_at: timestamp("created_at", { withTimezone: true }).$default(
     () => new Date(),
   ),
-  updated_at: integer("updated_at", { mode: "timestamp" }).$default(
+  updated_at: timestamp("updated_at", { withTimezone: true }).$default(
     () => new Date(),
   ),
 });
