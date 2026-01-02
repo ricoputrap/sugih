@@ -50,7 +50,7 @@
   - Update `/src/modules/SavingsBucket/schema.ts` to PostgreSQL types
   - Create `/src/modules/SavingsBucket/schema.test.ts` for type validation
 
-- [ ] **Step 7**: Convert Transaction module schema to PostgreSQL **AND** create schema validation test
+- [x] **Step 7**: Convert Transaction module schema to PostgreSQL **AND** create schema validation test
   - Update `/src/modules/Transaction/schema.ts` to PostgreSQL types
   - Update enum definitions for PostgreSQL compatibility
   - Create `/src/modules/Transaction/schema.test.ts` for type validation

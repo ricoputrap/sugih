@@ -1,10 +1,10 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { pgTable, text, timestamp, bigint } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // Drizzle schema for transaction events
-export const transactionEvents = sqliteTable("transaction_events", {
+export const transactionEvents = pgTable("transaction_events", {
   id: text("id").primaryKey(), // UUID as text
-  occurred_at: integer("occurred_at", { mode: "timestamp" }).notNull(),
+  occurred_at: timestamp("occurred_at", { withTimezone: true }).notNull(),
   type: text("type", {
     enum: [
       "expense",
@@ -17,24 +17,24 @@ export const transactionEvents = sqliteTable("transaction_events", {
   note: text("note"),
   payee: text("payee"),
   category_id: text("category_id"), // Foreign key to categories (nullable)
-  deleted_at: integer("deleted_at", { mode: "timestamp" }),
-  created_at: integer("created_at", { mode: "timestamp" }).$default(
+  deleted_at: timestamp("deleted_at", { withTimezone: true }),
+  created_at: timestamp("created_at", { withTimezone: true }).$default(
     () => new Date(),
   ),
-  updated_at: integer("updated_at", { mode: "timestamp" }).$default(
+  updated_at: timestamp("updated_at", { withTimezone: true }).$default(
     () => new Date(),
   ),
   idempotency_key: text("idempotency_key").unique(),
 });
 
 // Drizzle schema for postings (ledger entries)
-export const postings = sqliteTable("postings", {
+export const postings = pgTable("postings", {
   id: text("id").primaryKey(), // UUID as text
   event_id: text("event_id").notNull(),
   wallet_id: text("wallet_id"), // Foreign key to wallets (nullable)
   savings_bucket_id: text("savings_bucket_id"), // Foreign key to savings_buckets (nullable)
-  amount_idr: integer("amount_idr").notNull(), // Signed integer in Rupiah
-  created_at: integer("created_at", { mode: "timestamp" }).$default(
+  amount_idr: bigint("amount_idr", { mode: "number" }).notNull(), // Signed bigint for Rupiah amounts
+  created_at: timestamp("created_at", { withTimezone: true }).$default(
     () => new Date(),
   ),
 });
