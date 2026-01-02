@@ -59,7 +59,7 @@
   - Update `/src/modules/Budget/schema.ts` to PostgreSQL types
   - Create `/src/modules/Budget/schema.test.ts` for type validation
 
-- [ ] **Step 9**: Generate new PostgreSQL migration **AND** create migration validation test
+- [x] **Step 9**: Generate new PostgreSQL migration **AND** create migration validation test
   - Run `pnpm drizzle-kit generate:pg` to create new migration files
   - Verify generated SQL in `/drizzle/` folder
   - Create `/drizzle/migration.test.ts` to validate migration SQL
