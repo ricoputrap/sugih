@@ -1,12 +1,14 @@
 # Plan: Migrate from SQLite to PostgreSQL
 
 ## Module Structure Check
+
 - [ ] Confirmed that database client changes will be centralized in `/src/db/`.
 - [ ] Confirmed that Drizzle schema updates will maintain module colocation in each module folder.
 - [ ] Confirmed that API route tests will be created/updated for each modified endpoint.
 - [ ] Confirmed that database integration tests will be created for PostgreSQL-specific functionality.
 
 ## Migration Strategy Overview
+
 **Phase 1**: Database Infrastructure Setup
 **Phase 2**: Drizzle ORM Migration
 **Phase 3**: Raw SQL Client Migration
@@ -17,7 +19,8 @@
 ## Execution Steps
 
 ### Phase 1: Database Infrastructure Setup
-- [ ] **Step 1**: Install PostgreSQL dependencies **AND** create `docker-compose.yml` for local PostgreSQL development
+
+- [x] **Step 1**: Install PostgreSQL dependencies **AND** create `docker-compose.yml` for local PostgreSQL development
   - Install: `pnpm add postgres`, `@types/pg`
   - Create `/docker-compose.yml` with PostgreSQL service
   - Create `.env.example` with PostgreSQL connection variables
@@ -28,6 +31,7 @@
   - Update `.env.example` with DATABASE_URL format
 
 ### Phase 2: Drizzle ORM Migration
+
 - [ ] **Step 3**: Update Drizzle configuration for PostgreSQL **AND** create configuration validation test
   - Update `/drizzle.config.ts` to use PostgreSQL dialect
   - Create `/src/db/drizzle-config.test.ts` to verify Drizzle setup
@@ -61,6 +65,7 @@
   - Create `/drizzle/migration.test.ts` to validate migration SQL
 
 ### Phase 3: Raw SQL Client Migration
+
 - [ ] **Step 10**: Replace SQLite client with PostgreSQL client **AND** create client test suite
   - Replace `/src/db/client.ts` to use PostgreSQL driver
   - Implement PostgreSQL connection pooling
@@ -72,6 +77,7 @@
   - Create `/src/db/helpers.test.ts` for each helper function
 
 ### Phase 4: API Route Testing & Updates
+
 - [ ] **Step 12**: Update Wallets API routes **AND** create comprehensive API tests
   - Update `/src/app/api/wallets/route.ts` for error handling
   - Create `/src/app/api/wallets/route.test.ts` with PostgreSQL integration tests
@@ -93,18 +99,21 @@
   - Create corresponding test files for each endpoint
 
 ### Phase 5: Data Migration Script
+
 - [ ] **Step 17**: Create data export/import utility **AND** create migration validation test
   - Create `/scripts/migrate-from-sqlite.ts` to export data from SQLite
   - Create `/scripts/import-to-postgres.ts` to import data to PostgreSQL
   - Create `/scripts/migration.test.ts` to validate data integrity
 
 ### Phase 6: Integration Testing & Documentation
+
 - [ ] **Step 18**: Create end-to-end integration test suite **AND** update documentation
   - Create `/tests/integration/database.test.ts` for full database workflow testing
   - Update README.md with PostgreSQL setup instructions
   - Create `/docs/postgresql-setup.md` with detailed setup guide
 
 ## Key PostgreSQL-Specific Considerations
+
 1. **Connection Pooling**: Implement proper connection management
 2. **Transaction Handling**: Ensure ACID compliance with PostgreSQL
 3. **UUID Handling**: Use PostgreSQL's UUID type instead of text
@@ -114,6 +123,7 @@
 7. **JSON Support**: Leverage PostgreSQL JSON types where applicable
 
 ## Rollback Strategy
+
 - Keep SQLite implementation as backup option via feature flag
 - Maintain existing migration scripts for SQLite
 - Document migration process for future reference

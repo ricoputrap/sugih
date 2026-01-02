@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sugih-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sugih_user
+      POSTGRES_PASSWORD: sugih_password
+      POSTGRES_DB: sugih_dev
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./drizzle:/app/drizzle:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sugih_user -d sugih_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sugih-network
+
+  postgres-admin:
+    image: dpage/pgadmin4:latest
+    container_name: sugih-postgres-admin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@sugih.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sugih-network
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  sugih-network:
+    driver: bridge
