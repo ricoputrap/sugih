@@ -1,11 +1,12 @@
-import { pgTable, text, timestamp, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, bigint, varchar } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // Drizzle schema for transaction events
 export const transactionEvents = pgTable("transaction_events", {
   id: text("id").primaryKey(), // UUID as text
   occurred_at: timestamp("occurred_at", { withTimezone: true }).notNull(),
-  type: text("type", {
+  type: varchar("type", {
+    length: 32,
     enum: [
       "expense",
       "income",
@@ -24,7 +25,7 @@ export const transactionEvents = pgTable("transaction_events", {
   updated_at: timestamp("updated_at", { withTimezone: true }).$default(
     () => new Date(),
   ),
-  idempotency_key: text("idempotency_key").unique(),
+  idempotency_key: varchar("idempotency_key", { length: 36 }).unique(),
 });
 
 // Drizzle schema for postings (ledger entries)

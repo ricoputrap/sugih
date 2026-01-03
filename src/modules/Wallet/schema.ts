@@ -1,14 +1,23 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  timestamp,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // Drizzle schema
 export const wallets = pgTable("wallets", {
   id: text("id").primaryKey(), // UUID as text
-  name: text("name").notNull().unique(),
-  type: text("type", { enum: ["cash", "bank", "ewallet", "other"] })
+  name: varchar("name", { length: 255 }).notNull().unique(),
+  type: varchar("type", {
+    length: 32,
+    enum: ["cash", "bank", "ewallet", "other"],
+  })
     .notNull()
     .default("bank"),
-  currency: text("currency").notNull().default("IDR"),
+  currency: varchar("currency", { length: 3 }).notNull().default("IDR"),
   archived: boolean("archived").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).$default(
     () => new Date(),

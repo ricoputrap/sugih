@@ -1,6 +1,7 @@
 import {
   pgTable,
   text,
+  varchar,
   bigint,
   timestamp,
   uniqueIndex,
@@ -12,7 +13,7 @@ export const budgets = pgTable(
   "budgets",
   {
     id: text("id").primaryKey(), // UUID as text
-    month: text("month").notNull(), // ISO format YYYY-MM-01
+    month: varchar("month", { length: 10 }).notNull(), // ISO format YYYY-MM-01
     category_id: text("category_id").notNull(),
     amount_idr: bigint("amount_idr", { mode: "number" }).notNull(), // Signed bigint in Rupiah
     created_at: timestamp("created_at", { withTimezone: true }).$default(

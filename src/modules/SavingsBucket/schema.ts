@@ -1,10 +1,16 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  varchar,
+} from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // Drizzle schema
 export const savingsBuckets = pgTable("savings_buckets", {
   id: text("id").primaryKey(), // UUID as text
-  name: text("name").notNull().unique(),
+  name: varchar("name", { length: 255 }).notNull().unique(),
   description: text("description"),
   archived: boolean("archived").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).$default(
