@@ -42,7 +42,7 @@
   - Update type mappings (text → varchar where appropriate, integer → timestamp handling)
   - Create `/src/modules/Wallet/schema.test.ts` to validate PostgreSQL types
 
-- [ ] **Step 4a (follow-up)**: Tighten string column types (text → varchar with explicit max length) **AND** update tests
+- [x] **Step 4a (follow-up)**: Tighten string column types (text → varchar with explicit max length) **AND** update tests
   - Identify columns with _clear, stable maximum length_ and convert them to `varchar(n)` in Drizzle schemas (keep `text` for free-form/notes/descriptions)
   - Add/adjust schema tests to assert `varchar(n)` for the selected columns
 
@@ -68,16 +68,19 @@
   - Verify generated SQL in `/drizzle/` folder
   - Create `/drizzle/migration.test.ts` to validate migration SQL
 
-- [ ] **Step 9a (follow-up)**: Regenerate PostgreSQL migration after varchar changes **AND** update migration validation test
+- [x] **Step 9a (follow-up)**: Regenerate PostgreSQL migration after varchar changes **AND** update migration validation test
   - Re-run migration generation after updating schemas to `varchar(n)` for selected columns
   - Update `/drizzle/migration.test.ts` expectations so it asserts the new `varchar(n)` column types (and no longer expects `text` for those specific columns)
 
 ### Phase 3: Raw SQL Client Migration
 
-- [ ] **Step 10**: Replace SQLite client with PostgreSQL client **AND** create client test suite
-  - Replace `/src/db/client.ts` to use PostgreSQL driver
-  - Implement PostgreSQL connection pooling
-  - Create `/src/db/client.test.ts` for connection and query testing
+- [x] **Step 10**: Replace SQLite client with PostgreSQL client **AND** create client test suite ✅
+  - ✅ Replaced `/src/db/client.ts` to use PostgreSQL driver (`postgres` library)
+  - ✅ Implemented PostgreSQL connection pooling with proper configuration
+  - ✅ Created `/src/db/client.test.ts` for connection and query testing
+  - ✅ Added comprehensive error handling and logging
+  - ✅ Included utility functions for parameterized queries and error formatting
+  - ✅ Added health checks, connection statistics, and graceful shutdown
 
 - [ ] **Step 11**: Convert all SQL query helpers for PostgreSQL **AND** create query helper tests
   - Update `all()`, `get()`, `run()`, `transaction()` functions
