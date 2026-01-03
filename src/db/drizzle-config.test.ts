@@ -5,6 +5,12 @@ import { getDatabaseConfig } from "./config";
 import { fileURLToPath } from "url";
 import { resolve } from "path";
 
+type DrizzleKitConfigWithDbCredentials = Config & {
+  dbCredentials?: {
+    url?: string;
+  };
+};
+
 // Get current directory
 const __filename = fileURLToPath(import.meta.url);
 
@@ -53,8 +59,9 @@ describe("Drizzle Configuration for PostgreSQL", () => {
     });
 
     it("should use DATABASE_URL from environment", () => {
-      expect(drizzleConfig.dbCredentials.url).toBeDefined();
-      expect(drizzleConfig.dbCredentials.url).toBe(process.env.DATABASE_URL);
+      const config = drizzleConfig as DrizzleKitConfigWithDbCredentials;
+      expect(config.dbCredentials?.url).toBeDefined();
+      expect(config.dbCredentials?.url).toBe(process.env.DATABASE_URL);
     });
 
     it("should throw error when DATABASE_URL is not set", () => {
@@ -74,7 +81,8 @@ describe("Drizzle Configuration for PostgreSQL", () => {
     });
 
     it("should have valid PostgreSQL connection string format", () => {
-      const dbUrl = drizzleConfig.dbCredentials.url;
+      const config = drizzleConfig as DrizzleKitConfigWithDbCredentials;
+      const dbUrl = config.dbCredentials?.url;
 
       if (dbUrl) {
         expect(dbUrl).toMatch(/^postgresql:\/\//);
@@ -89,7 +97,7 @@ describe("Drizzle Configuration for PostgreSQL", () => {
     });
 
     it("should have all required Config properties", () => {
-      const config = drizzleConfig as Config;
+      const config = drizzleConfig as DrizzleKitConfigWithDbCredentials;
       expect(config.schema).toBeDefined();
       expect(config.out).toBeDefined();
       expect(config.dialect).toBeDefined();
@@ -115,13 +123,15 @@ describe("Drizzle Configuration for PostgreSQL", () => {
     });
 
     it("should be ready for push command", () => {
-      expect(drizzleConfig.dbCredentials).toBeDefined();
-      expect(drizzleConfig.dbCredentials.url).toBeDefined();
+      const config = drizzleConfig as DrizzleKitConfigWithDbCredentials;
+      expect(config.dbCredentials).toBeDefined();
+      expect(config.dbCredentials?.url).toBeDefined();
     });
 
     it("should be ready for migrate command", () => {
-      expect(drizzleConfig.dbCredentials).toBeDefined();
-      expect(drizzleConfig.out).toBeDefined();
+      const config = drizzleConfig as DrizzleKitConfigWithDbCredentials;
+      expect(config.dbCredentials).toBeDefined();
+      expect(config.out).toBeDefined();
     });
   });
 
@@ -133,7 +143,8 @@ describe("Drizzle Configuration for PostgreSQL", () => {
 
     it("should use same DATABASE_URL as database config", () => {
       const dbConfig = getDatabaseConfig();
-      const drizzleUrl = drizzleConfig.dbCredentials.url;
+      const config = drizzleConfig as DrizzleKitConfigWithDbCredentials;
+      const drizzleUrl = config.dbCredentials?.url;
 
       if (dbConfig.url && drizzleUrl) {
         expect(drizzleUrl).toBe(dbConfig.url);
@@ -195,7 +206,7 @@ describe("Drizzle Configuration for PostgreSQL", () => {
       expect(drizzleConfig.dialect).toBe("postgresql");
 
       // PostgreSQL-specific expectations
-      const config = drizzleConfig as Config;
+      const config = drizzleConfig as DrizzleKitConfigWithDbCredentials;
       expect(config.dbCredentials).toHaveProperty("url");
     });
 
@@ -249,7 +260,8 @@ describe("Drizzle Configuration for PostgreSQL", () => {
       delete process.env.DATABASE_URL;
 
       // Config object should still be valid, but connection will fail at runtime
-      expect(drizzleConfig.dbCredentials.url).toBeUndefined();
+      const config = drizzleConfig as DrizzleKitConfigWithDbCredentials;
+      expect(config.dbCredentials?.url).toBeUndefined();
 
       // Restore
       if (originalUrl) {
