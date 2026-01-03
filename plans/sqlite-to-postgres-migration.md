@@ -39,8 +39,12 @@
 
 - [x] **Step 4**: Convert Wallet module schema to PostgreSQL **AND** create schema validation test
   - Update `/src/modules/Wallet/schema.ts` from `sqliteTable` to `pgTable`
-  - Update type mappings (text → varchar, integer → timestamp handling)
+  - Update type mappings (text → varchar where appropriate, integer → timestamp handling)
   - Create `/src/modules/Wallet/schema.test.ts` to validate PostgreSQL types
+
+- [ ] **Step 4a (follow-up)**: Tighten string column types (text → varchar with explicit max length) **AND** update tests
+  - Identify columns with _clear, stable maximum length_ and convert them to `varchar(n)` in Drizzle schemas (keep `text` for free-form/notes/descriptions)
+  - Add/adjust schema tests to assert `varchar(n)` for the selected columns
 
 - [x] **Step 5**: Convert Category module schema to PostgreSQL **AND** create schema validation test
   - Update `/src/modules/Category/schema.ts` to PostgreSQL types
@@ -63,6 +67,10 @@
   - Run `pnpm drizzle-kit generate:pg` to create new migration files
   - Verify generated SQL in `/drizzle/` folder
   - Create `/drizzle/migration.test.ts` to validate migration SQL
+
+- [ ] **Step 9a (follow-up)**: Regenerate PostgreSQL migration after varchar changes **AND** update migration validation test
+  - Re-run migration generation after updating schemas to `varchar(n)` for selected columns
+  - Update `/drizzle/migration.test.ts` expectations so it asserts the new `varchar(n)` column types (and no longer expects `text` for those specific columns)
 
 ### Phase 3: Raw SQL Client Migration
 
@@ -119,8 +127,12 @@
 3. **UUID Handling**: Use PostgreSQL's UUID type instead of text
 4. **Timestamp Handling**: Use PostgreSQL timestamp types instead of integer epoch
 5. **Enum Types**: Create PostgreSQL enum types for categorical data
-6. **Index Optimization**: Optimize indexes for PostgreSQL query planner
-7. **JSON Support**: Leverage PostgreSQL JSON types where applicable
+6. **String Types (text vs varchar)**:
+   - Use `varchar(n)` only for columns with a clear, stable maximum length (enforced at the DB level)
+   - Keep `text` for free-form inputs (notes, descriptions, payee) and any field where limits may evolve
+   - When switching `text → varchar(n)` on existing tables, validate current data lengths before applying the migration
+7. **Index Optimization**: Optimize indexes for PostgreSQL query planner
+8. **JSON Support**: Leverage PostgreSQL JSON types where applicable
 
 ## Rollback Strategy
 
