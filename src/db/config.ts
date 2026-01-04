@@ -5,18 +5,24 @@
  * for the Sugih personal finance application using PostgreSQL.
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // Environment variable schema validation
 const EnvSchema = z.object({
-  DATABASE_URL: z.string().url('DATABASE_URL must be a valid URL'),
+  DATABASE_URL: z.string().optional(),
   PGHOST: z.string().optional(),
-  PGPORT: z.string().transform(val => val ? parseInt(val, 10) : 5432).optional(),
+  PGPORT: z
+    .string()
+    .transform((val) => (val ? parseInt(val, 10) : 5432))
+    .optional(),
   PGUSER: z.string().optional(),
   PGPASSWORD: z.string().optional(),
   PGDATABASE: z.string().optional(),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.string().transform(val => val ? parseInt(val, 10) : 3000).optional(),
+  NODE_ENV: z.enum(["development", "production", "test"]).optional(),
+  PORT: z
+    .string()
+    .transform((val) => (val ? parseInt(val, 10) : 3000))
+    .optional(),
 });
 
 // Database connection configuration
@@ -27,10 +33,20 @@ export interface DatabaseConfig {
   user: string;
   password: string;
   database: string;
-  ssl?: boolean;
-  connectionTimeout?: number;
-  idleTimeout?: number;
-  maxConnections?: number;
+  ssl: boolean;
+  connectionTimeout: number;
+  idleTimeout: number;
+  maxConnections: number;
+}
+
+// Check if a string is a valid PostgreSQL URL
+function isValidPostgresUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    return url.protocol === "postgresql:" || url.protocol === "postgres:";
+  } catch {
+    return false;
+  }
 }
 
 // Parse connection string
@@ -40,28 +56,31 @@ function parseConnectionString(url: string): {
   user: string;
   password: string;
   database: string;
-  ssl?: boolean;
+  ssl: boolean;
 } {
-  try {
-    const parsedUrl = new URL(url);
-
-    return {
-      host: parsedUrl.hostname,
-      port: parsedUrl.port ? parseInt(parsedUrl.port, 10) : 5432,
-      user: parsedUrl.username,
-      password: parsedUrl.password,
-      database: parsedUrl.pathname.slice(1), // Remove leading slash
-      ssl: parsedUrl.searchParams.get('ssl') === 'true',
-    };
-  } catch (error) {
+  if (!isValidPostgresUrl(url)) {
     throw new Error(`Invalid database URL format: ${url}`);
   }
+
+  const parsedUrl = new URL(url);
+
+  // Handle IPv6 addresses (hostname removes the brackets)
+  const host = parsedUrl.hostname;
+
+  return {
+    host,
+    port: parsedUrl.port ? parseInt(parsedUrl.port, 10) : 5432,
+    user: decodeURIComponent(parsedUrl.username),
+    password: decodeURIComponent(parsedUrl.password),
+    database: parsedUrl.pathname.slice(1), // Remove leading slash
+    ssl: parsedUrl.searchParams.get("ssl") === "true",
+  };
 }
 
 // Build connection string from individual components
 export function buildConnectionString(config: Partial<DatabaseConfig>): string {
   const {
-    host = 'localhost',
+    host = "localhost",
     port = 5432,
     user,
     password,
@@ -69,27 +88,42 @@ export function buildConnectionString(config: Partial<DatabaseConfig>): string {
     ssl = false,
   } = config;
 
-  if (!user || !database) {
-    throw new Error('User and database are required to build connection string');
+  if (!user) {
+    throw new Error(
+      "User and database are required to build connection string",
+    );
+  }
+
+  if (!database) {
+    throw new Error(
+      "User and database are required to build connection string",
+    );
   }
 
   const auth = password ? `${user}:${password}` : user;
-  const sslParam = ssl ? '?ssl=true' : '';
+  const sslParam = ssl ? "?ssl=true" : "";
 
   return `postgresql://${auth}@${host}:${port}/${database}${sslParam}`;
 }
 
 // Default configuration for different environments
-const getDefaultConfig = (env: string): Partial<DatabaseConfig> => {
+const getDefaultConfig = (
+  env: string,
+): {
+  connectionTimeout: number;
+  idleTimeout: number;
+  maxConnections: number;
+  ssl: boolean;
+} => {
   switch (env) {
-    case 'production':
+    case "production":
       return {
         connectionTimeout: 10000, // 10 seconds
         idleTimeout: 30000, // 30 seconds
         maxConnections: 20,
         ssl: true,
       };
-    case 'test':
+    case "test":
       return {
         connectionTimeout: 5000, // 5 seconds
         idleTimeout: 10000, // 10 seconds
@@ -120,12 +154,15 @@ function parseEnvironmentVariables(): DatabaseConfig {
   };
 
   const validatedEnv = EnvSchema.parse(envVars);
-  const environment = validatedEnv.NODE_ENV;
+  const environment = validatedEnv.NODE_ENV || "development";
+  const defaults = getDefaultConfig(environment);
 
   // If DATABASE_URL is provided, use it as the primary source
   if (validatedEnv.DATABASE_URL) {
     const parsed = parseConnectionString(validatedEnv.DATABASE_URL);
-    const defaults = getDefaultConfig(environment);
+
+    // SSL from URL takes precedence over environment default
+    const ssl = parsed.ssl || defaults.ssl;
 
     return {
       url: validatedEnv.DATABASE_URL,
@@ -134,42 +171,59 @@ function parseEnvironmentVariables(): DatabaseConfig {
       user: parsed.user,
       password: parsed.password,
       database: parsed.database,
-      ssl: parsed.ssl,
-      ...defaults,
+      ssl,
+      connectionTimeout: defaults.connectionTimeout,
+      idleTimeout: defaults.idleTimeout,
+      maxConnections: defaults.maxConnections,
     };
   }
 
   // Otherwise, build from individual environment variables
   if (!validatedEnv.PGUSER || !validatedEnv.PGDATABASE) {
     throw new Error(
-      'Either DATABASE_URL or PGUSER and PGDATABASE must be provided'
+      "Either DATABASE_URL or PGUSER and PGDATABASE must be provided",
     );
   }
 
-  const defaults = getDefaultConfig(environment);
+  const host = validatedEnv.PGHOST || "localhost";
+  const port = validatedEnv.PGPORT || 5432;
+  const user = validatedEnv.PGUSER;
+  const password = validatedEnv.PGPASSWORD || "";
+  const database = validatedEnv.PGDATABASE;
+
   const connectionString = buildConnectionString({
-    host: validatedEnv.PGHOST,
-    port: validatedEnv.PGPORT,
-    user: validatedEnv.PGUSER,
-    password: validatedEnv.PGPASSWORD,
-    database: validatedEnv.PGDATABASE,
-    ssl: false, // Default for individual var config
+    host,
+    port,
+    user,
+    password,
+    database,
+    ssl: false,
   });
 
   return {
     url: connectionString,
-    host: validatedEnv.PGHOST || 'localhost',
-    port: validatedEnv.PGPORT || 5432,
-    user: validatedEnv.PGUSER,
-    password: validatedEnv.PGPASSWORD || '',
-    database: validatedEnv.PGDATABASE,
+    host,
+    port,
+    user,
+    password,
+    database,
     ssl: false,
-    ...defaults,
+    connectionTimeout: defaults.connectionTimeout,
+    idleTimeout: defaults.idleTimeout,
+    maxConnections: defaults.maxConnections,
   };
 }
 
 // Singleton configuration instance
 let cachedConfig: DatabaseConfig | null = null;
+
+/**
+ * Reset the cached configuration (for testing purposes)
+ * @internal
+ */
+export function _resetConfigForTesting(): void {
+  cachedConfig = null;
+}
 
 /**
  * Get the database configuration
@@ -185,15 +239,8 @@ export function getDatabaseConfig(): DatabaseConfig {
     return cachedConfig;
   }
 
-  try {
-    cachedConfig = parseEnvironmentVariables();
-    return cachedConfig;
-  } catch (error) {
-    console.error('Database configuration error:', error);
-    throw new Error(
-      `Failed to load database configuration: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-  }
+  cachedConfig = parseEnvironmentVariables();
+  return cachedConfig;
 }
 
 /**
@@ -209,23 +256,26 @@ export function validateConfig(config: Partial<DatabaseConfig>): {
   const errors: string[] = [];
 
   if (!config.url && (!config.host || !config.database)) {
-    errors.push('Either url or (host and database) must be provided');
+    errors.push("Either url or (host and database) must be provided");
   }
 
-  if (config.port && (config.port < 1 || config.port > 65535)) {
-    errors.push('Port must be between 1 and 65535');
+  if (config.port !== undefined && (config.port < 1 || config.port > 65535)) {
+    errors.push("Port must be between 1 and 65535");
   }
 
-  if (config.maxConnections && config.maxConnections < 1) {
-    errors.push('Max connections must be at least 1');
+  if (config.maxConnections !== undefined && config.maxConnections < 1) {
+    errors.push("Max connections must be at least 1");
   }
 
-  if (config.connectionTimeout && config.connectionTimeout < 1000) {
-    errors.push('Connection timeout should be at least 1000ms');
+  if (
+    config.connectionTimeout !== undefined &&
+    config.connectionTimeout < 1000
+  ) {
+    errors.push("Connection timeout should be at least 1000ms");
   }
 
-  if (config.idleTimeout && config.idleTimeout < 1000) {
-    errors.push('Idle timeout should be at least 1000ms');
+  if (config.idleTimeout !== undefined && config.idleTimeout < 1000) {
+    errors.push("Idle timeout should be at least 1000ms");
   }
 
   return {
@@ -238,21 +288,21 @@ export function validateConfig(config: Partial<DatabaseConfig>): {
  * Check if running in production environment
  */
 export function isProduction(): boolean {
-  return process.env.NODE_ENV === 'production';
+  return process.env.NODE_ENV === "production";
 }
 
 /**
  * Check if running in test environment
  */
 export function isTest(): boolean {
-  return process.env.NODE_ENV === 'test';
+  return process.env.NODE_ENV === "test";
 }
 
 /**
  * Check if running in development environment
  */
 export function isDevelopment(): boolean {
-  return process.env.NODE_ENV === 'development';
+  return !isProduction() && !isTest();
 }
 
 /**
@@ -268,7 +318,7 @@ export function getEnvironmentConfig(): {
   const config = getDatabaseConfig();
 
   return {
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env.NODE_ENV || "development",
     isProduction: isProduction(),
     isTest: isTest(),
     isDevelopment: isDevelopment(),
