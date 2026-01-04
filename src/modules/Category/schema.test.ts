@@ -1,198 +1,203 @@
-import { describe, it, expect } from 'vitest';
-import { categories, CategoryCreateSchema, CategoryUpdateSchema, CategoryIdSchema } from './schema';
+import { describe, it, expect } from "vitest";
+import {
+  categories,
+  CategoryCreateSchema,
+  CategoryUpdateSchema,
+  CategoryIdSchema,
+} from "./schema";
 
 // Test data
 const validCategoryData = {
-  id: '550e8400-e29b-41d4-a716-446655440000',
-  name: 'Food & Dining',
+  id: "550e8400-e29b-41d4-a716-446655440000",
+  name: "Food & Dining",
   archived: false,
-  created_at: new Date('2024-01-01T00:00:00Z'),
-  updated_at: new Date('2024-01-01T00:00:00Z'),
+  created_at: new Date("2024-01-01T00:00:00Z"),
+  updated_at: new Date("2024-01-01T00:00:00Z"),
 };
 
 const validCategoryInput = {
-  name: 'Food & Dining',
+  name: "Food & Dining",
 };
 
 const validCategoryUpdate = {
-  name: 'Updated Category Name',
+  name: "Updated Category Name",
   archived: true,
 };
 
-describe('Category PostgreSQL Schema Validation', () => {
-  describe('Schema Structure', () => {
-    it('should be defined as a valid Drizzle table', () => {
+describe("Category PostgreSQL Schema Validation", () => {
+  describe("Schema Structure", () => {
+    it("should be defined as a valid Drizzle table", () => {
       expect(categories).toBeDefined();
-      expect(typeof categories).toBe('object');
+      expect(typeof categories).toBe("object");
     });
 
-    it('should have all expected columns', () => {
-      expect(categories).toHaveProperty('id');
-      expect(categories).toHaveProperty('name');
-      expect(categories).toHaveProperty('archived');
-      expect(categories).toHaveProperty('created_at');
-      expect(categories).toHaveProperty('updated_at');
-    });
-  });
-
-  describe('Column Definitions', () => {
-    describe('id column', () => {
-      it('should be defined', () => {
-        expect(categories.id).toBeDefined();
-      });
-
-      it('should be primary key', () => {
-        expect(categories.id).toBeDefined();
-      });
-    });
-
-    describe('name column', () => {
-      it('should be defined', () => {
-        expect(categories.name).toBeDefined();
-      });
-
-      it('should have unique constraint', () => {
-        expect(categories.name).toBeDefined();
-      });
-    });
-
-    describe('archived column', () => {
-      it('should be defined', () => {
-        expect(categories.archived).toBeDefined();
-      });
-
-      it('should have default value', () => {
-        expect(categories.archived).toBeDefined();
-      });
-    });
-
-    describe('created_at column', () => {
-      it('should be defined', () => {
-        expect(categories.created_at).toBeDefined();
-      });
-
-      it('should have default value', () => {
-        expect(categories.created_at).toBeDefined();
-      });
-    });
-
-    describe('updated_at column', () => {
-      it('should be defined', () => {
-        expect(categories.updated_at).toBeDefined();
-      });
-
-      it('should have default value', () => {
-        expect(categories.updated_at).toBeDefined();
-      });
+    it("should have all expected columns", () => {
+      expect(categories).toHaveProperty("id");
+      expect(categories).toHaveProperty("name");
+      expect(categories).toHaveProperty("archived");
+      expect(categories).toHaveProperty("created_at");
+      expect(categories).toHaveProperty("updated_at");
     });
   });
 
-  describe('Zod Schema Validation', () => {
-    describe('CategoryCreateSchema', () => {
-      it('should be defined', () => {
+  describe("Column Definitions", () => {
+    describe("id column", () => {
+      it("should be defined", () => {
+        expect(categories.id).toBeDefined();
+      });
+
+      it("should be primary key", () => {
+        expect(categories.id).toBeDefined();
+      });
+    });
+
+    describe("name column", () => {
+      it("should be defined", () => {
+        expect(categories.name).toBeDefined();
+      });
+
+      it("should have unique constraint", () => {
+        expect(categories.name).toBeDefined();
+      });
+    });
+
+    describe("archived column", () => {
+      it("should be defined", () => {
+        expect(categories.archived).toBeDefined();
+      });
+
+      it("should have default value", () => {
+        expect(categories.archived).toBeDefined();
+      });
+    });
+
+    describe("created_at column", () => {
+      it("should be defined", () => {
+        expect(categories.created_at).toBeDefined();
+      });
+
+      it("should have default value", () => {
+        expect(categories.created_at).toBeDefined();
+      });
+    });
+
+    describe("updated_at column", () => {
+      it("should be defined", () => {
+        expect(categories.updated_at).toBeDefined();
+      });
+
+      it("should have default value", () => {
+        expect(categories.updated_at).toBeDefined();
+      });
+    });
+  });
+
+  describe("Zod Schema Validation", () => {
+    describe("CategoryCreateSchema", () => {
+      it("should be defined", () => {
         expect(CategoryCreateSchema).toBeDefined();
       });
 
-      it('should validate correct category creation data', () => {
+      it("should validate correct category creation data", () => {
         const result = CategoryCreateSchema.safeParse(validCategoryInput);
         expect(result.success).toBe(true);
       });
 
-      it('should reject empty name', () => {
+      it("should reject empty name", () => {
         const result = CategoryCreateSchema.safeParse({
-          name: '',
+          name: "",
         });
         expect(result.success).toBe(false);
       });
 
-      it('should reject missing required fields', () => {
+      it("should reject missing required fields", () => {
         const result = CategoryCreateSchema.safeParse({});
         expect(result.success).toBe(false);
       });
 
-      it('should accept optional fields', () => {
+      it("should accept optional fields", () => {
         const result = CategoryCreateSchema.safeParse({
-          name: 'Test Category',
+          name: "Test Category",
         });
         expect(result.success).toBe(true);
       });
 
-      it('should validate name length', () => {
+      it("should validate name length", () => {
         const result = CategoryCreateSchema.safeParse({
-          name: 'a'.repeat(255),
+          name: "a".repeat(255),
         });
         expect(result.success).toBe(true);
       });
 
-      it('should reject overly long name', () => {
+      it("should reject overly long name", () => {
         const result = CategoryCreateSchema.safeParse({
-          name: 'a'.repeat(256),
+          name: "a".repeat(256),
         });
         expect(result.success).toBe(false);
       });
     });
 
-    describe('CategoryUpdateSchema', () => {
-      it('should be defined', () => {
+    describe("CategoryUpdateSchema", () => {
+      it("should be defined", () => {
         expect(CategoryUpdateSchema).toBeDefined();
       });
 
-      it('should validate correct category update data', () => {
+      it("should validate correct category update data", () => {
         const result = CategoryUpdateSchema.safeParse(validCategoryUpdate);
         expect(result.success).toBe(true);
       });
 
-      it('should accept partial updates', () => {
+      it("should accept partial updates", () => {
         const result = CategoryUpdateSchema.safeParse({
-          name: 'Updated Name',
+          name: "Updated Name",
         });
         expect(result.success).toBe(true);
       });
 
-      it('should accept boolean for archived field', () => {
+      it("should accept boolean for archived field", () => {
         const result = CategoryUpdateSchema.safeParse({
           archived: true,
         });
         expect(result.success).toBe(true);
       });
 
-      it('should accept multiple field updates', () => {
+      it("should accept multiple field updates", () => {
         const result = CategoryUpdateSchema.safeParse({
-          name: 'New Name',
+          name: "New Name",
           archived: true,
         });
         expect(result.success).toBe(true);
       });
     });
 
-    describe('CategoryIdSchema', () => {
-      it('should be defined', () => {
+    describe("CategoryIdSchema", () => {
+      it("should be defined", () => {
         expect(CategoryIdSchema).toBeDefined();
       });
 
-      it('should validate correct UUID format', () => {
+      it("should validate correct nanoid format", () => {
         const result = CategoryIdSchema.safeParse({
-          id: '550e8400-e29b-41d4-a716-446655440000',
+          id: "cPRN4GwjAn0EhLig1KJla",
         });
         expect(result.success).toBe(true);
       });
 
-      it('should reject invalid UUID format', () => {
+      it("should reject empty category ID", () => {
         const result = CategoryIdSchema.safeParse({
-          id: 'not-a-uuid',
+          id: "",
         });
         expect(result.success).toBe(false);
       });
 
-      it('should reject missing id', () => {
+      it("should reject missing id", () => {
         const result = CategoryIdSchema.safeParse({});
         expect(result.success).toBe(false);
       });
     });
   });
 
-  describe('Type Safety', () => {
-    it('should have compatible data types', () => {
+  describe("Type Safety", () => {
+    it("should have compatible data types", () => {
       // These should not throw errors
       const category = validCategoryData;
       const createInput = validCategoryInput;
@@ -206,8 +211,8 @@ describe('Category PostgreSQL Schema Validation', () => {
     });
   });
 
-  describe('PostgreSQL Type Mappings', () => {
-    it('should use PostgreSQL types', () => {
+  describe("PostgreSQL Type Mappings", () => {
+    it("should use PostgreSQL types", () => {
       // Verify that the schema is using PostgreSQL types
       expect(categories.id).toBeDefined();
       expect(categories.name).toBeDefined();
@@ -217,141 +222,140 @@ describe('Category PostgreSQL Schema Validation', () => {
     });
   });
 
-  describe('Constraints and Defaults', () => {
-    it('should enforce primary key constraint on id', () => {
+  describe("Constraints and Defaults", () => {
+    it("should enforce primary key constraint on id", () => {
       expect(categories.id).toBeDefined();
     });
 
-    it('should enforce unique constraint on name', () => {
+    it("should enforce unique constraint on name", () => {
       expect(categories.name).toBeDefined();
     });
 
-    it('should have correct default values', () => {
+    it("should have correct default values", () => {
       expect(categories.archived).toBeDefined();
     });
 
-    it('should have timestamp defaults for created_at and updated_at', () => {
+    it("should have timestamp defaults for created_at and updated_at", () => {
       expect(categories.created_at).toBeDefined();
       expect(categories.updated_at).toBeDefined();
     });
   });
 
-  describe('UUID Handling', () => {
-    it('should handle UUID strings in id column', () => {
-      const uuid = '550e8400-e29b-41d4-a716-446655440000';
-      const result = CategoryIdSchema.safeParse({ id: uuid });
+  describe("ID Format Handling", () => {
+    it("should handle nanoid strings in id column", () => {
+      const nanoid = "cPRN4GwjAn0EhLig1KJla";
+      const result = CategoryIdSchema.safeParse({ id: nanoid });
       expect(result.success).toBe(true);
     });
 
-    it('should validate UUID format', () => {
-      const validUuid = '550e8400-e29b-41d4-a716-446655440000';
-      const invalidUuid = 'not-a-uuid';
+    it("should validate ID format", () => {
+      const validId = "cPRN4GwjAn0EhLig1KJla";
+      const emptyId = "";
 
-      const validResult = CategoryIdSchema.safeParse({ id: validUuid });
-      const invalidResult = CategoryIdSchema.safeParse({ id: invalidUuid });
+      const validResult = CategoryIdSchema.safeParse({ id: validId });
+      const invalidResult = CategoryIdSchema.safeParse({ id: emptyId });
 
       expect(validResult.success).toBe(true);
       expect(invalidResult.success).toBe(false);
     });
   });
 
-  describe('Edge Cases', () => {
-    it('should handle maximum length strings', () => {
-      const longName = 'a'.repeat(255);
+  describe("Edge Cases", () => {
+    it("should handle maximum length strings", () => {
+      const longName = "a".repeat(255);
       const result = CategoryCreateSchema.safeParse({
         name: longName,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should handle empty string for name', () => {
+    it("should handle empty string for name", () => {
       const result = CategoryCreateSchema.safeParse({
-        name: '',
+        name: "",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should handle special characters in name', () => {
+    it("should handle special characters in name", () => {
       const specialNames = [
-        'Food & Dining',
-        'Travel/Transportation',
-        'Shopping (Clothing)',
-        'Home:Maintenance',
-        'Entertainment:Movies',
+        "Food & Dining",
+        "Travel/Transportation",
+        "Shopping (Clothing)",
+        "Home:Maintenance",
+        "Entertainment:Movies",
       ];
 
-      specialNames.forEach(name => {
+      specialNames.forEach((name) => {
         const result = CategoryCreateSchema.safeParse({ name });
         expect(result.success).toBe(true);
       });
     });
 
-    it('should handle unicode characters in name', () => {
+    it("should handle unicode characters in name", () => {
       const unicodeNames = [
-        '食物与餐饮',
-        'Развлечения',
-        'Éducation',
-        '🚀 Gaming',
-        '📚 Books',
+        "食物与餐饮",
+        "Развлечения",
+        "Éducation",
+        "🚀 Gaming",
+        "📚 Books",
       ];
 
-      unicodeNames.forEach(name => {
+      unicodeNames.forEach((name) => {
         const result = CategoryCreateSchema.safeParse({ name });
         expect(result.success).toBe(true);
       });
     });
   });
 
-  describe('Backward Compatibility', () => {
-    it('should maintain same field names as SQLite version', () => {
+  describe("Backward Compatibility", () => {
+    it("should maintain same field names as SQLite version", () => {
       const expectedFields = [
-        'id',
-        'name',
-        'archived',
-        'created_at',
-        'updated_at',
+        "id",
+        "name",
+        "archived",
+        "created_at",
+        "updated_at",
       ];
 
-      expectedFields.forEach(field => {
+      expectedFields.forEach((field) => {
         expect(categories).toHaveProperty(field);
       });
     });
 
-    it('should maintain same validation rules', () => {
-      const result = CategoryCreateSchema.safeParse({ name: '' });
+    it("should maintain same validation rules", () => {
+      const result = CategoryCreateSchema.safeParse({ name: "" });
       expect(result.success).toBe(false);
 
-      const result2 = CategoryCreateSchema.safeParse({ name: 'Valid Name' });
+      const result2 = CategoryCreateSchema.safeParse({ name: "Valid Name" });
       expect(result2.success).toBe(true);
     });
   });
 
-  describe('Data Integrity', () => {
-    it('should validate required fields', () => {
+  describe("Data Integrity", () => {
+    it("should validate required fields", () => {
       const result = CategoryCreateSchema.safeParse({});
       expect(result.success).toBe(false);
     });
 
-    it('should validate field types', () => {
+    it("should validate field types", () => {
       const result = CategoryUpdateSchema.safeParse({
         name: 123,
-        archived: 'true',
+        archived: "true",
       });
       expect(result.success).toBe(false);
     });
 
-    it('should accept valid field types', () => {
+    it("should accept valid field types", () => {
       const result = CategoryUpdateSchema.safeParse({
-        name: 'Valid Name',
+        name: "Valid Name",
         archived: true,
       });
       expect(result.success).toBe(true);
     });
   });
 
-  describe('Schema Migration Readiness', () => {
-
-    it('should generate valid PostgreSQL column definitions', () => {
+  describe("Schema Migration Readiness", () => {
+    it("should generate valid PostgreSQL column definitions", () => {
       expect(categories.id).toBeDefined();
       expect(categories.name).toBeDefined();
       expect(categories.archived).toBeDefined();

@@ -35,7 +35,10 @@ export const CategoryUpdateSchema = z.object({
 });
 
 export const CategoryIdSchema = z.object({
-  id: z.uuid("Invalid category ID"),
+  id: z
+    .string()
+    .min(1, "Category ID is required")
+    .max(50, "Invalid category ID"),
 });
 
 // Type exports for TypeScript

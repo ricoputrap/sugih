@@ -104,9 +104,15 @@
   - ✅ Created `/src/app/api/wallets/[id]/route.test.ts` with 41 comprehensive tests
   - ✅ Tests cover: CRUD operations, error handling, edge cases, PostgreSQL errors
 
-- [ ] **Step 13**: Update Category API routes **AND** create comprehensive API tests
-  - Update all category API routes for PostgreSQL compatibility
-  - Create corresponding test files for each category endpoint
+- [x] **Step 13**: Update Category API routes **AND** create comprehensive API tests
+  - Created `/src/modules/Category/actions.ts` with full CRUD operations
+  - Created `/src/app/api/categories/route.ts` (GET, POST) with PostgreSQL error handling
+  - Created `/src/app/api/categories/[id]/route.ts` (GET, PATCH, DELETE) with PostgreSQL error handling
+  - Created `/src/app/api/categories/route.test.ts` (32 tests) covering all endpoints and error cases
+  - Created `/src/app/api/categories/[id]/route.test.ts` (41 tests) covering individual category operations
+  - Fixed `CategoryIdSchema` to accept nanoid format instead of UUID
+  - Added comprehensive PostgreSQL constraint error handling (23505, 23503, 23502, 23514)
+  - All 629 tests passing
 
 - [ ] **Step 14**: Update SavingsBucket API routes **AND** create comprehensive API tests
   - Update all savings bucket API routes for PostgreSQL compatibility
