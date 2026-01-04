@@ -150,9 +150,9 @@ describe('Wallet PostgreSQL Schema Validation', () => {
         expect(result.success).toBe(true);
       });
 
-      it('should reject invalid UUID format', () => {
+      it('should reject empty wallet ID', () => {
         const result = WalletIdSchema.safeParse({
-          id: 'not-a-uuid',
+          id: '',
         });
         expect(result.success).toBe(false);
       });

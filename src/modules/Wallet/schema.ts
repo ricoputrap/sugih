@@ -45,7 +45,7 @@ export const WalletUpdateSchema = z.object({
 });
 
 export const WalletIdSchema = z.object({
-  id: z.uuid("Invalid wallet ID"),
+  id: z.string().min(1, "Wallet ID is required").max(50, "Invalid wallet ID"),
 });
 
 // Type exports for TypeScript
