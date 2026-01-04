@@ -201,11 +201,11 @@ Deliverable: Reference data CRUD fully functional with desktop-first UIs.
       - bucket `-X`
       - wallet `+X`
   - Use a single SQL transaction (`BEGIN`/`COMMIT`/`ROLLBACK`) per create.
-- [ ] **Step 4.3**: Implement list/read models
+- [x] **Step 4.3**: Implement list/read models
   - `listTransactions(query)` should return:
     - event fields
     - joined category name (expense only)
-    - derived “display amount” and involved wallet/bucket IDs
+    - derived "display amount" and involved wallet/bucket IDs
 - [ ] **Step 4.4**: API routes
   - `POST /api/transactions/expense`
   - `POST /api/transactions/income`

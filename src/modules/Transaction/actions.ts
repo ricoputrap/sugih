@@ -33,13 +33,20 @@ export interface TransactionWithPostings extends TransactionEvent {
  */
 export async function listTransactions(
   query: TransactionListQueryInput | Record<string, unknown>,
-): Promise<TransactionWithPostings[]> {
+): Promise<
+  (TransactionEvent & {
+    category_name?: string | null;
+    display_amount_idr: number;
+    display_account: string;
+    postings: Posting[];
+  })[]
+> {
   const db = getDb();
 
   try {
     const validatedQuery = TransactionListQuerySchema.parse(query);
 
-    // Build base query
+    // Build base query with joins for category names and account identifiers
     let whereConditions: string[] = ["te.deleted_at IS NULL"];
     const params: any[] = [];
     let paramIndex = 1;
@@ -78,28 +85,42 @@ export async function listTransactions(
 
     const whereClause = whereConditions.join(" AND ");
 
-    // Get transaction events
-    const events = await db<TransactionEvent[]>`
+    // Get transaction events with category names (LEFT JOIN for expenses only)
+    const events = await db<
+      Array<TransactionEvent & { category_name: string | null }>
+    >`
       SELECT
-        id, occurred_at, type, note, payee, category_id,
-        deleted_at, created_at, updated_at, idempotency_key
+        te.id, te.occurred_at, te.type, te.note, te.payee, te.category_id,
+        te.deleted_at, te.created_at, te.updated_at, te.idempotency_key,
+        c.name as category_name
       FROM transaction_events te
+      LEFT JOIN categories c ON te.category_id = c.id AND c.archived = false
       WHERE ${db.unsafe(whereClause)}
-      ORDER BY occurred_at DESC
+      ORDER BY te.occurred_at DESC
       LIMIT ${validatedQuery.limit}
       OFFSET ${validatedQuery.offset}
     `;
 
-    // Get postings for all events
+    // Get postings for all events with wallet and bucket names
     const eventIds = events.map((e) => e.id);
     if (eventIds.length === 0) {
       return [];
     }
 
-    const postings = await db<Posting[]>`
-      SELECT id, event_id, wallet_id, savings_bucket_id, amount_idr, created_at
-      FROM postings
-      WHERE event_id = ANY(${eventIds})
+    const postings = await db<
+      Array<
+        Posting & { wallet_name: string | null; bucket_name: string | null }
+      >
+    >`
+      SELECT
+        p.id, p.event_id, p.wallet_id, p.savings_bucket_id, p.amount_idr, p.created_at,
+        w.name as wallet_name,
+        sb.name as bucket_name
+      FROM postings p
+      LEFT JOIN wallets w ON p.wallet_id = w.id AND w.archived = false
+      LEFT JOIN savings_buckets sb ON p.savings_bucket_id = sb.id AND sb.archived = false
+      WHERE p.event_id = ANY(${eventIds})
+      ORDER BY p.created_at ASC
     `;
 
     // Group postings by event_id
@@ -110,11 +131,70 @@ export async function listTransactions(
       postingsByEvent.set(posting.event_id, existing);
     }
 
-    // Combine events with their postings
-    return events.map((event) => ({
-      ...event,
-      postings: postingsByEvent.get(event.id) || [],
-    }));
+    // Calculate display amounts and account names for each transaction
+    return events.map((event) => {
+      const eventPostings = postingsByEvent.get(event.id) || [];
+
+      // Calculate display amount based on transaction type
+      let displayAmount = 0;
+      let displayAccount = "";
+
+      switch (event.type) {
+        case "expense": {
+          // For expenses, display the positive amount spent
+          const walletPosting = eventPostings.find((p) => p.wallet_id);
+          displayAmount = walletPosting
+            ? Math.abs(walletPosting.amount_idr)
+            : 0;
+          displayAccount = walletPosting?.wallet_name || "Unknown Wallet";
+          break;
+        }
+        case "income": {
+          // For income, display the positive amount received
+          const walletPosting = eventPostings.find((p) => p.wallet_id);
+          displayAmount = walletPosting ? walletPosting.amount_idr : 0;
+          displayAccount = walletPosting?.wallet_name || "Unknown Wallet";
+          break;
+        }
+        case "transfer": {
+          // For transfers, display the amount transferred
+          const fromPosting = eventPostings.find((p) => p.amount_idr < 0);
+          displayAmount = fromPosting ? Math.abs(fromPosting.amount_idr) : 0;
+          const fromWallet = eventPostings.find(
+            (p) => p.amount_idr < 0,
+          )?.wallet_name;
+          const toWallet = eventPostings.find(
+            (p) => p.amount_idr > 0,
+          )?.wallet_name;
+          displayAccount = `${fromWallet || "Unknown"} → ${toWallet || "Unknown"}`;
+          break;
+        }
+        case "savings_contribution": {
+          // For savings contribution, display the amount contributed
+          const bucketPosting = eventPostings.find((p) => p.savings_bucket_id);
+          displayAmount = bucketPosting ? bucketPosting.amount_idr : 0;
+          displayAccount = `To: ${bucketPosting?.bucket_name || "Unknown Bucket"}`;
+          break;
+        }
+        case "savings_withdrawal": {
+          // For savings withdrawal, display the amount withdrawn
+          const bucketPosting = eventPostings.find((p) => p.savings_bucket_id);
+          displayAmount = bucketPosting
+            ? Math.abs(bucketPosting.amount_idr)
+            : 0;
+          displayAccount = `From: ${bucketPosting?.bucket_name || "Unknown Bucket"}`;
+          break;
+        }
+      }
+
+      return {
+        ...event,
+        category_name: event.category_name,
+        display_amount_idr: displayAmount,
+        display_account: displayAccount,
+        postings: eventPostings,
+      };
+    });
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity(
