@@ -10,3 +10,4 @@ export * from "@/modules/Category/schema";
 export * from "@/modules/SavingsBucket/schema";
 export * from "@/modules/Transaction/schema";
 export * from "@/modules/Budget/schema";
+export * from "@/modules/Report/schema";

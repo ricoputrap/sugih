@@ -274,14 +274,14 @@ Deliverable: Monthly budgets set and tracked vs actual expenses.
 
 > Use raw SQL aggregation queries. Keep them fast with indexes on `occurred_at`, `category_id`, and posting foreign keys.
 
-- [ ] **Step 6.1**: Reports actions (Raw SQL) in `src/modules/Report/actions.ts`
+- [x] **Step 6.1**: Reports actions (Raw SQL) in `src/modules/Report/actions.ts`
   - `spendingTrend(from,to,granularity)`
   - `categoryBreakdown(from,to)`
   - `netWorthTrend(from,to,granularity)` using:
     - wallet balances + bucket balances over time buckets
   - `moneyLeftToSpend(month)`:
     - total_budgeted - spent_budgeted (budgeted categories)
-- [ ] **Step 6.2**: API routes
+- [x] **Step 6.2**: API routes
   - `GET /api/reports/spending-trend`
   - `GET /api/reports/category-breakdown`
   - `GET /api/reports/net-worth-trend`
