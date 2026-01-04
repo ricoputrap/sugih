@@ -114,7 +114,7 @@
   - Added comprehensive PostgreSQL constraint error handling (23505, 23503, 23502, 23514)
   - All 629 tests passing
 
-- [ ] **Step 14**: Update SavingsBucket API routes **AND** create comprehensive API tests
+- [x] **Step 14**: Update SavingsBucket API routes **AND** create comprehensive API tests
   - Update all savings bucket API routes for PostgreSQL compatibility
   - Create corresponding test files for each endpoint
 
