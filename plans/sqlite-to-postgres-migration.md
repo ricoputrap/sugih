@@ -82,10 +82,15 @@
   - ✅ Included utility functions for parameterized queries and error formatting
   - ✅ Added health checks, connection statistics, and graceful shutdown
 
-- [ ] **Step 11**: Convert all SQL query helpers for PostgreSQL **AND** create query helper tests
-  - Update `all()`, `get()`, `run()`, `transaction()` functions
-  - Handle PostgreSQL parameter syntax ($1, $2, etc.)
-  - Create `/src/db/helpers.test.ts` for each helper function
+- [x] **Step 11**: Convert all SQL query helpers for PostgreSQL **AND** create query helper tests ✅
+  - ✅ Created `/src/db/helpers.ts` with comprehensive PostgreSQL query helpers
+  - ✅ Implemented `convertPlaceholders()` to convert SQLite `?` to PostgreSQL `$n` syntax
+  - ✅ Implemented `convertNamedParams()` to convert `:name` to PostgreSQL `$n` syntax
+  - ✅ Created query builders: `buildInsert()`, `buildUpdate()`, `buildDelete()`, `buildSelect()`
+  - ✅ Created advanced builders: `buildBatchInsert()`, `buildUpsert()`, `buildWhereClause()`
+  - ✅ Created execution helpers: `executeQuery()`, `executeQueryOne()`, `insert()`, `update()`, `remove()`
+  - ✅ Created convenience functions: `findBy()`, `findOneBy()`, `findById()`, `exists()`, `count()`, `paginate()`
+  - ✅ Created `/src/db/helpers.test.ts` with 77 comprehensive tests
 
 ### Phase 4: API Route Testing & Updates
 
