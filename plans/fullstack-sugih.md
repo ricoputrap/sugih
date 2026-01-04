@@ -113,16 +113,27 @@ Deliverable: SQLite DB initialized with all tables + constraints + migration his
 ### Phase 3B: Category Module (Expense-only)
 
 - [x] **Step 3B.1**: Schema + Zod
-  - `CategoryCreateSchema` only requires `name`.
+  - `CategoryCreateSchema` requires `name`.
+  - `CategoryUpdateSchema` for editing (name field).
+  - `CategoryIdSchema` for ID validation.
 - [x] **Step 3B.2**: Actions (Raw SQL)
-  - list/create/update/archive
+  - `listCategories()`
+  - `createCategory(input)`
+  - `updateCategory(id, input)`
+  - `archiveCategory(id)` (soft archive)
 - [x] **Step 3B.3**: API routes (no `kind`)
   - `GET /api/categories`
   - `POST /api/categories`
-  - `PATCH /api/categories/:id`
-  - `DELETE /api/categories/:id`
-- [x] **Step 3B.4**: UI + Page
-  - `src/app/categories/page.tsx`
+  - `PATCH /api/categories/:id` (edit category name)
+  - `DELETE /api/categories/:id` (archive)
+- [x] **Step 3B.4**: UI components (shadcn)
+  - `CategoryTable` with actions dropdown (edit, archive)
+  - `CategoryDialogForm` for create and edit modes
+  - Statistics cards (active/archived counts)
+- [x] **Step 3B.5**: Page assembly
+  - `src/app/categories/page.tsx` (client-first: fetch via API)
+- [x] **Step 3B.6**: Verification
+  - Can create/update/archive categories; list excludes archived by default.
 
 ### Phase 3C: Savings Bucket Module
 

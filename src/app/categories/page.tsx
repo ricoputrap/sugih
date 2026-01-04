@@ -190,6 +190,7 @@ export default function CategoriesPage() {
             categories={categories}
             onArchive={handleArchiveCategory}
             onDelete={handleDeleteCategory}
+            onEdit={handleEditClick}
             isLoading={isLoading}
           />
         </CardContent>
