@@ -118,7 +118,7 @@
   - Update all savings bucket API routes for PostgreSQL compatibility
   - Create corresponding test files for each endpoint
 
-- [ ] **Step 15**: Update Transaction API routes **AND** create comprehensive API tests
+- [x] **Step 15**: Update Transaction API routes **AND** create comprehensive API tests
   - Update all transaction API routes for PostgreSQL compatibility
   - Create corresponding test files for each endpoint
 
