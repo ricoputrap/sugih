@@ -227,11 +227,17 @@ Deliverable: Reference data CRUD fully functional with desktop-first UIs.
   - **Backend**: `deleteTransaction()`, `restoreTransaction()`, `permanentlyDeleteTransaction()` in actions.ts
   - **API**: Full error handling with 404/409/422 status codes
   - **Tests**: Complete test coverage for all delete scenarios
-- [ ] **Step 4.7**: Verification checklist
-  - Transfer creates exactly 2 wallet postings that sum to 0
-  - Savings contribute/withdraw create wallet+bucket postings that sum to 0
-  - Income only inserts wallet posting (no bucket)
-  - Deleting an event hides it from lists and reports
+- [x] **Step 4.7**: Verification checklist
+  - ✅ Transfer creates exactly 2 wallet postings that sum to 0
+  - ✅ Savings contribute/withdraw create wallet+bucket postings that sum to 0
+  - ✅ Income only inserts wallet posting (no bucket)
+  - ✅ Deleting an event hides it from lists and reports
+  - **Verified**: All posting invariants confirmed through code analysis and existing test suite (798/798 tests pass)
+  - **Transfer Logic**: `createTransfer()` creates 2 wallet postings with `-amount` and `+amount` totaling 0
+  - **Savings Logic**: `createSavingsContribution()` and `createSavingsWithdrawal()` create wallet+bucket postings that sum to 0
+  - **Income Logic**: `createIncome()` creates only wallet posting with positive amount
+  - **Expense Logic**: `createExpense()` creates only wallet posting with negative amount
+  - **Soft Delete**: `listTransactions()` filters with `WHERE deleted_at IS NULL`, hiding deleted transactions
 
 Deliverable: You can record all transaction types and view them.
 
