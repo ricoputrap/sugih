@@ -126,13 +126,6 @@
   - Update all budget API routes for PostgreSQL compatibility
   - Create corresponding test files for each endpoint
 
-### Phase 5: Integration Testing & Documentation
-
-- [ ] **Step 17**: Create end-to-end integration test suite **AND** update documentation
-  - Create `/tests/integration/database.test.ts` for full database workflow testing
-  - Update README.md with PostgreSQL setup instructions
-  - Create `/docs/postgresql-setup.md` with detailed setup guide
-
 ## Key PostgreSQL-Specific Considerations
 
 1. **Connection Pooling**: Implement proper connection management
