@@ -38,7 +38,7 @@ export const SavingsBucketUpdateSchema = z.object({
 });
 
 export const SavingsBucketIdSchema = z.object({
-  id: z.uuid("Invalid savings bucket ID"),
+  id: z.string().min(1, "ID is required").max(50, "ID too long"),
 });
 
 // Type exports for TypeScript
