@@ -137,16 +137,18 @@ export default function TransactionsPage() {
   };
 
   // Calculate statistics
+  // NOTE: `display_amount_idr` may come back as a string (JSON) depending on the API.
+  // Always coerce to number before aggregating to avoid string concatenation.
   const stats = {
     total: transactions.length,
     expenses: transactions.filter((t) => t.type === "expense").length,
     income: transactions.filter((t) => t.type === "income").length,
     totalExpenseAmount: transactions
       .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.display_amount_idr, 0),
+      .reduce((sum, t) => sum + Number(t.display_amount_idr || 0), 0),
     totalIncomeAmount: transactions
       .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + t.display_amount_idr, 0),
+      .reduce((sum, t) => sum + Number(t.display_amount_idr || 0), 0),
   };
 
   const formatCurrency = (amount: number) => {
@@ -218,7 +220,7 @@ export default function TransactionsPage() {
               }`}
             >
               {formatCurrency(
-                stats.totalIncomeAmount - stats.totalExpenseAmount
+                stats.totalIncomeAmount - stats.totalExpenseAmount,
               )}
             </CardTitle>
           </CardHeader>
@@ -278,10 +280,7 @@ export default function TransactionsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="category-filter">Category</Label>
-              <Select
-                value={categoryFilter}
-                onValueChange={setCategoryFilter}
-              >
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger id="category-filter">
                   <SelectValue placeholder="All categories" />
                 </SelectTrigger>
