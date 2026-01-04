@@ -170,13 +170,14 @@ Deliverable: Reference data CRUD fully functional with desktop-first UIs.
 
 > This is the heart of the app. Enforce invariants in a DB transaction.
 
-- [ ] **Step 4.1**: Define enums & Zod inputs
-  - `ExpenseCreateSchema`: `{ occurredAt, walletId, categoryId, amountIdr, note? }`
-  - `IncomeCreateSchema`: `{ occurredAt, walletId, amountIdr, note? }`
-  - `TransferCreateSchema`: `{ occurredAt, fromWalletId, toWalletId, amountIdr, note? }`
-  - `SavingsContributeSchema`: `{ occurredAt, walletId, bucketId, amountIdr, note? }`
-  - `SavingsWithdrawSchema`: `{ occurredAt, walletId, bucketId, amountIdr, note? }`
-  - `TransactionListQuerySchema`: filters by date range, walletId, categoryId, type
+- [x] **Step 4.1**: Define enums & Zod inputs
+  - `ExpenseCreateSchema`: `{ occurredAt, walletId, categoryId, amountIdr, note?, idempotencyKey? }`
+  - `IncomeCreateSchema`: `{ occurredAt, walletId, amountIdr, note?, payee?, idempotencyKey? }`
+  - `TransferCreateSchema`: `{ occurredAt, fromWalletId, toWalletId, amountIdr, note?, idempotencyKey? }` + refinement (from ≠ to)
+  - `SavingsContributeSchema`: `{ occurredAt, walletId, bucketId, amountIdr, note?, idempotencyKey? }`
+  - `SavingsWithdrawSchema`: `{ occurredAt, walletId, bucketId, amountIdr, note?, idempotencyKey? }`
+  - `TransactionListQuerySchema`: filters by date range, walletId, categoryId, type, limit (default 50), offset (default 0)
+  - `TransactionIdSchema`: for single transaction operations
 - [ ] **Step 4.2**: Implement posting engine (Raw SQL) in `src/modules/Transaction/actions.ts`
   - `createExpense(input)`:
     - insert event(type=expense, category_id required)
