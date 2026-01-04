@@ -218,8 +218,15 @@ Deliverable: Reference data CRUD fully functional with desktop-first UIs.
   - Page `src/app/transactions/page.tsx`:
     - list with filters (date range, wallet, type)
     - "Add transaction" dialog with tabs for type
-- [ ] **Step 4.6**: Soft delete
+- [x] **Step 4.6**: Soft delete
   - Add API/action: `DELETE /api/transactions/:id` sets `deleted_at`
+  - **Implemented**: Three delete modes via query param `action`:
+    - `action=soft` (default): Sets `deleted_at` timestamp
+    - `action=restore`: Restores a soft-deleted transaction (sets `deleted_at` to NULL)
+    - `action=permanent`: Permanently deletes transaction and all postings
+  - **Backend**: `deleteTransaction()`, `restoreTransaction()`, `permanentlyDeleteTransaction()` in actions.ts
+  - **API**: Full error handling with 404/409/422 status codes
+  - **Tests**: Complete test coverage for all delete scenarios
 - [ ] **Step 4.7**: Verification checklist
   - Transfer creates exactly 2 wallet postings that sum to 0
   - Savings contribute/withdraw create wallet+bucket postings that sum to 0
