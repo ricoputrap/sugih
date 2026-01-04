@@ -42,7 +42,10 @@ export const SavingsBucketIdSchema = z.object({
 });
 
 // Type exports for TypeScript
-export type SavingsBucket = typeof savingsBuckets.$inferSelect;
+export type SavingsBucket = typeof savingsBuckets.$inferSelect & {
+  created_at: Date | string | null;
+  updated_at: Date | string | null;
+};
 export type NewSavingsBucket = typeof savingsBuckets.$inferInsert;
 export type SavingsBucketCreateInput = z.infer<
   typeof SavingsBucketCreateSchema

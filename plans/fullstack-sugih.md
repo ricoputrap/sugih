@@ -137,16 +137,30 @@ Deliverable: SQLite DB initialized with all tables + constraints + migration his
 
 ### Phase 3C: Savings Bucket Module
 
-- [ ] **Step 3C.1**: Schema + Zod (`name`, optional `description`)
-- [ ] **Step 3C.2**: Actions (Raw SQL)
-  - list/create/update/archive
-- [ ] **Step 3C.3**: API routes
+- [x] **Step 3C.1**: Schema + Zod (`name`, optional `description`)
+  - `SavingsBucketCreateSchema` requires `name`, optional `description`.
+  - `SavingsBucketUpdateSchema` for editing (name, description fields).
+  - `SavingsBucketIdSchema` for ID validation.
+- [x] **Step 3C.2**: Actions (Raw SQL)
+  - `listSavingsBuckets()`
+  - `createSavingsBucket(input)`
+  - `updateSavingsBucket(id, input)`
+  - `archiveSavingsBucket(id)` (soft archive)
+  - `restoreSavingsBucket(id)`
+  - `deleteSavingsBucket(id)` (hard delete)
+- [x] **Step 3C.3**: API routes
   - `GET /api/savings-buckets`
   - `POST /api/savings-buckets`
-  - `PATCH /api/savings-buckets/:id`
-  - `DELETE /api/savings-buckets/:id`
-- [ ] **Step 3C.4**: UI + Page
-  - `src/app/savings/page.tsx`
+  - `PATCH /api/savings-buckets/:id` (edit bucket)
+  - `DELETE /api/savings-buckets/:id` (archive/restore toggle or delete)
+- [x] **Step 3C.4**: UI components (shadcn)
+  - `SavingsBucketTable` with actions dropdown (edit, archive, delete)
+  - `SavingsBucketDialogForm` for create and edit modes
+  - Statistics cards (active/archived counts)
+- [x] **Step 3C.5**: Page assembly
+  - `src/app/savings/page.tsx` (client-first: fetch via API)
+- [x] **Step 3C.6**: Verification
+  - Can create/update/archive/restore savings buckets; list shows all buckets.
 
 Deliverable: Reference data CRUD fully functional with desktop-first UIs.
 

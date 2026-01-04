@@ -179,7 +179,11 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
                     </TableCell>
                     <TableCell>{wallet.currency}</TableCell>
                     <TableCell>
-                      {new Date(wallet.created_at).toLocaleDateString("id-ID")}
+                      {wallet.created_at
+                        ? new Date(wallet.created_at).toLocaleDateString(
+                            "id-ID",
+                          )
+                        : "N/A"}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -244,7 +248,11 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
                     </TableCell>
                     <TableCell>{wallet.currency}</TableCell>
                     <TableCell>
-                      {new Date(wallet.updated_at).toLocaleDateString("id-ID")}
+                      {wallet.updated_at
+                        ? new Date(wallet.updated_at).toLocaleDateString(
+                            "id-ID",
+                          )
+                        : "N/A"}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

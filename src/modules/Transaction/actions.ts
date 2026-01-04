@@ -17,6 +17,7 @@ import {
   TransactionIdSchema,
   TransactionEvent,
   Posting,
+  TransactionListQueryInput,
 } from "./schema";
 import { getDb } from "@/db/client";
 import { formatZodError } from "@/lib/zod";
@@ -31,7 +32,7 @@ export interface TransactionWithPostings extends TransactionEvent {
  * List transactions with optional filters
  */
 export async function listTransactions(
-  query: typeof TransactionListQuerySchema,
+  query: TransactionListQueryInput | Record<string, unknown>,
 ): Promise<TransactionWithPostings[]> {
   const db = getDb();
 

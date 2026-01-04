@@ -9,7 +9,7 @@
  * PostgreSQL-specific parameter handling.
  */
 
-import postgres, { Sql, Transactable } from "postgres";
+import postgres, { Sql } from "postgres";
 import { getDatabaseConfig } from "./config";
 
 // Singleton pattern for database connection with pooling
@@ -35,36 +35,12 @@ export function getDb(): Sql {
       password: config.password,
       database: config.database,
       ssl: config.ssl,
-      connection_timeout: config.connectionTimeout,
+      connect_timeout: config.connectionTimeout,
       idle_timeout: config.idleTimeout,
       max: config.maxConnections,
 
-      // Transform column names from snake_case to camelCase
-      transform: {
-        column: {
-          // Convert snake_case to camelCase for consistency with TypeScript conventions
-          to: postgres.camel as any,
-          from: postgres.snake as any,
-        },
-        value: {
-          to: (value: any) => value,
-          from: (value: any) => value,
-        },
-        row: {
-          to: (row: any) => {
-            // Convert all column names to camelCase
-            const camelRow: any = {};
-            for (const key in row) {
-              const camelKey = key.replace(/_([a-z])/g, (_, letter) =>
-                letter.toUpperCase(),
-              );
-              camelRow[camelKey] = row[key];
-            }
-            return camelRow;
-          },
-          from: postgres.snake as any,
-        },
-      },
+      // Keep column names as-is (snake_case from database)
+      // TypeScript types already expect snake_case from the schema
     });
   }
 
@@ -74,22 +50,23 @@ export function getDb(): Sql {
 /**
  * Execute a query and return all results
  *
- * @param sql - SQL query string with PostgreSQL parameter placeholders ($1, $2, etc.)
- * @param params - Parameters to bind to the query (optional, can be destructured)
+ * @param sqlQuery - SQL query string
+ * @param params - Parameters to bind to the query (optional)
  * @returns {Promise<Array<T>>} Array of result rows
  * @throws {Error} If query execution fails
  */
 export async function all<T = any>(
-  sql: string,
+  sqlQuery: string,
   ...params: any[]
 ): Promise<T[]> {
   try {
     const db = getDb();
-    const result = await db<T[]>(sql, ...params);
-    return result;
+    // Use unsafe() for dynamic SQL strings - safe for simple queries without user input
+    const result = await db.unsafe<T[]>(sqlQuery, params);
+    return Array.from(result);
   } catch (error) {
     console.error("Database query error (all):", {
-      sql,
+      sql: sqlQuery,
       params,
       error: error instanceof Error ? error.message : error,
     });
@@ -102,22 +79,23 @@ export async function all<T = any>(
 /**
  * Execute a query and return a single result
  *
- * @param sql - SQL query string with PostgreSQL parameter placeholders
+ * @param sqlQuery - SQL query string
  * @param params - Parameters to bind to the query
  * @returns {Promise<T | undefined>} Single result row or undefined
  * @throws {Error} If query execution fails
  */
 export async function get<T = any>(
-  sql: string,
+  sqlQuery: string,
   ...params: any[]
 ): Promise<T | undefined> {
   try {
     const db = getDb();
-    const result = await db<T>(sql, ...params);
-    return result;
+    // Use unsafe() for dynamic SQL strings
+    const result = await db.unsafe<T[]>(sqlQuery, params);
+    return result[0];
   } catch (error) {
     console.error("Database query error (get):", {
-      sql,
+      sql: sqlQuery,
       params,
       error: error instanceof Error ? error.message : error,
     });
@@ -130,26 +108,27 @@ export async function get<T = any>(
 /**
  * Execute a query and return metadata (for INSERT, UPDATE, DELETE)
  *
- * @param sql - SQL query string with PostgreSQL parameter placeholders
+ * @param sqlQuery - SQL query string
  * @param params - Parameters to bind to the query
  * @returns {Promise<{rowsAffected: number}>} Result metadata
  * @throws {Error} If query execution fails
  */
 export async function run(
-  sql: string,
+  sqlQuery: string,
   ...params: any[]
 ): Promise<{ rowsAffected: number }> {
   try {
     const db = getDb();
-    const result = await db<{ rowsAffected: number }>(sql, ...params);
+    // Use unsafe() for dynamic SQL strings
+    const result = await db.unsafe(sqlQuery, params);
 
-    // postgres returns affected rows in the result
+    // postgres returns affected rows in the result.count
     return {
-      rowsAffected: typeof result === "number" ? result : 0,
+      rowsAffected: result.count || 0,
     };
   } catch (error) {
     console.error("Database query error (run):", {
-      sql,
+      sql: sqlQuery,
       params,
       error: error instanceof Error ? error.message : error,
     });
@@ -166,12 +145,10 @@ export async function run(
  * @returns {Promise<T>} Result of the transaction function
  * @throws {Error} If transaction fails or fn throws
  */
-export async function transaction<T>(
-  fn: (tx: Transactable) => Promise<T>,
-): Promise<T> {
+export async function transaction<T>(fn: (tx: Sql) => Promise<T>): Promise<T> {
   try {
     const db = getDb();
-    return await db.tx(fn);
+    return (await db.begin(fn)) as T;
   } catch (error) {
     console.error("Database transaction error:", {
       error: error instanceof Error ? error.message : error,
@@ -189,15 +166,13 @@ export async function transaction<T>(
  * @returns {Promise<T>} Result of the transaction function
  * @throws {Error} If transaction fails or fn throws
  */
-export async function transactionSync<T>(
-  fn: (tx: Transactable) => T,
-): Promise<T> {
+export async function transactionSync<T>(fn: (tx: Sql) => T): Promise<T> {
   try {
     const db = getDb();
-    return await db.tx(async (tx) => {
+    return (await db.begin(async (tx) => {
       // Execute synchronous function in async context
       return fn(tx);
-    });
+    })) as T;
   } catch (error) {
     console.error("Database transaction error:", {
       error: error instanceof Error ? error.message : error,
@@ -250,11 +225,7 @@ export async function getStats(): Promise<{
 }> {
   try {
     const db = getDb();
-    const result = await db<{
-      total: number;
-      idle: number;
-      waiting: number;
-    }>`
+    const result = await db`
       SELECT
         count(*)::int as total,
         count(*) FILTER (WHERE state = 'idle')::int as idle,
@@ -263,7 +234,11 @@ export async function getStats(): Promise<{
       WHERE datname = current_database()
     `;
 
-    const stats = result[0] || { total: 0, idle: 0, waiting: 0 };
+    const stats = (result[0] as {
+      total: number;
+      idle: number;
+      waiting: number;
+    }) || { total: 0, idle: 0, waiting: 0 };
 
     return {
       totalConnections: stats.total,

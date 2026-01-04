@@ -3,6 +3,7 @@ import {
   getSavingsBucketById,
   updateSavingsBucket,
   archiveSavingsBucket,
+  restoreSavingsBucket,
   deleteSavingsBucket,
 } from "@/modules/SavingsBucket/actions";
 import { ok, badRequest, notFound, serverError, conflict } from "@/lib/http";
@@ -133,9 +134,27 @@ export async function DELETE(
     const action = url.searchParams.get("action") || "archive";
 
     if (action === "archive") {
-      // Soft delete - archive the savings bucket
-      const savingsBucket = await archiveSavingsBucket(id);
-      return ok({ message: "Savings bucket archived successfully", savingsBucket });
+      // Check if already archived - toggle to restore
+      const existingBucket = await getSavingsBucketById(id);
+      if (!existingBucket) {
+        return notFound("Savings bucket not found");
+      }
+
+      if (existingBucket.archived) {
+        // Already archived - restore it
+        const savingsBucket = await restoreSavingsBucket(id);
+        return ok({
+          message: "Savings bucket restored successfully",
+          savingsBucket,
+        });
+      } else {
+        // Not archived - archive it
+        const savingsBucket = await archiveSavingsBucket(id);
+        return ok({
+          message: "Savings bucket archived successfully",
+          savingsBucket,
+        });
+      }
     } else if (action === "delete") {
       // Hard delete - permanently delete the savings bucket
       await deleteSavingsBucket(id);

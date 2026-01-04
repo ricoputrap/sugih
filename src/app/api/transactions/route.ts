@@ -9,7 +9,6 @@ import {
 } from "@/modules/Transaction/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
-import { TransactionListQuerySchema } from "@/db/schema";
 
 /**
  * GET /api/transactions
@@ -27,7 +26,7 @@ import { TransactionListQuerySchema } from "@/db/schema";
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const query: typeof TransactionListQuerySchema = {
+    const query = {
       from: url.searchParams.get("from") || undefined,
       to: url.searchParams.get("to") || undefined,
       type: url.searchParams.get("type") || undefined,
