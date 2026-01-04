@@ -5,30 +5,47 @@ import {
   WalletIdSchema,
   Wallet,
 } from "./schema";
-import { get, all, run, transaction } from "@/db/client";
+import { getDb } from "@/db/client";
+import {
+  convertPlaceholders,
+  executeQuery,
+  executeQueryOne,
+} from "@/db/helpers";
 import { formatZodError } from "@/lib/zod";
 import { unprocessableEntity } from "@/lib/http";
 
+/**
+ * List all wallets ordered by name
+ */
 export async function listWallets(): Promise<Wallet[]> {
-  const wallets = all<Wallet>(
-    `SELECT id, name, type, currency, archived, created_at, updated_at
-     FROM wallets
-     ORDER BY name ASC`,
-  );
-  return wallets;
+  const db = getDb();
+  const wallets = await db<Wallet[]>`
+    SELECT id, name, type, currency, archived, created_at, updated_at
+    FROM wallets
+    ORDER BY name ASC
+  `;
+  return Array.from(wallets);
 }
 
+/**
+ * Get a wallet by ID
+ */
 export async function getWalletById(id: string): Promise<Wallet | null> {
-  const wallet = get<Wallet>(
-    `SELECT id, name, type, currency, archived, created_at, updated_at
-     FROM wallets
-     WHERE id = ?`,
-    [id],
-  );
-  return wallet || null;
+  const db = getDb();
+  const wallets = await db<Wallet[]>`
+    SELECT id, name, type, currency, archived, created_at, updated_at
+    FROM wallets
+    WHERE id = ${id}
+  `;
+  return wallets[0] || null;
 }
 
+/**
+ * Create a new wallet
+ */
 export async function createWallet(input: unknown): Promise<Wallet> {
+  const db = getDb();
+
   try {
     const validatedInput = WalletCreateSchema.parse(input);
 
@@ -36,27 +53,28 @@ export async function createWallet(input: unknown): Promise<Wallet> {
     const id = nanoid();
 
     // Check if wallet name already exists
-    const existingWallet = get(`SELECT id FROM wallets WHERE name = ?`, [
-      validatedInput.name,
-    ]);
+    const existingWallets = await db<{ id: string }[]>`
+      SELECT id FROM wallets WHERE name = ${validatedInput.name}
+    `;
 
-    if (existingWallet) {
+    if (existingWallets.length > 0) {
       throw new Error("Wallet name already exists");
     }
 
-    // Insert wallet
-    run(
-      `INSERT INTO wallets (id, name, type, currency, archived, created_at, updated_at)
-       VALUES (?, ?, ?, ?, false, ?, ?)`,
-      [
-        id,
-        validatedInput.name,
-        validatedInput.type,
-        validatedInput.currency,
-        Date.now(),
-        Date.now(),
-      ],
-    );
+    // Insert wallet with PostgreSQL timestamp
+    const now = new Date();
+    await db`
+      INSERT INTO wallets (id, name, type, currency, archived, created_at, updated_at)
+      VALUES (
+        ${id},
+        ${validatedInput.name},
+        ${validatedInput.type},
+        ${validatedInput.currency},
+        ${false},
+        ${now},
+        ${now}
+      )
+    `;
 
     // Return created wallet
     const createdWallet = await getWalletById(id);
@@ -73,14 +91,19 @@ export async function createWallet(input: unknown): Promise<Wallet> {
   }
 }
 
+/**
+ * Update an existing wallet
+ */
 export async function updateWallet(
   id: string,
   input: unknown,
 ): Promise<Wallet> {
+  const db = getDb();
+
   try {
     const validatedInput = WalletUpdateSchema.parse(input);
 
-    // Validate wallet ID
+    // Validate wallet ID format
     WalletIdSchema.parse({ id });
 
     // Check if wallet exists
@@ -89,45 +112,85 @@ export async function updateWallet(
       throw new Error("Wallet not found");
     }
 
-    // Build dynamic update query
-    const updates: string[] = [];
-    const values: any[] = [];
+    // Build dynamic update - collect fields to update
+    const updates: Record<string, any> = {};
 
     if (validatedInput.name !== undefined) {
       // Check if new name conflicts with another wallet
-      const nameConflict = get(
-        `SELECT id FROM wallets WHERE name = ? AND id != ?`,
-        [validatedInput.name, id],
-      );
+      const nameConflicts = await db<{ id: string }[]>`
+        SELECT id FROM wallets WHERE name = ${validatedInput.name} AND id != ${id}
+      `;
 
-      if (nameConflict) {
+      if (nameConflicts.length > 0) {
         throw new Error("Wallet name already exists");
       }
 
-      updates.push("name = ?");
-      values.push(validatedInput.name);
+      updates.name = validatedInput.name;
     }
 
     if (validatedInput.type !== undefined) {
-      updates.push("type = ?");
-      values.push(validatedInput.type);
+      updates.type = validatedInput.type;
     }
 
     if (validatedInput.archived !== undefined) {
-      updates.push("archived = ?");
-      values.push(validatedInput.archived ? 1 : 0);
+      updates.archived = validatedInput.archived;
     }
 
-    if (updates.length === 0) {
+    if (Object.keys(updates).length === 0) {
       throw new Error("No updates provided");
     }
 
-    updates.push("updated_at = ?");
-    values.push(Date.now());
-    values.push(id);
+    // Execute update with dynamic fields
+    const now = new Date();
 
-    // Execute update
-    run(`UPDATE wallets SET ${updates.join(", ")} WHERE id = ?`, values);
+    // Build and execute update based on which fields are present
+    if (
+      updates.name !== undefined &&
+      updates.type !== undefined &&
+      updates.archived !== undefined
+    ) {
+      await db`
+        UPDATE wallets
+        SET name = ${updates.name}, type = ${updates.type}, archived = ${updates.archived}, updated_at = ${now}
+        WHERE id = ${id}
+      `;
+    } else if (updates.name !== undefined && updates.type !== undefined) {
+      await db`
+        UPDATE wallets
+        SET name = ${updates.name}, type = ${updates.type}, updated_at = ${now}
+        WHERE id = ${id}
+      `;
+    } else if (updates.name !== undefined && updates.archived !== undefined) {
+      await db`
+        UPDATE wallets
+        SET name = ${updates.name}, archived = ${updates.archived}, updated_at = ${now}
+        WHERE id = ${id}
+      `;
+    } else if (updates.type !== undefined && updates.archived !== undefined) {
+      await db`
+        UPDATE wallets
+        SET type = ${updates.type}, archived = ${updates.archived}, updated_at = ${now}
+        WHERE id = ${id}
+      `;
+    } else if (updates.name !== undefined) {
+      await db`
+        UPDATE wallets
+        SET name = ${updates.name}, updated_at = ${now}
+        WHERE id = ${id}
+      `;
+    } else if (updates.type !== undefined) {
+      await db`
+        UPDATE wallets
+        SET type = ${updates.type}, updated_at = ${now}
+        WHERE id = ${id}
+      `;
+    } else if (updates.archived !== undefined) {
+      await db`
+        UPDATE wallets
+        SET archived = ${updates.archived}, updated_at = ${now}
+        WHERE id = ${id}
+      `;
+    }
 
     // Return updated wallet
     const updatedWallet = await getWalletById(id);
@@ -147,7 +210,12 @@ export async function updateWallet(
   }
 }
 
+/**
+ * Archive a wallet (soft delete)
+ */
 export async function archiveWallet(id: string): Promise<Wallet> {
+  const db = getDb();
+
   try {
     // Validate wallet ID
     WalletIdSchema.parse({ id });
@@ -163,12 +231,12 @@ export async function archiveWallet(id: string): Promise<Wallet> {
     }
 
     // Archive wallet
-    run(
-      `UPDATE wallets
-       SET archived = true, updated_at = ?
-       WHERE id = ?`,
-      [Date.now(), id],
-    );
+    const now = new Date();
+    await db`
+      UPDATE wallets
+      SET archived = ${true}, updated_at = ${now}
+      WHERE id = ${id}
+    `;
 
     // Return archived wallet
     const archivedWallet = await getWalletById(id);
@@ -185,7 +253,12 @@ export async function archiveWallet(id: string): Promise<Wallet> {
   }
 }
 
+/**
+ * Restore an archived wallet
+ */
 export async function restoreWallet(id: string): Promise<Wallet> {
+  const db = getDb();
+
   try {
     // Validate wallet ID
     WalletIdSchema.parse({ id });
@@ -201,12 +274,12 @@ export async function restoreWallet(id: string): Promise<Wallet> {
     }
 
     // Restore wallet
-    run(
-      `UPDATE wallets
-       SET archived = false, updated_at = ?
-       WHERE id = ?`,
-      [Date.now(), id],
-    );
+    const now = new Date();
+    await db`
+      UPDATE wallets
+      SET archived = ${false}, updated_at = ${now}
+      WHERE id = ${id}
+    `;
 
     // Return restored wallet
     const restoredWallet = await getWalletById(id);
@@ -223,7 +296,12 @@ export async function restoreWallet(id: string): Promise<Wallet> {
   }
 }
 
+/**
+ * Permanently delete a wallet
+ */
 export async function deleteWallet(id: string): Promise<void> {
+  const db = getDb();
+
   try {
     // Validate wallet ID
     WalletIdSchema.parse({ id });
@@ -235,19 +313,18 @@ export async function deleteWallet(id: string): Promise<void> {
     }
 
     // Use transaction to ensure atomicity
-    transaction(() => {
+    await db.begin(async (tx) => {
       // Check if wallet has any associated postings
-      const postingsCount = get<{ count: number }>(
-        `SELECT COUNT(*) as count FROM postings WHERE wallet_id = ?`,
-        [id],
-      );
+      const postingsCount = await tx<{ count: number }[]>`
+        SELECT COUNT(*)::int as count FROM postings WHERE wallet_id = ${id}
+      `;
 
-      if (postingsCount && postingsCount.count > 0) {
+      if (postingsCount[0] && postingsCount[0].count > 0) {
         throw new Error("Cannot delete wallet with existing transactions");
       }
 
       // Delete wallet
-      run(`DELETE FROM wallets WHERE id = ?`, [id]);
+      await tx`DELETE FROM wallets WHERE id = ${id}`;
     });
   } catch (error: any) {
     if (error.name === "ZodError") {
@@ -257,10 +334,15 @@ export async function deleteWallet(id: string): Promise<void> {
   }
 }
 
+/**
+ * Get wallet statistics (balance and transaction count)
+ */
 export async function getWalletStats(id: string): Promise<{
   balance: number;
   transactionCount: number;
 }> {
+  const db = getDb();
+
   try {
     // Validate wallet ID
     WalletIdSchema.parse({ id });
@@ -272,26 +354,24 @@ export async function getWalletStats(id: string): Promise<{
     }
 
     // Get balance (sum of all non-deleted postings for this wallet)
-    const balanceResult = get<{ total: number }>(
-      `SELECT COALESCE(SUM(amount_idr), 0) as total
-       FROM postings p
-       JOIN transaction_events te ON p.event_id = te.id
-       WHERE p.wallet_id = ? AND te.deleted_at IS NULL`,
-      [id],
-    );
+    const balanceResult = await db<{ total: number }[]>`
+      SELECT COALESCE(SUM(amount_idr), 0)::numeric as total
+      FROM postings p
+      JOIN transaction_events te ON p.event_id = te.id
+      WHERE p.wallet_id = ${id} AND te.deleted_at IS NULL
+    `;
 
     // Get transaction count
-    const transactionCountResult = get<{ count: number }>(
-      `SELECT COUNT(*) as count
-       FROM postings p
-       JOIN transaction_events te ON p.event_id = te.id
-       WHERE p.wallet_id = ? AND te.deleted_at IS NULL`,
-      [id],
-    );
+    const transactionCountResult = await db<{ count: number }[]>`
+      SELECT COUNT(*)::int as count
+      FROM postings p
+      JOIN transaction_events te ON p.event_id = te.id
+      WHERE p.wallet_id = ${id} AND te.deleted_at IS NULL
+    `;
 
     return {
-      balance: balanceResult?.total || 0,
-      transactionCount: transactionCountResult?.count || 0,
+      balance: Number(balanceResult[0]?.total) || 0,
+      transactionCount: transactionCountResult[0]?.count || 0,
     };
   } catch (error: any) {
     if (error.name === "ZodError") {
