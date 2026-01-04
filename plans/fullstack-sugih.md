@@ -178,7 +178,7 @@ Deliverable: Reference data CRUD fully functional with desktop-first UIs.
   - `SavingsWithdrawSchema`: `{ occurredAt, walletId, bucketId, amountIdr, note?, idempotencyKey? }`
   - `TransactionListQuerySchema`: filters by date range, walletId, categoryId, type, limit (default 50), offset (default 0)
   - `TransactionIdSchema`: for single transaction operations
-- [ ] **Step 4.2**: Implement posting engine (Raw SQL) in `src/modules/Transaction/actions.ts`
+- [x] **Step 4.2**: Implement posting engine (Raw SQL) in `src/modules/Transaction/actions.ts`
   - `createExpense(input)`:
     - insert event(type=expense, category_id required)
     - insert 1 posting(wallet_id, amount=-X)
