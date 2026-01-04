@@ -122,20 +122,13 @@
   - Update all transaction API routes for PostgreSQL compatibility
   - Create corresponding test files for each endpoint
 
-- [ ] **Step 16**: Update Budget API routes **AND** create comprehensive API tests
+- [x] **Step 16**: Update Budget API routes **AND** create comprehensive API tests
   - Update all budget API routes for PostgreSQL compatibility
   - Create corresponding test files for each endpoint
 
-### Phase 5: Data Migration Script
+### Phase 5: Integration Testing & Documentation
 
-- [ ] **Step 17**: Create data export/import utility **AND** create migration validation test
-  - Create `/scripts/migrate-from-sqlite.ts` to export data from SQLite
-  - Create `/scripts/import-to-postgres.ts` to import data to PostgreSQL
-  - Create `/scripts/migration.test.ts` to validate data integrity
-
-### Phase 6: Integration Testing & Documentation
-
-- [ ] **Step 18**: Create end-to-end integration test suite **AND** update documentation
+- [ ] **Step 17**: Create end-to-end integration test suite **AND** update documentation
   - Create `/tests/integration/database.test.ts` for full database workflow testing
   - Update README.md with PostgreSQL setup instructions
   - Create `/docs/postgresql-setup.md` with detailed setup guide
