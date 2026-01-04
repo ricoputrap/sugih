@@ -206,7 +206,7 @@ Deliverable: Reference data CRUD fully functional with desktop-first UIs.
     - event fields
     - joined category name (expense only)
     - derived "display amount" and involved wallet/bucket IDs
-- [ ] **Step 4.4**: API routes
+- [x] **Step 4.4**: API routes
   - `POST /api/transactions/expense`
   - `POST /api/transactions/income`
   - `POST /api/transactions/transfer`

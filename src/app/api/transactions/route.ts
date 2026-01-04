@@ -64,7 +64,15 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/transactions
- * Create a new transaction
+ * Create a new transaction (DEPRECATED - Use specific endpoints)
+ *
+ * NOTE: This endpoint is maintained for backward compatibility.
+ * For new implementations, please use the specific endpoints:
+ * - POST /api/transactions/expense
+ * - POST /api/transactions/income
+ * - POST /api/transactions/transfer
+ * - POST /api/transactions/savings/contribute
+ * - POST /api/transactions/savings/withdraw
  *
  * Body must include "type" field to determine transaction type:
  * - expense: requires walletId, categoryId, amountIdr, occurredAt
@@ -75,6 +83,11 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Log deprecation warning
+    console.warn(
+      "DEPRECATED: POST /api/transactions is deprecated. Please use specific endpoints: /api/transactions/expense, /api/transactions/income, /api/transactions/transfer, /api/transactions/savings/contribute, or /api/transactions/savings/withdraw",
+    );
+
     // Parse request body
     let body: any;
     try {

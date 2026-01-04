@@ -330,7 +330,7 @@ export async function getTransactionById(id: string): Promise<
  * Create an expense transaction
  */
 export async function createExpense(
-  input: unknown,
+  input: typeof ExpenseCreateSchema,
 ): Promise<TransactionWithPostings> {
   const db = getDb();
 
