@@ -213,11 +213,11 @@ Deliverable: Reference data CRUD fully functional with desktop-first UIs.
   - `POST /api/transactions/savings/contribute`
   - `POST /api/transactions/savings/withdraw`
   - `GET /api/transactions`
-- [ ] **Step 4.5**: Transactions UI (desktop-first)
+- [x] **Step 4.5**: Transactions UI (desktop-first)
   - Install: `tabs`, `select`, `calendar` (or date picker), `textarea`, `badge`
   - Page `src/app/transactions/page.tsx`:
     - list with filters (date range, wallet, type)
-    - “Add transaction” dialog with tabs for type
+    - "Add transaction" dialog with tabs for type
 - [ ] **Step 4.6**: Soft delete
   - Add API/action: `DELETE /api/transactions/:id` sets `deleted_at`
 - [ ] **Step 4.7**: Verification checklist
