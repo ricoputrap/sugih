@@ -40,7 +40,10 @@ export const BudgetMonthSchema = z
   );
 
 export const BudgetItemSchema = z.object({
-  categoryId: z.uuid("Invalid category ID"),
+  categoryId: z
+    .string()
+    .min(1, "Category ID is required")
+    .max(50, "Category ID too long"),
   amountIdr: z.number().int().positive("Budget amount must be positive"),
 });
 
@@ -56,7 +59,7 @@ export const BudgetQuerySchema = z.object({
 });
 
 export const BudgetIdSchema = z.object({
-  id: z.uuid("Invalid budget ID"),
+  id: z.string().min(1, "Budget ID is required").max(50, "Budget ID too long"),
 });
 
 // Type exports for TypeScript
