@@ -6,6 +6,7 @@ vi.mock("@/modules/SavingsBucket/actions", () => ({
   getSavingsBucketById: vi.fn(),
   updateSavingsBucket: vi.fn(),
   archiveSavingsBucket: vi.fn(),
+  restoreSavingsBucket: vi.fn(),
   deleteSavingsBucket: vi.fn(),
 }));
 
@@ -75,6 +76,7 @@ import {
   getSavingsBucketById,
   updateSavingsBucket,
   archiveSavingsBucket,
+  restoreSavingsBucket,
   deleteSavingsBucket,
 } from "@/modules/SavingsBucket/actions";
 
@@ -560,15 +562,21 @@ describe("SavingsBuckets [id] API Routes", () => {
   describe("DELETE /api/savings-buckets/[id]", () => {
     describe("archive action (default)", () => {
       it("should archive a savings bucket by default", async () => {
-        const archivedBucket = {
+        const activeBucket = {
           id: "bucket1",
           name: "Emergency Fund",
           description: "For emergencies",
-          archived: true,
+          archived: false,
           created_at: "2024-01-01T00:00:00.000Z",
           updated_at: "2024-01-02T00:00:00.000Z",
         };
+        const archivedBucket = {
+          ...activeBucket,
+          archived: true,
+          updated_at: "2024-01-02T00:00:00.000Z",
+        };
 
+        vi.mocked(getSavingsBucketById).mockResolvedValue(activeBucket);
         vi.mocked(archiveSavingsBucket).mockResolvedValue(archivedBucket);
 
         const request = createMockRequest(
@@ -585,15 +593,21 @@ describe("SavingsBuckets [id] API Routes", () => {
       });
 
       it("should archive when action=archive is specified", async () => {
-        const archivedBucket = {
+        const activeBucket = {
           id: "bucket1",
           name: "Emergency Fund",
           description: "For emergencies",
-          archived: true,
+          archived: false,
           created_at: "2024-01-01T00:00:00.000Z",
           updated_at: "2024-01-02T00:00:00.000Z",
         };
+        const archivedBucket = {
+          ...activeBucket,
+          archived: true,
+          updated_at: "2024-01-02T00:00:00.000Z",
+        };
 
+        vi.mocked(getSavingsBucketById).mockResolvedValue(activeBucket);
         vi.mocked(archiveSavingsBucket).mockResolvedValue(archivedBucket);
 
         const request = createMockRequest(
@@ -608,9 +622,7 @@ describe("SavingsBuckets [id] API Routes", () => {
       });
 
       it("should return 404 when savings bucket not found for archiving", async () => {
-        vi.mocked(archiveSavingsBucket).mockRejectedValue(
-          new Error("Savings bucket not found"),
-        );
+        vi.mocked(getSavingsBucketById).mockResolvedValue(null);
 
         const request = createMockRequest(
           "DELETE",
@@ -623,10 +635,19 @@ describe("SavingsBuckets [id] API Routes", () => {
         expect(data.error.message).toBe("Savings bucket not found");
       });
 
-      it("should return 409 when savings bucket is already archived", async () => {
-        vi.mocked(archiveSavingsBucket).mockRejectedValue(
-          new Error("Savings bucket is already archived"),
-        );
+      it("should restore when savings bucket is already archived", async () => {
+        const archivedBucket = {
+          id: "bucket1",
+          name: "Archived Bucket",
+          description: "Test",
+          archived: true,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+        const restoredBucket = { ...archivedBucket, archived: false };
+
+        vi.mocked(getSavingsBucketById).mockResolvedValue(archivedBucket);
+        vi.mocked(restoreSavingsBucket).mockResolvedValue(restoredBucket);
 
         const request = createMockRequest(
           "DELETE",
@@ -635,8 +656,9 @@ describe("SavingsBuckets [id] API Routes", () => {
         const response = await DELETE(request, createMockParams("bucket1"));
         const { status, data } = await parseResponse(response);
 
-        expect(status).toBe(409);
-        expect(data.error.message).toBe("Savings bucket is already archived");
+        expect(status).toBe(200);
+        expect(data.message).toBe("Savings bucket restored successfully");
+        expect(restoreSavingsBucket).toHaveBeenCalledWith("bucket1");
       });
     });
 
@@ -735,7 +757,8 @@ describe("SavingsBuckets [id] API Routes", () => {
         zodError.name = "ZodError";
         (zodError as any).status = 422;
 
-        vi.mocked(archiveSavingsBucket).mockRejectedValue(zodError);
+        // getSavingsBucketById is called first, so mock it to throw the error
+        vi.mocked(getSavingsBucketById).mockRejectedValue(zodError);
 
         const request = createMockRequest(
           "DELETE",
@@ -748,6 +771,16 @@ describe("SavingsBuckets [id] API Routes", () => {
       });
 
       it("should return 500 for unexpected errors", async () => {
+        const activeBucket = {
+          id: "bucket1",
+          name: "Test Bucket",
+          description: "Test",
+          archived: false,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+
+        vi.mocked(getSavingsBucketById).mockResolvedValue(activeBucket);
         vi.mocked(archiveSavingsBucket).mockRejectedValue(
           new Error("Unexpected error"),
         );
@@ -769,7 +802,8 @@ describe("SavingsBuckets [id] API Routes", () => {
           message: "Connection refused",
         };
 
-        vi.mocked(archiveSavingsBucket).mockRejectedValue(pgError);
+        // getSavingsBucketById throws the PostgreSQL error
+        vi.mocked(getSavingsBucketById).mockRejectedValue(pgError);
 
         const request = createMockRequest(
           "DELETE",
