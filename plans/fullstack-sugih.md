@@ -245,16 +245,16 @@ Deliverable: You can record all transaction types and view them.
 
 ## Phase 5: Budgets Module (Expense categories only)
 
-- [ ] **Step 5.1**: Budget schema + Zod
+- [x] **Step 5.1**: Budget schema + Zod
   - `BudgetMonthSchema`: `YYYY-MM`
   - `BudgetUpsertSchema`: `{ month, items: [{ categoryId, amountIdr }] }`
-- [ ] **Step 5.2**: Actions (Raw SQL)
+- [x] **Step 5.2**: Actions (Raw SQL)
   - `getBudgetsByMonth(month)`
   - `upsertBudgets(month, items)` (transaction + upsert)
-- [ ] **Step 5.3**: API routes
+- [x] **Step 5.3**: API routes
   - `GET /api/budgets?month=YYYY-MM`
   - `PUT /api/budgets`
-- [ ] **Step 5.4**: Budget vs actual query
+- [x] **Step 5.4**: Budget vs actual query
   - For a month, compute:
     - budget per category
     - actual spend per category (expense events only)
