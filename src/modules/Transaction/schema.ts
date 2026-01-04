@@ -43,30 +43,45 @@ export const postings = pgTable("postings", {
 // Zod schemas for validation
 export const ExpenseCreateSchema = z.object({
   occurredAt: z.coerce.date(),
-  walletId: z.uuid("Invalid wallet ID"),
-  categoryId: z.uuid("Invalid category ID"),
+  walletId: z
+    .string()
+    .min(1, "Wallet ID is required")
+    .max(50, "Wallet ID too long"),
+  categoryId: z
+    .string()
+    .min(1, "Category ID is required")
+    .max(50, "Category ID too long"),
   amountIdr: z.number().int().positive("Amount must be positive"),
   note: z.string().optional(),
-  idempotencyKey: z.uuid().optional(),
+  idempotencyKey: z.string().max(36).optional(),
 });
 
 export const IncomeCreateSchema = z.object({
   occurredAt: z.coerce.date(),
-  walletId: z.uuid("Invalid wallet ID"),
+  walletId: z
+    .string()
+    .min(1, "Wallet ID is required")
+    .max(50, "Wallet ID too long"),
   amountIdr: z.number().int().positive("Amount must be positive"),
   note: z.string().optional(),
   payee: z.string().optional(),
-  idempotencyKey: z.uuid().optional(),
+  idempotencyKey: z.string().max(36).optional(),
 });
 
 export const TransferCreateSchema = z
   .object({
     occurredAt: z.coerce.date(),
-    fromWalletId: z.uuid("Invalid from wallet ID"),
-    toWalletId: z.uuid("Invalid to wallet ID"),
+    fromWalletId: z
+      .string()
+      .min(1, "From wallet ID is required")
+      .max(50, "From wallet ID too long"),
+    toWalletId: z
+      .string()
+      .min(1, "To wallet ID is required")
+      .max(50, "To wallet ID too long"),
     amountIdr: z.number().int().positive("Amount must be positive"),
     note: z.string().optional(),
-    idempotencyKey: z.uuid().optional(),
+    idempotencyKey: z.string().max(36).optional(),
   })
   .refine((data) => data.fromWalletId !== data.toWalletId, {
     message: "From and to wallets must be different",
@@ -75,20 +90,32 @@ export const TransferCreateSchema = z
 
 export const SavingsContributeSchema = z.object({
   occurredAt: z.coerce.date(),
-  walletId: z.uuid("Invalid wallet ID"),
-  bucketId: z.uuid("Invalid savings bucket ID"),
+  walletId: z
+    .string()
+    .min(1, "Wallet ID is required")
+    .max(50, "Wallet ID too long"),
+  bucketId: z
+    .string()
+    .min(1, "Bucket ID is required")
+    .max(50, "Bucket ID too long"),
   amountIdr: z.number().int().positive("Amount must be positive"),
   note: z.string().optional(),
-  idempotencyKey: z.uuid().optional(),
+  idempotencyKey: z.string().max(36).optional(),
 });
 
 export const SavingsWithdrawSchema = z.object({
   occurredAt: z.coerce.date(),
-  walletId: z.uuid("Invalid wallet ID"),
-  bucketId: z.uuid("Invalid savings bucket ID"),
+  walletId: z
+    .string()
+    .min(1, "Wallet ID is required")
+    .max(50, "Wallet ID too long"),
+  bucketId: z
+    .string()
+    .min(1, "Bucket ID is required")
+    .max(50, "Bucket ID too long"),
   amountIdr: z.number().int().positive("Amount must be positive"),
   note: z.string().optional(),
-  idempotencyKey: z.uuid().optional(),
+  idempotencyKey: z.string().max(36).optional(),
 });
 
 export const TransactionListQuerySchema = z.object({
@@ -103,14 +130,17 @@ export const TransactionListQuerySchema = z.object({
       "savings_withdrawal",
     ])
     .optional(),
-  walletId: z.uuid().optional(),
-  categoryId: z.uuid().optional(),
+  walletId: z.string().min(1).max(50).optional(),
+  categoryId: z.string().min(1).max(50).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
 
 export const TransactionIdSchema = z.object({
-  id: z.uuid("Invalid transaction ID"),
+  id: z
+    .string()
+    .min(1, "Transaction ID is required")
+    .max(50, "Transaction ID too long"),
 });
 
 // Type exports for TypeScript

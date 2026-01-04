@@ -1,0 +1,170 @@
+import { NextRequest } from "next/server";
+import {
+  listTransactions,
+  createExpense,
+  createIncome,
+  createTransfer,
+  createSavingsContribution,
+  createSavingsWithdrawal,
+} from "@/modules/Transaction/actions";
+import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
+import { formatPostgresError } from "@/db/client";
+import { TransactionListQuerySchema } from "@/db/schema";
+
+/**
+ * GET /api/transactions
+ * List transactions with optional filters
+ *
+ * Query params:
+ * - from: ISO date string (optional)
+ * - to: ISO date string (optional)
+ * - type: expense | income | transfer | savings_contribution | savings_withdrawal (optional)
+ * - walletId: string (optional)
+ * - categoryId: string (optional)
+ * - limit: number (default 50, max 100)
+ * - offset: number (default 0)
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const url = new URL(request.url);
+    const query: typeof TransactionListQuerySchema = {
+      from: url.searchParams.get("from") || undefined,
+      to: url.searchParams.get("to") || undefined,
+      type: url.searchParams.get("type") || undefined,
+      walletId: url.searchParams.get("walletId") || undefined,
+      categoryId: url.searchParams.get("categoryId") || undefined,
+      limit: url.searchParams.get("limit") || undefined,
+      offset: url.searchParams.get("offset") || undefined,
+    };
+
+    const transactions = await listTransactions(query);
+    return ok(transactions);
+  } catch (error: any) {
+    console.error("Error fetching transactions:", error);
+
+    // Handle validation errors (already formatted as Response)
+    if (error instanceof Response) {
+      return error;
+    }
+
+    // Handle Zod validation errors
+    if (error.status === 422) {
+      return error;
+    }
+
+    // Handle PostgreSQL-specific errors
+    if (error.code) {
+      const formattedError = formatPostgresError(error);
+      console.error("PostgreSQL error:", formattedError);
+      return serverError("Database error");
+    }
+
+    return serverError("Failed to fetch transactions");
+  }
+}
+
+/**
+ * POST /api/transactions
+ * Create a new transaction
+ *
+ * Body must include "type" field to determine transaction type:
+ * - expense: requires walletId, categoryId, amountIdr, occurredAt
+ * - income: requires walletId, amountIdr, occurredAt
+ * - transfer: requires fromWalletId, toWalletId, amountIdr, occurredAt
+ * - savings_contribution: requires walletId, bucketId, amountIdr, occurredAt
+ * - savings_withdrawal: requires walletId, bucketId, amountIdr, occurredAt
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // Parse request body
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return badRequest("Invalid JSON body");
+    }
+
+    const { type, ...data } = body;
+
+    if (!type) {
+      return badRequest("Transaction type is required");
+    }
+
+    let transaction;
+
+    switch (type) {
+      case "expense":
+        transaction = await createExpense(data);
+        break;
+      case "income":
+        transaction = await createIncome(data);
+        break;
+      case "transfer":
+        transaction = await createTransfer(data);
+        break;
+      case "savings_contribution":
+        transaction = await createSavingsContribution(data);
+        break;
+      case "savings_withdrawal":
+        transaction = await createSavingsWithdrawal(data);
+        break;
+      default:
+        return badRequest(
+          `Invalid transaction type: ${type}. Valid types are: expense, income, transfer, savings_contribution, savings_withdrawal`,
+        );
+    }
+
+    return ok(transaction);
+  } catch (error: any) {
+    console.error("Error creating transaction:", error);
+
+    // Handle validation errors (already formatted as Response)
+    if (error instanceof Response) {
+      return error;
+    }
+
+    // Handle Zod validation errors
+    if (error.status === 422) {
+      return error;
+    }
+
+    // Handle not found errors
+    if (error.message?.includes("not found")) {
+      return notFound(error.message);
+    }
+
+    // Handle archived resource errors
+    if (error.message?.includes("archived")) {
+      return badRequest(error.message);
+    }
+
+    // Handle PostgreSQL unique constraint violation (idempotency key)
+    if (error.code === "23505") {
+      return conflict("Transaction with this idempotency key already exists");
+    }
+
+    // Handle PostgreSQL foreign key violation
+    if (error.code === "23503") {
+      return badRequest("Invalid reference: " + error.detail);
+    }
+
+    // Handle PostgreSQL not-null violation
+    if (error.code === "23502") {
+      return badRequest("Missing required field: " + error.column);
+    }
+
+    // Handle PostgreSQL check constraint violation
+    if (error.code === "23514") {
+      return badRequest("Invalid data: " + error.detail);
+    }
+
+    // Handle other PostgreSQL errors
+    if (error.code) {
+      const formattedError = formatPostgresError(error);
+      console.error("PostgreSQL error:", formattedError);
+      return serverError("Database error");
+    }
+
+    return serverError("Failed to create transaction");
+  }
+}

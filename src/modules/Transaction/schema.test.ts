@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
   transactionEvents,
   postings,
@@ -9,179 +9,179 @@ import {
   SavingsWithdrawSchema,
   TransactionListQuerySchema,
   TransactionIdSchema,
-} from './schema';
+} from "./schema";
 
-// Test data
+// Test data - using nanoid format for IDs
 const validTransactionEventData = {
-  id: '550e8400-e29b-41d4-a716-446655440000',
-  occurred_at: new Date('2024-01-01T12:00:00Z'),
-  type: 'expense' as const,
-  note: 'Lunch at restaurant',
-  payee: 'Restaurant ABC',
-  category_id: '550e8400-e29b-41d4-a716-446655440001',
+  id: "cPRN4GwjAn0EhLig1KJla",
+  occurred_at: new Date("2024-01-01T12:00:00Z"),
+  type: "expense" as const,
+  note: "Lunch at restaurant",
+  payee: "Restaurant ABC",
+  category_id: "dQRS5HxkBo1FiMjh2LKmb",
   deleted_at: null,
-  created_at: new Date('2024-01-01T10:00:00Z'),
-  updated_at: new Date('2024-01-01T10:00:00Z'),
-  idempotency_key: '550e8400-e29b-41d4-a716-446655440002',
+  created_at: new Date("2024-01-01T10:00:00Z"),
+  updated_at: new Date("2024-01-01T10:00:00Z"),
+  idempotency_key: "eRST6IylCp2GjNki3MLnc",
 };
 
 const validPostingData = {
-  id: '550e8400-e29b-41d4-a716-446655440003',
-  event_id: '550e8400-e29b-41d4-a716-446655440000',
-  wallet_id: '550e8400-e29b-41d4-a716-446655440004',
+  id: "fSTU7JzmDq3HkOlj4NMod",
+  event_id: "cPRN4GwjAn0EhLig1KJla",
+  wallet_id: "gTUV8KanEr4IlPmk5OPpe",
   savings_bucket_id: null,
   amount_idr: 50000,
-  created_at: new Date('2024-01-01T10:00:00Z'),
+  created_at: new Date("2024-01-01T10:00:00Z"),
 };
 
 const validExpenseInput = {
-  occurredAt: new Date('2024-01-01T12:00:00Z'),
-  walletId: '550e8400-e29b-41d4-a716-446655440004',
-  categoryId: '550e8400-e29b-41d4-a716-446655440001',
+  occurredAt: new Date("2024-01-01T12:00:00Z"),
+  walletId: "gTUV8KanEr4IlPmk5OPpe",
+  categoryId: "dQRS5HxkBo1FiMjh2LKmb",
   amountIdr: 50000,
-  note: 'Lunch at restaurant',
-  idempotencyKey: '550e8400-e29b-41d4-a716-446655440002',
+  note: "Lunch at restaurant",
+  idempotencyKey: "eRST6IylCp2GjNki3MLnc",
 };
 
 const validIncomeInput = {
-  occurredAt: new Date('2024-01-01T12:00:00Z'),
-  walletId: '550e8400-e29b-41d4-a716-446655440004',
+  occurredAt: new Date("2024-01-01T12:00:00Z"),
+  walletId: "gTUV8KanEr4IlPmk5OPpe",
   amountIdr: 1000000,
-  note: 'Salary payment',
-  payee: 'Company XYZ',
-  idempotencyKey: '550e8400-e29b-41d4-a716-446655440005',
+  note: "Salary payment",
+  payee: "Company XYZ",
+  idempotencyKey: "hUVW9LboFs5JmQnl6PRqf",
 };
 
 const validTransferInput = {
-  occurredAt: new Date('2024-01-01T12:00:00Z'),
-  fromWalletId: '550e8400-e29b-41d4-a716-446655440004',
-  toWalletId: '550e8400-e29b-41d4-a716-446655440006',
+  occurredAt: new Date("2024-01-01T12:00:00Z"),
+  fromWalletId: "gTUV8KanEr4IlPmk5OPpe",
+  toWalletId: "iVWX0McpGt6KnRom7QSrg",
   amountIdr: 100000,
-  note: 'Transfer to savings',
-  idempotencyKey: '550e8400-e29b-41d4-a716-446655440007',
+  note: "Transfer to savings",
+  idempotencyKey: "jWXY1NdqHu7LoSpn8RTsh",
 };
 
 const validSavingsContributeInput = {
-  occurredAt: new Date('2024-01-01T12:00:00Z'),
-  walletId: '550e8400-e29b-41d4-a716-446655440004',
-  bucketId: '550e8400-e29b-41d4-a716-446655440008',
+  occurredAt: new Date("2024-01-01T12:00:00Z"),
+  walletId: "gTUV8KanEr4IlPmk5OPpe",
+  bucketId: "kXYZ2OerIv8MpTqo9SUti",
   amountIdr: 200000,
-  note: 'Monthly savings contribution',
-  idempotencyKey: '550e8400-e29b-41d4-a716-446655440009',
+  note: "Monthly savings contribution",
+  idempotencyKey: "lYZa3PfsJw9NqUrp0TVuj",
 };
 
 const validSavingsWithdrawInput = {
-  occurredAt: new Date('2024-01-01T12:00:00Z'),
-  walletId: '550e8400-e29b-41d4-a716-446655440004',
-  bucketId: '550e8400-e29b-41d4-a716-446655440008',
+  occurredAt: new Date("2024-01-01T12:00:00Z"),
+  walletId: "gTUV8KanEr4IlPmk5OPpe",
+  bucketId: "kXYZ2OerIv8MpTqo9SUti",
   amountIdr: 50000,
-  note: 'Emergency withdrawal',
-  idempotencyKey: '550e8400-e29b-41d4-a716-44665544000a',
+  note: "Emergency withdrawal",
+  idempotencyKey: "mZab4QgtKx0OrVsq1UWvk",
 };
 
-describe('Transaction PostgreSQL Schema Validation', () => {
-  describe('Schema Structure', () => {
-    describe('transactionEvents table', () => {
-      it('should be defined as a valid Drizzle table', () => {
+describe("Transaction PostgreSQL Schema Validation", () => {
+  describe("Schema Structure", () => {
+    describe("transactionEvents table", () => {
+      it("should be defined as a valid Drizzle table", () => {
         expect(transactionEvents).toBeDefined();
-        expect(typeof transactionEvents).toBe('object');
+        expect(typeof transactionEvents).toBe("object");
       });
 
-      it('should have all expected columns', () => {
-        expect(transactionEvents).toHaveProperty('id');
-        expect(transactionEvents).toHaveProperty('occurred_at');
-        expect(transactionEvents).toHaveProperty('type');
-        expect(transactionEvents).toHaveProperty('note');
-        expect(transactionEvents).toHaveProperty('payee');
-        expect(transactionEvents).toHaveProperty('category_id');
-        expect(transactionEvents).toHaveProperty('deleted_at');
-        expect(transactionEvents).toHaveProperty('created_at');
-        expect(transactionEvents).toHaveProperty('updated_at');
-        expect(transactionEvents).toHaveProperty('idempotency_key');
+      it("should have all expected columns", () => {
+        expect(transactionEvents).toHaveProperty("id");
+        expect(transactionEvents).toHaveProperty("occurred_at");
+        expect(transactionEvents).toHaveProperty("type");
+        expect(transactionEvents).toHaveProperty("note");
+        expect(transactionEvents).toHaveProperty("payee");
+        expect(transactionEvents).toHaveProperty("category_id");
+        expect(transactionEvents).toHaveProperty("deleted_at");
+        expect(transactionEvents).toHaveProperty("created_at");
+        expect(transactionEvents).toHaveProperty("updated_at");
+        expect(transactionEvents).toHaveProperty("idempotency_key");
       });
     });
 
-    describe('postings table', () => {
-      it('should be defined as a valid Drizzle table', () => {
+    describe("postings table", () => {
+      it("should be defined as a valid Drizzle table", () => {
         expect(postings).toBeDefined();
-        expect(typeof postings).toBe('object');
+        expect(typeof postings).toBe("object");
       });
 
-      it('should have all expected columns', () => {
-        expect(postings).toHaveProperty('id');
-        expect(postings).toHaveProperty('event_id');
-        expect(postings).toHaveProperty('wallet_id');
-        expect(postings).toHaveProperty('savings_bucket_id');
-        expect(postings).toHaveProperty('amount_idr');
-        expect(postings).toHaveProperty('created_at');
-      });
-    });
-  });
-
-  describe('Column Definitions', () => {
-    describe('transactionEvents.id column', () => {
-      it('should be defined', () => {
-        expect(transactionEvents.id).toBeDefined();
-      });
-
-      it('should be primary key', () => {
-        expect(transactionEvents.id).toBeDefined();
-      });
-    });
-
-    describe('transactionEvents.occurred_at column', () => {
-      it('should be defined', () => {
-        expect(transactionEvents.occurred_at).toBeDefined();
-      });
-
-      it('should be not null', () => {
-        expect(transactionEvents.occurred_at).toBeDefined();
-      });
-    });
-
-    describe('transactionEvents.type column', () => {
-      it('should be defined', () => {
-        expect(transactionEvents.type).toBeDefined();
-      });
-
-      it('should have enum constraint', () => {
-        expect(transactionEvents.type).toBeDefined();
-      });
-    });
-
-    describe('transactionEvents.idempotency_key column', () => {
-      it('should be defined', () => {
-        expect(transactionEvents.idempotency_key).toBeDefined();
-      });
-
-      it('should have unique constraint', () => {
-        expect(transactionEvents.idempotency_key).toBeDefined();
-      });
-    });
-
-    describe('postings.amount_idr column', () => {
-      it('should be defined', () => {
-        expect(postings.amount_idr).toBeDefined();
-      });
-
-      it('should be not null', () => {
-        expect(postings.amount_idr).toBeDefined();
+      it("should have all expected columns", () => {
+        expect(postings).toHaveProperty("id");
+        expect(postings).toHaveProperty("event_id");
+        expect(postings).toHaveProperty("wallet_id");
+        expect(postings).toHaveProperty("savings_bucket_id");
+        expect(postings).toHaveProperty("amount_idr");
+        expect(postings).toHaveProperty("created_at");
       });
     });
   });
 
-  describe('Zod Schema Validation', () => {
-    describe('ExpenseCreateSchema', () => {
-      it('should be defined', () => {
+  describe("Column Definitions", () => {
+    describe("transactionEvents.id column", () => {
+      it("should be defined", () => {
+        expect(transactionEvents.id).toBeDefined();
+      });
+
+      it("should be primary key", () => {
+        expect(transactionEvents.id).toBeDefined();
+      });
+    });
+
+    describe("transactionEvents.occurred_at column", () => {
+      it("should be defined", () => {
+        expect(transactionEvents.occurred_at).toBeDefined();
+      });
+
+      it("should be not null", () => {
+        expect(transactionEvents.occurred_at).toBeDefined();
+      });
+    });
+
+    describe("transactionEvents.type column", () => {
+      it("should be defined", () => {
+        expect(transactionEvents.type).toBeDefined();
+      });
+
+      it("should have enum constraint", () => {
+        expect(transactionEvents.type).toBeDefined();
+      });
+    });
+
+    describe("transactionEvents.idempotency_key column", () => {
+      it("should be defined", () => {
+        expect(transactionEvents.idempotency_key).toBeDefined();
+      });
+
+      it("should have unique constraint", () => {
+        expect(transactionEvents.idempotency_key).toBeDefined();
+      });
+    });
+
+    describe("postings.amount_idr column", () => {
+      it("should be defined", () => {
+        expect(postings.amount_idr).toBeDefined();
+      });
+
+      it("should be not null", () => {
+        expect(postings.amount_idr).toBeDefined();
+      });
+    });
+  });
+
+  describe("Zod Schema Validation", () => {
+    describe("ExpenseCreateSchema", () => {
+      it("should be defined", () => {
         expect(ExpenseCreateSchema).toBeDefined();
       });
 
-      it('should validate correct expense creation data', () => {
+      it("should validate correct expense creation data", () => {
         const result = ExpenseCreateSchema.safeParse(validExpenseInput);
         expect(result.success).toBe(true);
       });
 
-      it('should reject negative amounts', () => {
+      it("should reject negative amounts", () => {
         const result = ExpenseCreateSchema.safeParse({
           ...validExpenseInput,
           amountIdr: -1000,
@@ -189,7 +189,7 @@ describe('Transaction PostgreSQL Schema Validation', () => {
         expect(result.success).toBe(false);
       });
 
-      it('should reject zero amounts', () => {
+      it("should reject zero amounts", () => {
         const result = ExpenseCreateSchema.safeParse({
           ...validExpenseInput,
           amountIdr: 0,
@@ -197,7 +197,7 @@ describe('Transaction PostgreSQL Schema Validation', () => {
         expect(result.success).toBe(false);
       });
 
-      it('should accept positive amounts', () => {
+      it("should accept positive amounts", () => {
         const result = ExpenseCreateSchema.safeParse({
           ...validExpenseInput,
           amountIdr: 1000,
@@ -205,23 +205,23 @@ describe('Transaction PostgreSQL Schema Validation', () => {
         expect(result.success).toBe(true);
       });
 
-      it('should validate UUID format for walletId', () => {
+      it("should reject empty walletId", () => {
         const result = ExpenseCreateSchema.safeParse({
           ...validExpenseInput,
-          walletId: 'invalid-uuid',
+          walletId: "",
         });
         expect(result.success).toBe(false);
       });
 
-      it('should validate UUID format for categoryId', () => {
+      it("should reject empty categoryId", () => {
         const result = ExpenseCreateSchema.safeParse({
           ...validExpenseInput,
-          categoryId: 'invalid-uuid',
+          categoryId: "",
         });
         expect(result.success).toBe(false);
       });
 
-      it('should accept optional note field', () => {
+      it("should accept optional note field", () => {
         const result = ExpenseCreateSchema.safeParse({
           occurredAt: validExpenseInput.occurredAt,
           walletId: validExpenseInput.walletId,
@@ -232,17 +232,17 @@ describe('Transaction PostgreSQL Schema Validation', () => {
       });
     });
 
-    describe('IncomeCreateSchema', () => {
-      it('should be defined', () => {
+    describe("IncomeCreateSchema", () => {
+      it("should be defined", () => {
         expect(IncomeCreateSchema).toBeDefined();
       });
 
-      it('should validate correct income creation data', () => {
+      it("should validate correct income creation data", () => {
         const result = IncomeCreateSchema.safeParse(validIncomeInput);
         expect(result.success).toBe(true);
       });
 
-      it('should accept optional payee field', () => {
+      it("should accept optional payee field", () => {
         const result = IncomeCreateSchema.safeParse({
           occurredAt: validIncomeInput.occurredAt,
           walletId: validIncomeInput.walletId,
@@ -251,7 +251,7 @@ describe('Transaction PostgreSQL Schema Validation', () => {
         expect(result.success).toBe(true);
       });
 
-      it('should reject negative amounts', () => {
+      it("should reject negative amounts", () => {
         const result = IncomeCreateSchema.safeParse({
           ...validIncomeInput,
           amountIdr: -1000,
@@ -260,17 +260,17 @@ describe('Transaction PostgreSQL Schema Validation', () => {
       });
     });
 
-    describe('TransferCreateSchema', () => {
-      it('should be defined', () => {
+    describe("TransferCreateSchema", () => {
+      it("should be defined", () => {
         expect(TransferCreateSchema).toBeDefined();
       });
 
-      it('should validate correct transfer data', () => {
+      it("should validate correct transfer data", () => {
         const result = TransferCreateSchema.safeParse(validTransferInput);
         expect(result.success).toBe(true);
       });
 
-      it('should reject same wallet for from and to', () => {
+      it("should reject same wallet for from and to", () => {
         const result = TransferCreateSchema.safeParse({
           ...validTransferInput,
           fromWalletId: validTransferInput.toWalletId,
@@ -278,39 +278,41 @@ describe('Transaction PostgreSQL Schema Validation', () => {
         expect(result.success).toBe(false);
       });
 
-      it('should accept different wallets for from and to', () => {
+      it("should accept different wallets for from and to", () => {
         const result = TransferCreateSchema.safeParse(validTransferInput);
         expect(result.success).toBe(true);
       });
 
-      it('should validate UUID format for fromWalletId', () => {
+      it("should reject empty fromWalletId", () => {
         const result = TransferCreateSchema.safeParse({
           ...validTransferInput,
-          fromWalletId: 'invalid-uuid',
+          fromWalletId: "",
         });
         expect(result.success).toBe(false);
       });
 
-      it('should validate UUID format for toWalletId', () => {
+      it("should reject empty toWalletId", () => {
         const result = TransferCreateSchema.safeParse({
           ...validTransferInput,
-          toWalletId: 'invalid-uuid',
+          toWalletId: "",
         });
         expect(result.success).toBe(false);
       });
     });
 
-    describe('SavingsContributeSchema', () => {
-      it('should be defined', () => {
+    describe("SavingsContributeSchema", () => {
+      it("should be defined", () => {
         expect(SavingsContributeSchema).toBeDefined();
       });
 
-      it('should validate correct savings contribution data', () => {
-        const result = SavingsContributeSchema.safeParse(validSavingsContributeInput);
+      it("should validate correct savings contribution data", () => {
+        const result = SavingsContributeSchema.safeParse(
+          validSavingsContributeInput,
+        );
         expect(result.success).toBe(true);
       });
 
-      it('should reject negative amounts', () => {
+      it("should reject negative amounts", () => {
         const result = SavingsContributeSchema.safeParse({
           ...validSavingsContributeInput,
           amountIdr: -1000,
@@ -318,26 +320,28 @@ describe('Transaction PostgreSQL Schema Validation', () => {
         expect(result.success).toBe(false);
       });
 
-      it('should validate UUID format for bucketId', () => {
+      it("should reject empty bucketId", () => {
         const result = SavingsContributeSchema.safeParse({
           ...validSavingsContributeInput,
-          bucketId: 'invalid-uuid',
+          bucketId: "",
         });
         expect(result.success).toBe(false);
       });
     });
 
-    describe('SavingsWithdrawSchema', () => {
-      it('should be defined', () => {
+    describe("SavingsWithdrawSchema", () => {
+      it("should be defined", () => {
         expect(SavingsWithdrawSchema).toBeDefined();
       });
 
-      it('should validate correct savings withdrawal data', () => {
-        const result = SavingsWithdrawSchema.safeParse(validSavingsWithdrawInput);
+      it("should validate correct savings withdrawal data", () => {
+        const result = SavingsWithdrawSchema.safeParse(
+          validSavingsWithdrawInput,
+        );
         expect(result.success).toBe(true);
       });
 
-      it('should reject negative amounts', () => {
+      it("should reject negative amounts", () => {
         const result = SavingsWithdrawSchema.safeParse({
           ...validSavingsWithdrawInput,
           amountIdr: -1000,
@@ -346,30 +350,30 @@ describe('Transaction PostgreSQL Schema Validation', () => {
       });
     });
 
-    describe('TransactionListQuerySchema', () => {
-      it('should be defined', () => {
+    describe("TransactionListQuerySchema", () => {
+      it("should be defined", () => {
         expect(TransactionListQuerySchema).toBeDefined();
       });
 
-      it('should validate correct query parameters', () => {
+      it("should validate correct query parameters", () => {
         const result = TransactionListQuerySchema.safeParse({
-          from: new Date('2024-01-01'),
-          to: new Date('2024-01-31'),
-          type: 'expense',
-          walletId: '550e8400-e29b-41d4-a716-446655440004',
-          categoryId: '550e8400-e29b-41d4-a716-446655440001',
+          from: new Date("2024-01-01"),
+          to: new Date("2024-01-31"),
+          type: "expense",
+          walletId: "550e8400-e29b-41d4-a716-446655440004",
+          categoryId: "550e8400-e29b-41d4-a716-446655440001",
           limit: 50,
           offset: 0,
         });
         expect(result.success).toBe(true);
       });
 
-      it('should accept minimal query parameters', () => {
+      it("should accept minimal query parameters", () => {
         const result = TransactionListQuerySchema.safeParse({});
         expect(result.success).toBe(true);
       });
 
-      it('should apply default values', () => {
+      it("should apply default values", () => {
         const result = TransactionListQuerySchema.safeParse({});
         if (result.success) {
           expect(result.data.limit).toBe(50);
@@ -377,14 +381,14 @@ describe('Transaction PostgreSQL Schema Validation', () => {
         }
       });
 
-      it('should validate limit range', () => {
+      it("should validate limit range", () => {
         const result = TransactionListQuerySchema.safeParse({
           limit: 150,
         });
         expect(result.success).toBe(false);
       });
 
-      it('should accept valid limit range', () => {
+      it("should accept valid limit range", () => {
         const result = TransactionListQuerySchema.safeParse({
           limit: 100,
         });
@@ -392,29 +396,36 @@ describe('Transaction PostgreSQL Schema Validation', () => {
       });
     });
 
-    describe('TransactionIdSchema', () => {
-      it('should be defined', () => {
+    describe("TransactionIdSchema", () => {
+      it("should be defined", () => {
         expect(TransactionIdSchema).toBeDefined();
       });
 
-      it('should validate correct UUID format', () => {
+      it("should validate correct nanoid format", () => {
         const result = TransactionIdSchema.safeParse({
-          id: '550e8400-e29b-41d4-a716-446655440000',
+          id: "cPRN4GwjAn0EhLig1KJla",
         });
         expect(result.success).toBe(true);
       });
 
-      it('should reject invalid UUID format', () => {
+      it("should reject empty id", () => {
         const result = TransactionIdSchema.safeParse({
-          id: 'not-a-uuid',
+          id: "",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject overly long id", () => {
+        const result = TransactionIdSchema.safeParse({
+          id: "a".repeat(51),
         });
         expect(result.success).toBe(false);
       });
     });
   });
 
-  describe('Type Safety', () => {
-    it('should have compatible data types', () => {
+  describe("Type Safety", () => {
+    it("should have compatible data types", () => {
       // These should not throw errors
       const transactionEvent = validTransactionEventData;
       const posting = validPostingData;
@@ -424,8 +435,8 @@ describe('Transaction PostgreSQL Schema Validation', () => {
     });
   });
 
-  describe('PostgreSQL Type Mappings', () => {
-    it('should use PostgreSQL types for transactionEvents', () => {
+  describe("PostgreSQL Type Mappings", () => {
+    it("should use PostgreSQL types for transactionEvents", () => {
       expect(transactionEvents.id).toBeDefined();
       expect(transactionEvents.occurred_at).toBeDefined();
       expect(transactionEvents.type).toBeDefined();
@@ -438,7 +449,7 @@ describe('Transaction PostgreSQL Schema Validation', () => {
       expect(transactionEvents.idempotency_key).toBeDefined();
     });
 
-    it('should use PostgreSQL types for postings', () => {
+    it("should use PostgreSQL types for postings", () => {
       expect(postings.id).toBeDefined();
       expect(postings.event_id).toBeDefined();
       expect(postings.wallet_id).toBeDefined();
@@ -448,15 +459,21 @@ describe('Transaction PostgreSQL Schema Validation', () => {
     });
   });
 
-  describe('Enum Handling', () => {
-    it('should validate transaction type enum values', () => {
-      const validTypes = ['expense', 'income', 'transfer', 'savings_contribution', 'savings_withdrawal'];
-      
-      validTypes.forEach(type => {
+  describe("Enum Handling", () => {
+    it("should validate transaction type enum values", () => {
+      const validTypes = [
+        "expense",
+        "income",
+        "transfer",
+        "savings_contribution",
+        "savings_withdrawal",
+      ];
+
+      validTypes.forEach((type) => {
         const result = ExpenseCreateSchema.safeParse({
           occurredAt: new Date(),
-          walletId: '550e8400-e29b-41d4-a716-446655440004',
-          categoryId: '550e8400-e29b-41d4-a716-446655440001',
+          walletId: "550e8400-e29b-41d4-a716-446655440004",
+          categoryId: "550e8400-e29b-41d4-a716-446655440001",
           amountIdr: 1000,
           type: type as any,
         });
@@ -465,8 +482,8 @@ describe('Transaction PostgreSQL Schema Validation', () => {
     });
   });
 
-  describe('Foreign Key Support', () => {
-    it('should support nullable category_id', () => {
+  describe("Foreign Key Support", () => {
+    it("should support nullable category_id", () => {
       const result = ExpenseCreateSchema.safeParse({
         ...validExpenseInput,
         categoryId: null as any,
@@ -474,17 +491,17 @@ describe('Transaction PostgreSQL Schema Validation', () => {
       expect(result.success).toBe(false); // categoryId is required for expenses
     });
 
-    it('should support nullable wallet_id in postings', () => {
+    it("should support nullable wallet_id in postings", () => {
       expect(postings.wallet_id).toBeDefined();
     });
 
-    it('should support nullable savings_bucket_id in postings', () => {
+    it("should support nullable savings_bucket_id in postings", () => {
       expect(postings.savings_bucket_id).toBeDefined();
     });
   });
 
-  describe('Edge Cases', () => {
-    it('should handle large amounts', () => {
+  describe("Edge Cases", () => {
+    it("should handle large amounts", () => {
       const largeAmount = Number.MAX_SAFE_INTEGER;
       const result = ExpenseCreateSchema.safeParse({
         ...validExpenseInput,
@@ -493,8 +510,8 @@ describe('Transaction PostgreSQL Schema Validation', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should handle long notes', () => {
-      const longNote = 'a'.repeat(1000);
+    it("should handle long notes", () => {
+      const longNote = "a".repeat(1000);
       const result = ExpenseCreateSchema.safeParse({
         ...validExpenseInput,
         note: longNote,
@@ -502,14 +519,14 @@ describe('Transaction PostgreSQL Schema Validation', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should handle special characters in notes', () => {
+    it("should handle special characters in notes", () => {
       const specialNotes = [
-        'Payment @ restaurant #123',
+        "Payment @ restaurant #123",
         'Transfer to: "Savings Account"',
-        'Purchase > $100 & shipping',
+        "Purchase > $100 & shipping",
       ];
 
-      specialNotes.forEach(note => {
+      specialNotes.forEach((note) => {
         const result = ExpenseCreateSchema.safeParse({
           ...validExpenseInput,
           note,
@@ -518,15 +535,15 @@ describe('Transaction PostgreSQL Schema Validation', () => {
       });
     });
 
-    it('should handle unicode in notes and payees', () => {
+    it("should handle unicode in notes and payees", () => {
       const unicodeData = [
-        '支付餐厅费用',
-        'Оплата в ресторане',
-        'Paiement au restaurant',
-        '🍕 Pizza Delivery',
+        "支付餐厅费用",
+        "Оплата в ресторане",
+        "Paiement au restaurant",
+        "🍕 Pizza Delivery",
       ];
 
-      unicodeData.forEach(note => {
+      unicodeData.forEach((note) => {
         const result = ExpenseCreateSchema.safeParse({
           ...validExpenseInput,
           note,
@@ -536,66 +553,66 @@ describe('Transaction PostgreSQL Schema Validation', () => {
     });
   });
 
-  describe('Backward Compatibility', () => {
-    it('should maintain same field names for transactionEvents', () => {
+  describe("Backward Compatibility", () => {
+    it("should maintain same field names for transactionEvents", () => {
       const expectedFields = [
-        'id',
-        'occurred_at',
-        'type',
-        'note',
-        'payee',
-        'category_id',
-        'deleted_at',
-        'created_at',
-        'updated_at',
-        'idempotency_key',
+        "id",
+        "occurred_at",
+        "type",
+        "note",
+        "payee",
+        "category_id",
+        "deleted_at",
+        "created_at",
+        "updated_at",
+        "idempotency_key",
       ];
 
-      expectedFields.forEach(field => {
+      expectedFields.forEach((field) => {
         expect(transactionEvents).toHaveProperty(field);
       });
     });
 
-    it('should maintain same field names for postings', () => {
+    it("should maintain same field names for postings", () => {
       const expectedFields = [
-        'id',
-        'event_id',
-        'wallet_id',
-        'savings_bucket_id',
-        'amount_idr',
-        'created_at',
+        "id",
+        "event_id",
+        "wallet_id",
+        "savings_bucket_id",
+        "amount_idr",
+        "created_at",
       ];
 
-      expectedFields.forEach(field => {
+      expectedFields.forEach((field) => {
         expect(postings).toHaveProperty(field);
       });
     });
 
-    it('should maintain same validation rules', () => {
+    it("should maintain same validation rules", () => {
       const result = ExpenseCreateSchema.safeParse({
         occurredAt: new Date(),
-        walletId: '550e8400-e29b-41d4-a716-446655440004',
-        categoryId: '550e8400-e29b-41d4-a716-446655440001',
+        walletId: "550e8400-e29b-41d4-a716-446655440004",
+        categoryId: "550e8400-e29b-41d4-a716-446655440001",
         amountIdr: -1000, // Negative should fail
       });
       expect(result.success).toBe(false);
     });
   });
 
-  describe('Schema Migration Readiness', () => {
-    it('should generate valid PostgreSQL column definitions for transactionEvents', () => {
+  describe("Schema Migration Readiness", () => {
+    it("should generate valid PostgreSQL column definitions for transactionEvents", () => {
       expect(transactionEvents.id).toBeDefined();
       expect(transactionEvents.occurred_at).toBeDefined();
       expect(transactionEvents.type).toBeDefined();
     });
 
-    it('should generate valid PostgreSQL column definitions for postings', () => {
+    it("should generate valid PostgreSQL column definitions for postings", () => {
       expect(postings.id).toBeDefined();
       expect(postings.event_id).toBeDefined();
       expect(postings.amount_idr).toBeDefined();
     });
 
-    it('should be ready for drizzle-kit generate', () => {
+    it("should be ready for drizzle-kit generate", () => {
       expect(transactionEvents).toBeDefined();
       expect(postings).toBeDefined();
     });
