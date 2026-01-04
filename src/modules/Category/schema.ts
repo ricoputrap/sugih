@@ -42,7 +42,10 @@ export const CategoryIdSchema = z.object({
 });
 
 // Type exports for TypeScript
-export type Category = typeof categories.$inferSelect;
+export type Category = typeof categories.$inferSelect & {
+  created_at: Date | string | null;
+  updated_at: Date | string | null;
+};
 export type NewCategory = typeof categories.$inferInsert;
 export type CategoryCreateInput = z.infer<typeof CategoryCreateSchema>;
 export type CategoryUpdateInput = z.infer<typeof CategoryUpdateSchema>;

@@ -280,20 +280,9 @@ export async function deleteCategory(id: string): Promise<void> {
       throw new Error("Category not found");
     }
 
-    // Use transaction to ensure atomicity
-    await db.begin(async (tx) => {
-      // Check if category has any associated transactions
-      const transactionsCount = await tx<{ count: number }[]>`
-        SELECT COUNT(*)::int as count FROM transactions WHERE category_id = ${id}
-      `;
-
-      if (transactionsCount[0] && transactionsCount[0].count > 0) {
-        throw new Error("Cannot delete category with existing transactions");
-      }
-
-      // Delete category
-      await tx`DELETE FROM categories WHERE id = ${id}`;
-    });
+    // Delete category directly
+    // Note: The transactions table check will be added in Phase 4 when transactions are implemented
+    await db`DELETE FROM categories WHERE id = ${id}`;
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity("Invalid category ID", formatZodError(error));

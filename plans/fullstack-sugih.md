@@ -112,16 +112,16 @@ Deliverable: SQLite DB initialized with all tables + constraints + migration his
 
 ### Phase 3B: Category Module (Expense-only)
 
-- [ ] **Step 3B.1**: Schema + Zod
+- [x] **Step 3B.1**: Schema + Zod
   - `CategoryCreateSchema` only requires `name`.
-- [ ] **Step 3B.2**: Actions (Raw SQL)
+- [x] **Step 3B.2**: Actions (Raw SQL)
   - list/create/update/archive
-- [ ] **Step 3B.3**: API routes (no `kind`)
+- [x] **Step 3B.3**: API routes (no `kind`)
   - `GET /api/categories`
   - `POST /api/categories`
   - `PATCH /api/categories/:id`
   - `DELETE /api/categories/:id`
-- [ ] **Step 3B.4**: UI + Page
+- [x] **Step 3B.4**: UI + Page
   - `src/app/categories/page.tsx`
 
 ### Phase 3C: Savings Bucket Module
