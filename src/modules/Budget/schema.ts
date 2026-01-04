@@ -8,6 +8,19 @@ import {
 } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
+// Type exports for TypeScript
+export type Budget = typeof budgets.$inferSelect;
+export type NewBudget = typeof budgets.$inferInsert;
+export type BudgetCreateInput = z.infer<typeof BudgetUpsertSchema>;
+export type BudgetQueryInput = z.infer<typeof BudgetQuerySchema>;
+export type BudgetIdInput = z.infer<typeof BudgetIdSchema>;
+export type BudgetItem = z.infer<typeof BudgetItemSchema>;
+
+// Extended budget type with category name (for joins)
+export interface BudgetWithCategory extends Budget {
+  category_name?: string;
+}
+
 // Drizzle schema
 export const budgets = pgTable(
   "budgets",
@@ -61,11 +74,3 @@ export const BudgetQuerySchema = z.object({
 export const BudgetIdSchema = z.object({
   id: z.string().min(1, "Budget ID is required").max(50, "Budget ID too long"),
 });
-
-// Type exports for TypeScript
-export type Budget = typeof budgets.$inferSelect;
-export type NewBudget = typeof budgets.$inferInsert;
-export type BudgetCreateInput = z.infer<typeof BudgetUpsertSchema>;
-export type BudgetQueryInput = z.infer<typeof BudgetQuerySchema>;
-export type BudgetIdInput = z.infer<typeof BudgetIdSchema>;
-export type BudgetItem = z.infer<typeof BudgetItemSchema>;

@@ -12,17 +12,12 @@ import {
   BudgetQuerySchema,
   BudgetIdSchema,
   BudgetMonthSchema,
-  Budget,
   BudgetItem,
+  BudgetWithCategory,
 } from "./schema";
 import { getDb } from "@/db/client";
 import { formatZodError } from "@/lib/zod";
 import { unprocessableEntity } from "@/lib/http";
-
-// Extended budget type with category name
-export interface BudgetWithCategory extends Budget {
-  category_name?: string;
-}
 
 // Budget summary for a month
 export interface BudgetSummary {

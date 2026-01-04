@@ -259,7 +259,7 @@ Deliverable: You can record all transaction types and view them.
     - budget per category
     - actual spend per category (expense events only)
     - remaining/overspend
-- [ ] **Step 5.5**: UI
+- [x] **Step 5.5**: UI
   - Install: `table`, `input`, `button`, `card`
   - `src/app/budgets/page.tsx`:
     - month selector
