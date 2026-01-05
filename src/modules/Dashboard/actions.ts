@@ -36,8 +36,6 @@ import { unprocessableEntity } from "@/lib/http";
 export async function getDashboardSummary(
   query: unknown = {},
 ): Promise<DashboardSummary> {
-  const db = getDb();
-
   try {
     const validatedQuery = DashboardDateRangeSchema.parse(query);
 

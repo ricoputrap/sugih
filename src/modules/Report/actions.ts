@@ -51,16 +51,15 @@ export async function spendingTrend(
       "te.type = 'expense'",
       "te.deleted_at IS NULL",
     ];
-    const params: any[] = [];
 
     if (validatedQuery.from) {
-      params.push(validatedQuery.from);
+      conditions.push(`te.occurred_at >= \${validatedQuery.from}`);
     }
     if (validatedQuery.to) {
-      params.push(validatedQuery.to);
+      conditions.push(`te.occurred_at <= \${validatedQuery.to}`);
     }
 
-    const whereClause = `WHERE ${conditions.join(" AND ")}`;
+    const whereClause = conditions.join(" AND ");
 
     // Build period expression based on granularity
     let periodExpr: string;
@@ -81,25 +80,23 @@ export async function spendingTrend(
         periodExpr = "DATE_TRUNC('month', te.occurred_at)";
     }
 
-    const sql = `
+    const result = await db<
+      {
+        period: Date;
+        total_amount: string;
+        transaction_count: string;
+      }[]
+    >`
       SELECT
         ${periodExpr} as period,
         COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total_amount,
         COUNT(DISTINCT te.id)::int as transaction_count
       FROM transaction_events te
       JOIN postings p ON te.id = p.event_id
-      ${whereClause}
+      WHERE ${whereClause}
       GROUP BY ${periodExpr}
       ORDER BY period ASC
     `;
-
-    const result = await db.unsafe<
-      {
-        period: Date;
-        total_amount: string;
-        transaction_count: string;
-      }[]
-    >(sql, ...params);
 
     return result.map((row) => ({
       period: row.period.toISOString().split("T")[0],
@@ -142,18 +139,24 @@ export async function categoryBreakdown(
       "te.type = 'expense'",
       "te.deleted_at IS NULL",
     ];
-    const params: any[] = [];
 
     if (validatedQuery.from) {
-      params.push(validatedQuery.from);
+      conditions.push(`te.occurred_at >= \${validatedQuery.from}`);
     }
     if (validatedQuery.to) {
-      params.push(validatedQuery.to);
+      conditions.push(`te.occurred_at <= \${validatedQuery.to}`);
     }
 
-    const whereClause = `WHERE ${conditions.join(" AND ")}`;
+    const whereClause = conditions.join(" AND ");
 
-    const sql = `
+    const result = await db<
+      {
+        category_id: string;
+        category_name: string;
+        total_amount: string;
+        transaction_count: string;
+      }[]
+    >`
       SELECT
         te.category_id,
         COALESCE(c.name, 'Uncategorized') as category_name,
@@ -163,19 +166,10 @@ export async function categoryBreakdown(
       FROM transaction_events te
       JOIN postings p ON te.id = p.event_id
       LEFT JOIN categories c ON te.category_id = c.id
-      ${whereClause}
+      WHERE ${whereClause}
       GROUP BY te.category_id, c.name
       ORDER BY total_amount DESC
     `;
-
-    const result = await db.unsafe<
-      {
-        category_id: string;
-        category_name: string;
-        total_amount: string;
-        transaction_count: string;
-      }[]
-    >(sql, ...params);
 
     // Calculate percentages
     const totalSpent = result.reduce(
@@ -223,16 +217,15 @@ export async function netWorthTrend(query: unknown): Promise<NetWorthData[]> {
 
     // Build date range filters
     const conditions: string[] = ["te.deleted_at IS NULL"];
-    const params: any[] = [];
 
     if (validatedQuery.from) {
-      params.push(validatedQuery.from);
+      conditions.push(`te.occurred_at >= \${validatedQuery.from}`);
     }
     if (validatedQuery.to) {
-      params.push(validatedQuery.to);
+      conditions.push(`te.occurred_at <= \${validatedQuery.to}`);
     }
 
-    const whereClause = `WHERE ${conditions.join(" AND ")}`;
+    const whereClause = conditions.join(" AND ");
 
     // Build period expression based on granularity
     let periodExpr: string;
@@ -255,11 +248,18 @@ export async function netWorthTrend(query: unknown): Promise<NetWorthData[]> {
 
     // For net worth trend, we need to track cumulative balances over time
     // This is more complex as we need running totals for wallets and savings
-    const sql = `
+    const result = await db<
+      {
+        period: Date;
+        wallet_balance: string;
+        savings_balance: string;
+        total_net_worth: string;
+      }[]
+    >`
       WITH periods AS (
         SELECT DISTINCT ${periodExpr} as period
         FROM transaction_events te
-        ${whereClause}
+        WHERE ${whereClause}
         ORDER BY period ASC
       ),
       wallet_balances AS (
@@ -301,15 +301,6 @@ export async function netWorthTrend(query: unknown): Promise<NetWorthData[]> {
       JOIN savings_balances sb ON wb.period = sb.period
       ORDER BY wb.period ASC
     `;
-
-    const result = await db.unsafe<
-      {
-        period: Date;
-        wallet_balance: string;
-        savings_balance: string;
-        total_net_worth: string;
-      }[]
-    >(sql, ...params);
 
     return result.map((row) => ({
       period: row.period.toISOString().split("T")[0],
