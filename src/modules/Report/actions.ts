@@ -47,7 +47,10 @@ export async function spendingTrend(
     const validatedQuery = SpendingTrendQuerySchema.parse(query);
 
     // Build date range filters
-    const conditions: string[] = ["te.type = 'expense'", "te.deleted_at IS NULL"];
+    const conditions: string[] = [
+      "te.type = 'expense'",
+      "te.deleted_at IS NULL",
+    ];
     const params: any[] = [];
 
     if (validatedQuery.from) {
@@ -90,11 +93,13 @@ export async function spendingTrend(
       ORDER BY period ASC
     `;
 
-    const result = await db.unsafe<{
-      period: Date;
-      total_amount: string;
-      transaction_count: string;
-    }[]>(sql, ...params);
+    const result = await db.unsafe<
+      {
+        period: Date;
+        total_amount: string;
+        transaction_count: string;
+      }[]
+    >(sql, ...params);
 
     return result.map((row) => ({
       period: row.period.toISOString().split("T")[0],
@@ -133,7 +138,10 @@ export async function categoryBreakdown(
     const validatedQuery = CategoryBreakdownQuerySchema.parse(query);
 
     // Build date range filters
-    const conditions: string[] = ["te.type = 'expense'", "te.deleted_at IS NULL"];
+    const conditions: string[] = [
+      "te.type = 'expense'",
+      "te.deleted_at IS NULL",
+    ];
     const params: any[] = [];
 
     if (validatedQuery.from) {
@@ -160,12 +168,14 @@ export async function categoryBreakdown(
       ORDER BY total_amount DESC
     `;
 
-    const result = await db.unsafe<{
-      category_id: string;
-      category_name: string;
-      total_amount: string;
-      transaction_count: string;
-    }[]>(sql, ...params);
+    const result = await db.unsafe<
+      {
+        category_id: string;
+        category_name: string;
+        total_amount: string;
+        transaction_count: string;
+      }[]
+    >(sql, ...params);
 
     // Calculate percentages
     const totalSpent = result.reduce(
@@ -179,9 +189,7 @@ export async function categoryBreakdown(
       totalAmount: Number(row.total_amount),
       transactionCount: Number(row.transaction_count),
       percentage:
-        totalSpent > 0
-          ? (Number(row.total_amount) / totalSpent) * 100
-          : 0,
+        totalSpent > 0 ? (Number(row.total_amount) / totalSpent) * 100 : 0,
     }));
   } catch (error: any) {
     if (error.name === "ZodError") {
@@ -207,9 +215,7 @@ export async function categoryBreakdown(
  * @param query - Date range and granularity
  * @returns Array of net worth trend data points
  */
-export async function netWorthTrend(
-  query: unknown,
-): Promise<NetWorthData[]> {
+export async function netWorthTrend(query: unknown): Promise<NetWorthData[]> {
   const db = getDb();
 
   try {
@@ -296,12 +302,14 @@ export async function netWorthTrend(
       ORDER BY wb.period ASC
     `;
 
-    const result = await db.unsafe<{
-      period: Date;
-      wallet_balance: string;
-      savings_balance: string;
-      total_net_worth: string;
-    }[]>(sql, ...params);
+    const result = await db.unsafe<
+      {
+        period: Date;
+        wallet_balance: string;
+        savings_balance: string;
+        total_net_worth: string;
+      }[]
+    >(sql, ...params);
 
     return result.map((row) => ({
       period: row.period.toISOString().split("T")[0],
@@ -356,24 +364,35 @@ export async function moneyLeftToSpend(
     const totalBudget = Number(budgetResult[0]?.total_budget || 0);
 
     // Get actual spending for budgeted categories in the month
-    const spendingResult = await db<{ total_spent: string }[]>`
+    const sql = `
       SELECT COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total_spent
       FROM transaction_events te
       JOIN postings p ON te.id = p.event_id
       JOIN budgets b ON te.category_id = b.category_id
       WHERE te.type = 'expense'
         AND te.deleted_at IS NULL
-        AND te.occurred_at >= ${monthStart}
-        AND te.occurred_at < ${nextMonth}
-        AND b.month = ${validatedQuery.month}-01
+        AND te.occurred_at >= $1
+        AND te.occurred_at < $2
+        AND b.month = $3
     `;
+
+    // Convert Date objects to ISO strings for SQL query
+    const params = [
+      monthStart.toISOString(),
+      nextMonth.toISOString(),
+      `${validatedQuery.month}-01`,
+    ];
+
+    const spendingResult = await db.unsafe<{ total_spent: string }[]>(
+      sql,
+      params,
+    );
 
     const totalSpent = Number(spendingResult[0]?.total_spent || 0);
 
     // Calculate remaining budget
     const remaining = totalBudget - totalSpent;
-    const percentUsed =
-      totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+    const percentUsed = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
     // Calculate days remaining in the month
     const now = new Date();

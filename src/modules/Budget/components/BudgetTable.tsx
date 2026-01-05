@@ -26,7 +26,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
-import { BudgetWithCategory } from "../actions";
+import { BudgetWithCategory } from "../schema";
 import { toast } from "sonner";
 
 interface BudgetSummaryItem {

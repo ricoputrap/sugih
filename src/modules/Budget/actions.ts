@@ -14,6 +14,7 @@ import {
   BudgetMonthSchema,
   BudgetItem,
   BudgetWithCategory,
+  Budget,
 } from "./schema";
 import { getDb } from "@/db/client";
 import { formatZodError } from "@/lib/zod";
@@ -410,6 +411,10 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
     const endDate = new Date(startDate);
     endDate.setMonth(endDate.getMonth() + 1);
 
+    // Convert to ISO strings for SQL query
+    const startDateISO = startDate.toISOString();
+    const endDateISO = endDate.toISOString();
+
     // Get budgets for the month with category names
     const budgets = await db<
       {
@@ -428,12 +433,7 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
     `;
 
     // Get actual spending by category for the month
-    const spending = await db<
-      {
-        category_id: string;
-        spent_amount: number;
-      }[]
-    >`
+    const spendingSql = `
       SELECT
         te.category_id,
         COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as spent_amount
@@ -441,11 +441,17 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
       JOIN postings p ON te.id = p.event_id
       WHERE te.type = 'expense'
         AND te.deleted_at IS NULL
-        AND te.occurred_at >= ${startDate}
-        AND te.occurred_at < ${endDate}
+        AND te.occurred_at >= $1
+        AND te.occurred_at < $2
         AND te.category_id IS NOT NULL
       GROUP BY te.category_id
     `;
+    const spending = await db.unsafe<
+      {
+        category_id: string;
+        spent_amount: string;
+      }[]
+    >(spendingSql, [startDateISO, endDateISO]);
 
     // Create spending map
     const spendingByCategory = new Map(
