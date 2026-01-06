@@ -61,6 +61,7 @@ export async function all<T = any>(
 ): Promise<T[]> {
   try {
     const db = getDb();
+
     // Use unsafe() for dynamic SQL strings - safe for simple queries without user input
     const result = await db.unsafe<T[]>(sqlQuery, params);
     return Array.from(result);

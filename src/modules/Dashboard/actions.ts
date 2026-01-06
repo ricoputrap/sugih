@@ -219,9 +219,11 @@ export async function getCategoryBreakdownData(
     let { from, to } = validatedQuery;
 
     if (!from && !to) {
+      // Default to last 30 days for most data, current month for some
       const now = new Date();
+      now.setDate(now.getDate() - 30);
       from = new Date(now.getFullYear(), now.getMonth(), 1);
-      to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      to = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     }
 
     const breakdownData = await categoryBreakdown({
@@ -299,8 +301,7 @@ export async function getDashboardData(
 
     // Default to last 30 days for most data, current month for some
     const now = new Date();
-    const defaultFrom = new Date();
-    defaultFrom.setDate(defaultFrom.getDate() - 30);
+    now.setDate(now.getDate() - 30);
 
     // Fetch all dashboard data in parallel
     const [
@@ -315,7 +316,7 @@ export async function getDashboardData(
       getNetWorthTrendChartData(validatedQuery),
       getCategoryBreakdownData({
         from: new Date(now.getFullYear(), now.getMonth(), 1),
-        to: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+        to: new Date(now.getFullYear(), now.getMonth() + 1, 1),
       }),
       getRecentTransactions(5),
     ]);

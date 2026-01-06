@@ -133,21 +133,8 @@ export async function categoryBreakdown(
 
   try {
     const validatedQuery = CategoryBreakdownQuerySchema.parse(query);
-
-    // Build date range filters
-    const conditions: string[] = [
-      "te.type = 'expense'",
-      "te.deleted_at IS NULL",
-    ];
-
-    if (validatedQuery.from) {
-      conditions.push(`te.occurred_at >= \${validatedQuery.from}`);
-    }
-    if (validatedQuery.to) {
-      conditions.push(`te.occurred_at <= \${validatedQuery.to}`);
-    }
-
-    const whereClause = conditions.join(" AND ");
+    const fromStr = validatedQuery.from?.toISOString();
+    const toStr = validatedQuery.to?.toISOString();
 
     const result = await db<
       {
@@ -166,7 +153,11 @@ export async function categoryBreakdown(
       FROM transaction_events te
       JOIN postings p ON te.id = p.event_id
       LEFT JOIN categories c ON te.category_id = c.id
-      WHERE ${whereClause}
+      WHERE
+        te.type = 'expense' AND
+        te.deleted_at IS NULL
+        ${fromStr ? db`AND te.occurred_at >= '2025-12-01T17:00:00.000Z'` : db``}
+        ${toStr ? db`AND te.occurred_at <= ${toStr}` : db``}
       GROUP BY te.category_id, c.name
       ORDER BY total_amount DESC
     `;
@@ -177,6 +168,7 @@ export async function categoryBreakdown(
       0,
     );
 
+    console.log("===== result:", result);
     return result.map((row) => ({
       categoryId: row.category_id,
       categoryName: row.category_name,
