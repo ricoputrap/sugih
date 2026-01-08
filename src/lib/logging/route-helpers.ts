@@ -14,7 +14,7 @@ import { isSlowRequest, shouldSample, LOG_BODY_LOGGING } from "./config";
  * We keep it broad enough to support `NextRequest` but also standard `Request`.
  */
 export type RouteHandler = (
-  request?: NextRequest,
+  request: NextRequest,
   context?: any,
 ) => Response | Promise<Response>;
 

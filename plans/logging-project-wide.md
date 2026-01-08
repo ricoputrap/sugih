@@ -143,7 +143,7 @@ Non-goals:
   - Ensure route `operation` naming conventions:
     - `api.wallets.list`, `api.wallets.create`, `api.wallets.update`, `api.wallets.archive`
     - `api.transactions.expense.create`, etc.
-  - ✅ **Completed for 14/21 routes:**
+  - ✅ **Completed for 15/21 routes:**
     - ✅ `/api/wallets` (GET, POST)
     - ✅ `/api/wallets/[id]` (GET, PATCH, DELETE)
     - ✅ `/api/categories` (GET, POST)
@@ -152,14 +152,14 @@ Non-goals:
     - ✅ /api/savings-buckets (GET, POST)
     - ✅ /api/savings-buckets/[id] (GET, PATCH, DELETE)
     - ✅ /api/transactions (GET)
+    - ✅ `/api/transactions/[id]` (GET, DELETE)
     - ✅ `/api/health` (GET)
     - ✅ `/api/dashboard` (GET) - already had logging
     - ✅ `/api/reports/spending-trend` (GET) - already had logging
     - ✅ `/api/reports/category-breakdown` (GET) - already had logging
     - ✅ `/api/reports/net-worth-trend` (GET) - already had logging
     - ✅ `/api/reports/money-left-to-spend` (GET) - already had logging
-  - ⚠️ **Remaining 7 routes to update:**
-    - /api/transactions/[id] (GET, PATCH, DELETE)
+  - ⚠️ **Remaining 6 routes to update:**
     - /api/transactions/expense (POST)
     - /api/transactions/income (POST)
     - /api/transactions/transfer (POST)
@@ -167,7 +167,7 @@ Non-goals:
     - /api/transactions/savings/withdraw (POST)
     - /api/budgets/[id] (GET, PATCH, DELETE)
 
-**Deliverable Status:** ⚠️ **PARTIALLY COMPLETE** - 14/21 routes updated (67%)
+**Deliverable Status:** ⚠️ **PARTIALLY COMPLETE** - 15/21 routes updated (71%)
 
 - All updated endpoints emit request-complete logs with `requestId` and `durationMs`
 - All 800 tests pass ✅

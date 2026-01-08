@@ -7,12 +7,13 @@ import {
 } from "@/modules/Transaction/actions";
 import { ok, badRequest, notFound, serverError, conflict } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * GET /api/transactions/[id]
  * Get a transaction by ID
  */
-export async function GET(
+async function handleGet(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -26,8 +27,6 @@ export async function GET(
 
     return ok(transaction);
   } catch (error: any) {
-    console.error("Error fetching transaction:", error);
-
     // Handle validation errors (already formatted as Response)
     if (error instanceof Response) {
       return error;
@@ -49,6 +48,12 @@ export async function GET(
   }
 }
 
+export const GET = withRouteLogging(handleGet, {
+  operation: "api.transactions.get",
+  logQuery: false,
+  logRouteParams: true,
+});
+
 /**
  * DELETE /api/transactions/[id]
  * Delete a transaction
@@ -56,7 +61,7 @@ export async function GET(
  * Query params:
  * - action: "soft" (default), "restore", or "permanent"
  */
-export async function DELETE(
+async function handleDelete(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -80,11 +85,11 @@ export async function DELETE(
       await permanentlyDeleteTransaction(id);
       return ok({ message: "Transaction permanently deleted" });
     } else {
-      return badRequest("Invalid action. Use 'soft', 'restore', or 'permanent'");
+      return badRequest(
+        "Invalid action. Use 'soft', 'restore', or 'permanent'",
+      );
     }
   } catch (error: any) {
-    console.error("Error deleting transaction:", error);
-
     // Handle validation errors (already formatted as Response)
     if (error instanceof Response) {
       return error;
@@ -127,3 +132,9 @@ export async function DELETE(
     return serverError("Failed to delete transaction");
   }
 }
+
+export const DELETE = withRouteLogging(handleDelete, {
+  operation: "api.transactions.delete",
+  logQuery: true, // Log action query param
+  logRouteParams: true,
+});

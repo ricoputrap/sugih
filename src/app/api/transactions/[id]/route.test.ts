@@ -443,10 +443,7 @@ describe("Transactions [id] API Routes", () => {
           "DELETE",
           "http://localhost:3000/api/transactions/txn-deleted",
         );
-        const response = await DELETE(
-          request,
-          createMockParams("txn-deleted"),
-        );
+        const response = await DELETE(request, createMockParams("txn-deleted"));
         const { status, data } = await parseResponse(response);
 
         expect(status).toBe(409);
@@ -467,10 +464,7 @@ describe("Transactions [id] API Routes", () => {
           "DELETE",
           "http://localhost:3000/api/transactions/txn-deleted?action=restore",
         );
-        const response = await DELETE(
-          request,
-          createMockParams("txn-deleted"),
-        );
+        const response = await DELETE(request, createMockParams("txn-deleted"));
         const { status, data } = await parseResponse(response);
 
         expect(status).toBe(200);
@@ -650,7 +644,12 @@ describe("Transactions [id] API Routes", () => {
         );
         const response = await DELETE(request, createMockParams("txn1"));
 
-        expect(response).toBe(responseError);
+        // The response should have the same status as the error response
+        // The x-request-id header is added by the logging wrapper, which is expected
+        expect(response.status).toBe(400);
+
+        const responseData = await response.json();
+        expect(responseData.error.message).toBe("Custom error");
       });
     });
   });
