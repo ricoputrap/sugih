@@ -72,6 +72,14 @@ export function BudgetDialogForm({
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
+  // Get current month in YYYY-MM-01 format for the input
+  const getCurrentMonthFirst = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}-01`;
+  };
+
   const form = useForm<{
     month: string;
     categoryId: string;
@@ -83,7 +91,7 @@ export function BudgetDialogForm({
       }),
     ),
     defaultValues: {
-      month: initialData?.month || "",
+      month: initialData?.month || getCurrentMonthFirst(),
       categoryId: initialData?.category_id || "",
       amountIdr: initialData?.amount_idr || 0,
     },
@@ -119,7 +127,7 @@ export function BudgetDialogForm({
   useEffect(() => {
     if (open) {
       form.reset({
-        month: initialData?.month || "",
+        month: initialData?.month || getCurrentMonthFirst(),
         categoryId: initialData?.category_id || "",
         amountIdr: initialData?.amount_idr || 0,
       });
@@ -135,9 +143,7 @@ export function BudgetDialogForm({
       await onSubmit(values);
       form.reset();
       onOpenChange(false);
-      toast.success(
-        `Budget ${isEditing ? "updated" : "created"} successfully`,
-      );
+      toast.success(`Budget ${isEditing ? "updated" : "created"} successfully`);
     } catch (error: any) {
       toast.error(
         error.message || `Failed to ${isEditing ? "update" : "create"} budget`,
@@ -151,22 +157,6 @@ export function BudgetDialogForm({
       form.reset();
     }
     onOpenChange(newOpen);
-  };
-
-  // Get current month in YYYY-MM format
-  const getCurrentMonth = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    return `${year}-${month}`;
-  };
-
-  // Get current month in YYYY-MM-01 format for the input
-  const getCurrentMonthFirst = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    return `${year}-${month}-01`;
   };
 
   // Generate month options (current month + 11 previous + 6 next)
@@ -224,8 +214,8 @@ export function BudgetDialogForm({
                 <FormItem>
                   <FormLabel>Month</FormLabel>
                   <Select
+                    value={field.value || getCurrentMonthFirst()}
                     onValueChange={field.onChange}
-                    defaultValue={field.value || getCurrentMonthFirst()}
                     disabled={isEditing || categoriesLoading}
                   >
                     <FormControl>
@@ -333,8 +323,8 @@ export function BudgetDialogForm({
                 {isLoading
                   ? "Saving..."
                   : isEditing
-                  ? "Update Budget"
-                  : "Create Budget"}
+                    ? "Update Budget"
+                    : "Create Budget"}
               </Button>
             </DialogFooter>
           </form>

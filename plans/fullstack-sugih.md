@@ -90,7 +90,7 @@ Deliverable: SQLite DB initialized with all tables + constraints + migration his
 
 ### Phase 3A: Wallet Module
 
-- [ ] **Step 3A.1**: `src/modules/Wallet/schema.ts`
+- [x] **Step 3A.1**: `src/modules/Wallet/schema.ts`
   - Zod: `WalletCreateSchema`, `WalletUpdateSchema`, `WalletIdSchema`
 - [x] **Step 3A.2**: `src/modules/Wallet/actions.ts` (Raw SQL)
   - `listWallets()`
@@ -286,7 +286,7 @@ Deliverable: Monthly budgets set and tracked vs actual expenses.
   - `GET /api/reports/category-breakdown`
   - `GET /api/reports/net-worth-trend`
   - `GET /api/reports/money-left-to-spend`
-- [ ] **Step 6.3**: Dashboard UI
+- [x] **Step 6.3**: Dashboard UI
   - Install: `card`, `tabs`, `separator`
   - Charts: pick a library (e.g., `recharts`) and standardize components in `src/modules/Dashboard/components/*`.
   - `src/app/page.tsx` becomes dashboard:
