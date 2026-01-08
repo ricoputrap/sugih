@@ -6,6 +6,8 @@ import {
   withRequestIdHeader,
   REQUEST_ID_HEADER,
 } from "./request-id";
+import { serializeError, roundMs, truncate } from "./error-serialization";
+import { isSlowRequest, shouldSample } from "./config";
 
 /**
  * Shape of a Next.js App Router route handler (GET/POST/etc).
@@ -78,7 +80,8 @@ export function withReportTiming(
 
     const url = new URL(request.url);
     const startedAt = Date.now();
-    const startHr = typeof performance !== "undefined" ? performance.now() : null;
+    const startHr =
+      typeof performance !== "undefined" ? performance.now() : null;
 
     const log = childLogger({
       requestId,
@@ -122,18 +125,29 @@ export function withReportTiming(
 
       const status = response.status;
 
-      const sizeHeader =
-        response.headers.get("content-length") || undefined;
+      const sizeHeader = response.headers.get("content-length") || undefined;
 
-      log[successLevel](
-        {
-          ...requestMeta,
-          status,
-          durationMs: roundMs(durationMs),
-          contentLength: sizeHeader ? Number(sizeHeader) : undefined,
-        },
-        "request:complete",
+      // Check if this qualifies as a slow request
+      const isSlowReq = isSlowRequest(durationMs);
+      const logLevel = isSlowReq ? "warn" : successLevel;
+
+      // Apply sampling for INFO logs (never sample WARN/ERROR)
+      const shouldLog = shouldSample(
+        logLevel === "warn" ? "warn" : successLevel,
       );
+
+      if (shouldLog) {
+        log[logLevel](
+          {
+            ...requestMeta,
+            status,
+            durationMs: roundMs(durationMs),
+            contentLength: sizeHeader ? Number(sizeHeader) : undefined,
+            event: isSlowReq ? "request:slow" : "request:complete",
+          },
+          isSlowReq ? "request:slow" : "request:complete",
+        );
+      }
 
       return withRequestIdHeader(response, requestId);
     } catch (err) {
@@ -142,11 +156,13 @@ export function withReportTiming(
 
       const serialized = serializeError(err);
 
+      // Always log errors (never sampled)
       log[errorLevel](
         {
           ...requestMeta,
           durationMs: roundMs(durationMs),
           err: serialized,
+          event: "request:error",
         },
         "request:error",
       );
@@ -193,38 +209,4 @@ function isSecretQueryKey(lowerKey: string): boolean {
     lowerKey === "api_key" ||
     lowerKey === "apikey"
   );
-}
-
-function truncate(value: string, maxLen: number): string {
-  if (value.length <= maxLen) return value;
-  return `${value.slice(0, maxLen)}…`;
-}
-
-function roundMs(ms: number): number {
-  return Math.round(ms * 100) / 100;
-}
-
-function serializeError(error: unknown): {
-  name?: string;
-  message?: string;
-  stack?: string;
-  cause?: unknown;
-} {
-  if (error instanceof Error) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const anyErr = error as any;
-    return {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      cause: anyErr.cause,
-    };
-  }
-
-  if (typeof error === "object" && error !== null) {
-    // Some libraries throw plain objects.
-    return { message: truncate(JSON.stringify(error), 2000) };
-  }
-
-  return { message: String(error) };
 }

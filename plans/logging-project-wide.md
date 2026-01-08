@@ -3,6 +3,7 @@
 Goal: Expand logging beyond a few GET report routes into a consistent, safe, low-noise observability layer across the entire Sugih codebase while keeping **stdout JSON logs** as the single output (platform-friendly).
 
 Non-goals:
+
 - No persistent local file logging (for now).
 - No APM/metrics backend integration (optional future).
 - No logging of sensitive user data (PII/secrets), ever.
@@ -34,9 +35,9 @@ Non-goals:
 
 ---
 
-## Phase 1 — Establish a Project-wide Logging Contract
+## Phase 1 — Establish a Project-wide Logging Contract ✅
 
-- [ ] **Step 1.1: Define standard log fields (contract)**
+- [x] **Step 1.1: Define standard log fields (contract)**
   - Required:
     - `timestamp` (Pino provides)
     - `level` (Pino provides)
@@ -54,21 +55,50 @@ Non-goals:
     - `counts` (e.g. number of rows returned)
     - `err` (serialized)
   - Output should be stable for easy grep and future ingestion.
+  - ✅ **Completed:** Created `src/lib/logging/contract.ts` with comprehensive TypeScript types and documentation for all standard fields.
 
-- [ ] **Step 1.2: Centralize error serialization and safe truncation**
+- [x] **Step 1.2: Centralize error serialization and safe truncation**
   - Enhance current error serialization rules:
     - Ensure `err.message` is truncated to a safe size.
     - Never include raw request bodies in error logs.
     - Normalize known DB errors (SQLite constraint violations, Postgres errors if still present).
+  - ✅ **Completed:** Created `src/lib/logging/error-serialization.ts` with:
+    - `serializeError()` - Safe error serialization with truncation (2000 chars for messages, 5000 for stacks)
+    - `normalizeDbError()` - Maps SQLite/Postgres errors to stable `errorKind` values with safe user-facing messages
+    - `sanitizeFreeformText()`, `sanitizeObject()`, `isSensitiveFieldName()` - Utilities for safe field logging
+    - `truncate()`, `roundMs()` - Helper utilities
 
-- [ ] **Step 1.3: Define environment knobs**
+- [x] **Step 1.3: Define environment knobs**
   - `LOG_LEVEL` (already supported)
   - `LOG_SAMPLE_RATE` (0..1 for high-volume endpoints)
   - `LOG_QUERY_TIMING=true|false`
   - `LOG_BODY_LOGGING=false` (explicitly off; only allow for local debugging with strict allowlist)
   - `LOG_SLOW_REQUEST_MS=500` (warn when exceeded)
+  - ✅ **Completed:** Created `src/lib/logging/config.ts` with all environment knobs:
+    - `LOG_LEVEL`, `LOG_SAMPLE_RATE`, `LOG_QUERY_TIMING`, `LOG_BODY_LOGGING`, `LOG_SLOW_REQUEST_MS`
+    - `LOG_TRANSACTIONS`, `LOG_ACTIONS`, `LOG_STACK_TRACES_IN_PRODUCTION`, `LOG_MAX_QUERY_PARAMS`
+    - `shouldSample()`, `isSlowRequest()`, `getLoggingConfigSummary()` helper functions
+    - Validation on module load (fail-fast if misconfigured)
 
-Deliverable: documented and implemented conventions for how logs look and what’s allowed.
+**Deliverable:** ✅ **COMPLETE** - Documented and implemented conventions for how logs look and what's allowed.
+
+**Additional deliverables:**
+
+- ✅ Created `src/lib/logging/index.ts` - Main export file for all logging utilities
+- ✅ Created `src/lib/logging/README.md` - Comprehensive documentation (577 lines) covering:
+  - Architecture and module overview
+  - Configuration reference
+  - Logging contract and field standards
+  - Usage patterns (routes, actions, DB queries)
+  - Event naming conventions
+  - Security and safety guidelines
+  - Sampling and performance monitoring
+  - Migration guide (replacing console.\*)
+  - Troubleshooting
+- ✅ Updated `src/lib/logging/logger.ts` - Integrated with centralized config
+- ✅ Updated `src/lib/logging/route-helpers.ts` - Uses centralized error serialization, config, and slow request detection
+
+**Next Phase:** Phase 2 — Route-level Logging Everywhere (All API Routes, All Methods)
 
 ---
 
@@ -226,7 +256,7 @@ Deliverable: Safe, low-noise logs suitable for production.
 
 - You can trace a request across:
   - route handler → module action → db calls
-  using the same `requestId`.
+    using the same `requestId`.
 - Logs are structured, safe, and consistent.
 - Noise is controlled via sampling and level knobs.
 - Production remains “stdout JSON only” (platform-friendly).

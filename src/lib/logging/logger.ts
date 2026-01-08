@@ -1,4 +1,5 @@
 import pino from "pino";
+import { LOG_LEVEL, LOG_STACK_TRACES_IN_PRODUCTION } from "./config";
 
 /**
  * Base application logger (Pino).
@@ -7,12 +8,10 @@ import pino from "pino";
  * - Safe-by-default: redact common secrets.
  * - Portable: pretty logs in development, JSON in production.
  * - Small surface area: export a single `logger` instance and a `childLogger` helper.
+ * - Centralized config: all knobs driven by environment variables (see config.ts).
  */
 
 const isDevelopment = process.env.NODE_ENV !== "production";
-const level =
-  process.env.LOG_LEVEL ||
-  (isDevelopment ? "debug" : "info");
 
 /**
  * Redact common secret locations in objects we log.
@@ -47,21 +46,20 @@ const redactPaths: string[] = [
  * - This uses Pino's built-in transport to `pino-pretty`.
  * - You may need `pino-pretty` installed depending on your environment.
  */
-const transport =
-  isDevelopment
-    ? {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          translateTime: "SYS:standard",
-          ignore: "pid,hostname",
-          singleLine: false,
-        },
-      }
-    : undefined;
+const transport = isDevelopment
+  ? {
+      target: "pino-pretty",
+      options: {
+        colorize: true,
+        translateTime: "SYS:standard",
+        ignore: "pid,hostname",
+        singleLine: false,
+      },
+    }
+  : undefined;
 
 export const logger = pino({
-  level,
+  level: LOG_LEVEL,
   redact: {
     paths: redactPaths,
     censor: "[REDACTED]",
