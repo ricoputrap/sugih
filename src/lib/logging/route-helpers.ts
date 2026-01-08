@@ -7,19 +7,20 @@ import {
   REQUEST_ID_HEADER,
 } from "./request-id";
 import { serializeError, roundMs, truncate } from "./error-serialization";
-import { isSlowRequest, shouldSample } from "./config";
+import { isSlowRequest, shouldSample, LOG_BODY_LOGGING } from "./config";
 
 /**
  * Shape of a Next.js App Router route handler (GET/POST/etc).
  * We keep it broad enough to support `NextRequest` but also standard `Request`.
  */
 export type RouteHandler = (
-  request: NextRequest,
+  request?: NextRequest,
+  context?: any,
 ) => Response | Promise<Response>;
 
 export interface RouteLogOptions {
   /**
-   * Logical operation name used in logs (e.g. "report.spending-trend").
+   * Logical operation name used in logs (e.g. "api.wallets.list").
    */
   operation: string;
 
@@ -28,6 +29,12 @@ export interface RouteLogOptions {
    * Default: true
    */
   logQuery?: boolean;
+
+  /**
+   * When true, include route params (e.g., {id: "wal_123"}) in logs.
+   * Default: true for detail routes
+   */
+  logRouteParams?: boolean;
 
   /**
    * When true, include user-agent in logs.
@@ -40,6 +47,13 @@ export interface RouteLogOptions {
    * Default: false
    */
   logIp?: boolean;
+
+  /**
+   * When true, log request body metadata (size, validation outcome).
+   * Only applies if LOG_BODY_LOGGING is enabled.
+   * Default: false
+   */
+  logBodyMetadata?: boolean;
 
   /**
    * Log level for successful completion.
@@ -55,30 +69,37 @@ export interface RouteLogOptions {
 }
 
 /**
- * Wrap a route handler with:
+ * Wrap a route handler with comprehensive logging:
  * - `x-request-id` propagation (uses incoming header or generates one)
  * - Timing measurement
  * - Structured Pino logging
+ * - Slow request detection
+ * - Sampling support
  *
- * Intended for report endpoints (Step 7.4): request IDs + log timings.
+ * This is the main wrapper for all API routes.
  */
-export function withReportTiming(
+export function withRouteLogging(
   handler: RouteHandler,
   options: RouteLogOptions,
 ): RouteHandler {
   const {
     operation,
     logQuery = true,
+    logRouteParams = false,
     logUserAgent = false,
     logIp = false,
+    logBodyMetadata = false,
     successLevel = "info",
     errorLevel = "error",
   } = options;
 
-  return async function wrapped(request: NextRequest): Promise<Response> {
+  return async function wrapped(
+    request: NextRequest,
+    context?: any,
+  ): Promise<Response> {
     const requestId = getOrCreateRequestId(request);
 
-    const url = new URL(request.url);
+    const url = request?.url ? new URL(request.url) : null;
     const startedAt = Date.now();
     const startHr =
       typeof performance !== "undefined" ? performance.now() : null;
@@ -86,46 +107,68 @@ export function withReportTiming(
     const log = childLogger({
       requestId,
       operation,
-      method: request.method,
-      path: url.pathname,
+      method: request?.method || "GET",
+      path: url?.pathname || "/",
     });
 
     const requestMeta: Record<string, unknown> = {};
 
-    if (logQuery) {
+    if (logQuery && url) {
       requestMeta.query = sanitizeQueryParams(url.searchParams);
     }
 
-    if (logUserAgent) {
+    if (logRouteParams && context?.params) {
+      // Handle both Promise<params> and direct params (Next.js 13+ vs 14+)
+      const params =
+        context.params instanceof Promise
+          ? await context.params
+          : context.params;
+      requestMeta.routeParams = sanitizeRouteParams(params);
+    }
+
+    if (logUserAgent && request) {
       requestMeta.userAgent = request.headers.get("user-agent") || undefined;
     }
 
-    if (logIp) {
+    if (logIp && request) {
       requestMeta.ip =
         request.headers.get("x-forwarded-for") ||
         request.headers.get("x-real-ip") ||
         undefined;
     }
 
-    // Provide requestId to downstream systems via header (best effort).
-    // Note: NextRequest headers are immutable; we log and set response header instead.
+    // Log request body metadata if enabled (POST/PATCH/PUT)
+    if (
+      logBodyMetadata &&
+      LOG_BODY_LOGGING &&
+      request &&
+      (request.method === "POST" ||
+        request.method === "PATCH" ||
+        request.method === "PUT")
+    ) {
+      const contentLength = request.headers.get("content-length");
+      if (contentLength) {
+        requestMeta.requestBodySize = Number(contentLength);
+      }
+    }
+
     log.debug(
       {
         ...requestMeta,
-        requestIdHeader: request.headers.get(REQUEST_ID_HEADER) || undefined,
+        event: "request:start",
       },
       "request:start",
     );
 
     try {
-      const response = await handler(request);
+      const response = await handler(request, context);
 
       const durationMs =
         startHr === null ? Date.now() - startedAt : performance.now() - startHr;
 
       const status = response.status;
 
-      const sizeHeader = response.headers.get("content-length") || undefined;
+      const sizeHeader = response.headers?.get("content-length") || undefined;
 
       // Check if this qualifies as a slow request
       const isSlowReq = isSlowRequest(durationMs);
@@ -175,6 +218,12 @@ export function withReportTiming(
 }
 
 /**
+ * Backward-compatible alias for existing report endpoints.
+ * Use withRouteLogging for new routes.
+ */
+export const withReportTiming = withRouteLogging;
+
+/**
  * Whitelist-style sanitization for query params in logs.
  * - Truncates long values
  * - Redacts common secret keys
@@ -193,6 +242,34 @@ export function sanitizeQueryParams(
     }
 
     out[key] = truncate(value, 200);
+  }
+
+  return out;
+}
+
+/**
+ * Sanitize route params for logging (e.g., {id: "wal_123"}).
+ * - Truncates long values
+ * - Redacts sensitive-looking params
+ */
+export function sanitizeRouteParams(
+  params: Record<string, string | string[]>,
+): Record<string, string | string[]> {
+  const out: Record<string, string | string[]> = {};
+
+  for (const [key, value] of Object.entries(params)) {
+    const lowerKey = key.toLowerCase();
+
+    if (isSecretQueryKey(lowerKey)) {
+      out[key] = "[REDACTED]";
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      out[key] = value.map((v) => truncate(v, 200));
+    } else {
+      out[key] = truncate(value, 200);
+    }
   }
 
   return out;

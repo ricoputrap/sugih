@@ -5,12 +5,13 @@ import {
 } from "@/modules/SavingsBucket/actions";
 import { ok, badRequest, serverError, conflict } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * GET /api/savings-buckets
  * List all savings buckets
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const savingsBuckets = await listSavingsBuckets();
     return ok(savingsBuckets);
@@ -28,11 +29,16 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export const GET = withRouteLogging(handleGet, {
+  operation: "api.savings-buckets.list",
+  logQuery: true,
+});
+
 /**
  * POST /api/savings-buckets
  * Create a new savings bucket
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     // Parse request body
     let body: unknown;
@@ -97,3 +103,9 @@ export async function POST(request: NextRequest) {
     return serverError("Failed to create savings bucket");
   }
 }
+
+export const POST = withRouteLogging(handlePost, {
+  operation: "api.savings-buckets.create",
+  logQuery: false,
+  logBodyMetadata: true,
+});

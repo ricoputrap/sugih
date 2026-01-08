@@ -7,12 +7,13 @@ import {
 } from "@/modules/Category/actions";
 import { ok, badRequest, notFound, serverError, conflict } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * GET /api/categories/[id]
  * Get a category by ID
  */
-export async function GET(
+async function handleGet(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -39,11 +40,17 @@ export async function GET(
   }
 }
 
+export const GET = withRouteLogging(handleGet, {
+  operation: "api.categories.get",
+  logQuery: false,
+  logRouteParams: true,
+});
+
 /**
  * PATCH /api/categories/[id]
  * Update a category
  */
-export async function PATCH(
+async function handlePatch(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -114,6 +121,13 @@ export async function PATCH(
   }
 }
 
+export const PATCH = withRouteLogging(handlePatch, {
+  operation: "api.categories.update",
+  logQuery: false,
+  logRouteParams: true,
+  logBodyMetadata: true,
+});
+
 /**
  * DELETE /api/categories/[id]
  * Delete or archive a category
@@ -121,7 +135,7 @@ export async function PATCH(
  * Query params:
  * - action: "archive" (default) or "delete"
  */
-export async function DELETE(
+async function handleDelete(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -188,3 +202,9 @@ export async function DELETE(
     return serverError("Failed to delete category");
   }
 }
+
+export const DELETE = withRouteLogging(handleDelete, {
+  operation: "api.categories.delete",
+  logQuery: true, // Log action query param
+  logRouteParams: true,
+});

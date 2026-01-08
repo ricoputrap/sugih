@@ -1,7 +1,8 @@
 import { all } from "@/db/client";
 import { ok, serverError } from "@/lib/http";
+import { withRouteLogging } from "@/lib/logging";
 
-export async function GET() {
+async function handleGet() {
   try {
     // Test DB connection with a simple query
     const result = await all<{ value: number }>("SELECT 1 as value");
@@ -20,3 +21,9 @@ export async function GET() {
     return serverError("Database connection failed", error);
   }
 }
+
+export const GET = withRouteLogging(handleGet, {
+  operation: "api.health.check",
+  logQuery: false,
+  successLevel: "debug", // Keep health checks quiet
+});

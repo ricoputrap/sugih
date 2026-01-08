@@ -28,8 +28,10 @@ export {
 
 // Route handler wrappers
 export {
+  withRouteLogging,
   withReportTiming,
   sanitizeQueryParams,
+  sanitizeRouteParams,
   type RouteHandler,
   type RouteLogOptions,
 } from "./route-helpers";

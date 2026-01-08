@@ -9,12 +9,13 @@ import {
   unprocessableEntity,
 } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * GET /api/wallets
  * List all wallets
  */
-export async function GET() {
+async function handleGet() {
   try {
     const wallets = await listWallets();
     return ok(wallets);
@@ -31,11 +32,16 @@ export async function GET() {
   }
 }
 
+export const GET = withRouteLogging(handleGet, {
+  operation: "api.wallets.list",
+  logQuery: true,
+});
+
 /**
  * POST /api/wallets
  * Create a new wallet
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     // Parse request body
     let body: unknown;
@@ -95,3 +101,9 @@ export async function POST(request: NextRequest) {
     return serverError("Failed to create wallet");
   }
 }
+
+export const POST = withRouteLogging(handlePost, {
+  operation: "api.wallets.create",
+  logQuery: false,
+  logBodyMetadata: true,
+});

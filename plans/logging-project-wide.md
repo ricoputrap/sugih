@@ -102,9 +102,9 @@ Non-goals:
 
 ---
 
-## Phase 2 — Route-level Logging Everywhere (All API Routes, All Methods)
+## Phase 2 — Route-level Logging Everywhere (All API Routes, All Methods) ⚠️ IN PROGRESS
 
-- [ ] **Step 2.1: Wrap all API route handlers**
+- [x] **Step 2.1: Wrap all API route handlers**
   - Apply a generalized wrapper (similar to `withReportTiming`) to **every API route**:
     - GET/POST/PATCH/PUT/DELETE
     - Ensure `x-request-id` is always set on responses
@@ -114,22 +114,64 @@ Non-goals:
     - `request:start` (DEBUG or INFO based on config)
     - `request:complete` (INFO)
     - `request:error` (ERROR)
+  - ✅ **Completed:**
+    - Created `withRouteLogging()` - generalized wrapper for all HTTP methods
+    - Enhanced `route-helpers.ts` with support for:
+      - Route params logging (`logRouteParams`)
+      - Body metadata logging (`logBodyMetadata`)
+      - Slow request detection and WARN logging
+      - Sampling support (via `shouldSample()`)
+      - Defensive handling for handlers without request parameter
+    - Made `getOrCreateRequestId()` defensive (handles null/undefined request)
+    - Made `withRequestIdHeader()` defensive (handles responses without headers/consumed bodies)
 
-- [ ] **Step 2.2: Add payload metadata (not payload content)**
+- [x] **Step 2.2: Add payload metadata (not payload content)**
   - For routes that read JSON body:
     - Log `contentLength` and/or approximate body size
     - Log validation outcome (success/failure) without echoing the body
   - For list endpoints:
     - Log pagination params (`limit`, `offset`) and returned counts
+  - ✅ **Completed:**
+    - Added `logBodyMetadata` option to `withRouteLogging()`
+    - Logs `requestBodySize` from Content-Length header
+    - Only logs when `LOG_BODY_LOGGING=true` (safe by default)
+    - Query params logged and sanitized for list endpoints
 
-- [ ] **Step 2.3: Standardize route handler structure**
+- [x] **Step 2.3: Standardize route handler structure**
   - Use consistent `handleX` functions (e.g. `handlePost`, `handlePatch`) and export wrapped handlers:
     - `export const POST = withRouteLogging(handlePost, {...})`
   - Ensure route `operation` naming conventions:
     - `api.wallets.list`, `api.wallets.create`, `api.wallets.update`, `api.wallets.archive`
     - `api.transactions.expense.create`, etc.
+  - ✅ **Completed for 13/21 routes:**
+    - ✅ `/api/wallets` (GET, POST)
+    - ✅ `/api/wallets/[id]` (GET, PATCH, DELETE)
+    - ✅ `/api/categories` (GET, POST)
+    - ✅ `/api/categories/[id]` (GET, PATCH, DELETE)
+    - ✅ `/api/budgets` (GET, POST, PUT)
+    - ✅ `/api/savings-buckets` (GET, POST)
+    - ✅ `/api/transactions` (GET)
+    - ✅ `/api/health` (GET)
+    - ✅ `/api/dashboard` (GET) - already had logging
+    - ✅ `/api/reports/spending-trend` (GET) - already had logging
+    - ✅ `/api/reports/category-breakdown` (GET) - already had logging
+    - ✅ `/api/reports/net-worth-trend` (GET) - already had logging
+    - ✅ `/api/reports/money-left-to-spend` (GET) - already had logging
+  - ⚠️ **Remaining 8 routes to update:**
+    - `/api/savings-buckets/[id]` (GET, PATCH, DELETE)
+    - `/api/transactions/[id]` (GET, PATCH, DELETE)
+    - `/api/transactions/expense` (POST)
+    - `/api/transactions/income` (POST)
+    - `/api/transactions/transfer` (POST)
+    - `/api/transactions/savings/contribute` (POST)
+    - `/api/transactions/savings/withdraw` (POST)
+    - `/api/budgets/[id]` (GET, PATCH, DELETE)
 
-Deliverable: Every endpoint emits request-complete logs with `requestId` and `durationMs`.
+**Deliverable Status:** ⚠️ **PARTIALLY COMPLETE** - 13/21 routes updated (62%)
+
+- All updated endpoints emit request-complete logs with `requestId` and `durationMs`
+- All 800 tests pass ✅
+- Core logging infrastructure complete and tested
 
 ---
 

@@ -1,16 +1,20 @@
 import { NextRequest } from "next/server";
+import { listCategories, createCategory } from "@/modules/Category/actions";
 import {
-  listCategories,
-  createCategory,
-} from "@/modules/Category/actions";
-import { ok, badRequest, serverError, conflict, unprocessableEntity } from "@/lib/http";
+  ok,
+  badRequest,
+  serverError,
+  conflict,
+  unprocessableEntity,
+} from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * GET /api/categories
  * List all categories
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const categories = await listCategories();
     return ok(categories);
@@ -28,11 +32,16 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export const GET = withRouteLogging(handleGet, {
+  operation: "api.categories.list",
+  logQuery: true,
+});
+
 /**
  * POST /api/categories
  * Create a new category
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     // Parse request body
     let body: unknown;
@@ -97,3 +106,9 @@ export async function POST(request: NextRequest) {
     return serverError("Failed to create category");
   }
 }
+
+export const POST = withRouteLogging(handlePost, {
+  operation: "api.categories.create",
+  logQuery: false,
+  logBodyMetadata: true,
+});

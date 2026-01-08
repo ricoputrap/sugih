@@ -9,6 +9,7 @@ import {
 } from "@/modules/Transaction/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * GET /api/transactions
@@ -23,7 +24,7 @@ import { formatPostgresError } from "@/db/client";
  * - limit: number (default 50, max 100)
  * - offset: number (default 0)
  */
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const query = {
@@ -61,6 +62,11 @@ export async function GET(request: NextRequest) {
     return serverError("Failed to fetch transactions");
   }
 }
+
+export const GET = withRouteLogging(handleGet, {
+  operation: "api.transactions.list",
+  logQuery: true,
+});
 
 /**
  * POST /api/transactions

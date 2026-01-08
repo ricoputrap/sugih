@@ -9,16 +9,26 @@ export const REQUEST_ID_HEADER = "x-request-id";
  * - `x-request-id` header
  * - `requestId` query parameter (useful for local debugging)
  */
-export function getOrCreateRequestId(request: Request): string {
-  const fromHeader = request.headers.get(REQUEST_ID_HEADER);
+export function getOrCreateRequestId(
+  request: Request | null | undefined,
+): string {
+  if (!request) {
+    return generateRequestId();
+  }
+
+  const fromHeader = request.headers?.get(REQUEST_ID_HEADER);
   if (fromHeader && isValidRequestId(fromHeader)) {
     return fromHeader;
   }
 
-  const url = new URL(request.url);
-  const fromQuery = url.searchParams.get("requestId");
-  if (fromQuery && isValidRequestId(fromQuery)) {
-    return fromQuery;
+  try {
+    const url = new URL(request.url);
+    const fromQuery = url.searchParams.get("requestId");
+    if (fromQuery && isValidRequestId(fromQuery)) {
+      return fromQuery;
+    }
+  } catch {
+    // Invalid URL or request.url is undefined
   }
 
   return generateRequestId();
@@ -43,19 +53,30 @@ export function isValidRequestId(value: string): boolean {
 
 /**
  * Apply request id to response headers.
+ * Defensive: handles responses without headers or with consumed bodies.
  */
 export function withRequestIdHeader(
   response: Response,
   requestId: string,
 ): Response {
-  const headers = new Headers(response.headers);
-  headers.set(REQUEST_ID_HEADER, requestId);
+  // If response doesn't have headers, return as-is (likely a mock or invalid response)
+  if (!response.headers) {
+    return response;
+  }
 
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
+  try {
+    const headers = new Headers(response.headers);
+    headers.set(REQUEST_ID_HEADER, requestId);
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  } catch (error) {
+    // If cloning fails (body already consumed), return original response
+    return response;
+  }
 }
 
 /**
