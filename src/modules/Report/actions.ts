@@ -65,7 +65,7 @@ export async function spendingTrend(
       WHERE
         te.type = 'expense'
         AND te.deleted_at IS NULL
-        ${fromStr ? db`AND te.occurred_at >= '2025-12-01T17:00:00.000Z'` : db``}
+        ${fromStr ? db`AND te.occurred_at >= ${fromStr}` : db``}
         ${toStr ? db`AND te.occurred_at <= ${toStr}` : db``}
       GROUP BY period
       ORDER BY period ASC
@@ -179,37 +179,9 @@ export async function netWorthTrend(query: unknown): Promise<NetWorthData[]> {
 
   try {
     const validatedQuery = NetWorthTrendQuerySchema.parse(query);
-
-    // Build date range filters
-    const conditions: string[] = ["te.deleted_at IS NULL"];
-
-    if (validatedQuery.from) {
-      conditions.push(`te.occurred_at >= \${validatedQuery.from}`);
-    }
-    if (validatedQuery.to) {
-      conditions.push(`te.occurred_at <= \${validatedQuery.to}`);
-    }
-
-    const whereClause = conditions.join(" AND ");
-
-    // Build period expression based on granularity
-    let periodExpr: string;
-    switch (validatedQuery.granularity) {
-      case "day":
-        periodExpr = "DATE_TRUNC('day', te.occurred_at)";
-        break;
-      case "week":
-        periodExpr = "DATE_TRUNC('week', te.occurred_at)";
-        break;
-      case "month":
-        periodExpr = "DATE_TRUNC('month', te.occurred_at)";
-        break;
-      case "quarter":
-        periodExpr = "DATE_TRUNC('quarter', te.occurred_at)";
-        break;
-      default:
-        periodExpr = "DATE_TRUNC('month', te.occurred_at)";
-    }
+    const fromStr = validatedQuery.from?.toISOString();
+    const toStr = validatedQuery.to?.toISOString();
+    const granularity = validatedQuery.granularity ?? "month";
 
     // For net worth trend, we need to track cumulative balances over time
     // This is more complex as we need running totals for wallets and savings
@@ -222,9 +194,12 @@ export async function netWorthTrend(query: unknown): Promise<NetWorthData[]> {
       }[]
     >`
       WITH periods AS (
-        SELECT DISTINCT ${periodExpr} as period
+        SELECT DISTINCT DATE_TRUNC(${granularity}, te.occurred_at) as period
         FROM transaction_events te
-        WHERE ${whereClause}
+        WHERE
+          te.deleted_at IS NULL
+          ${fromStr ? db`AND te.occurred_at >= ${fromStr}` : db``}
+          ${toStr ? db`AND te.occurred_at <= ${toStr}` : db``}
         ORDER BY period ASC
       ),
       wallet_balances AS (
@@ -238,7 +213,7 @@ export async function netWorthTrend(query: unknown): Promise<NetWorthData[]> {
           JOIN postings p ON te.id = p.event_id
           WHERE p.wallet_id IS NOT NULL
             AND te.deleted_at IS NULL
-            AND ${periodExpr} <= wb.period
+            AND period <= wb.period
         ) p
         GROUP BY wb.period
       ),
@@ -253,7 +228,7 @@ export async function netWorthTrend(query: unknown): Promise<NetWorthData[]> {
           JOIN postings p ON te.id = p.event_id
           WHERE p.savings_bucket_id IS NOT NULL
             AND te.deleted_at IS NULL
-            AND ${periodExpr} <= sb.period
+            AND period <= sb.period
         ) p
         GROUP BY sb.period
       )
