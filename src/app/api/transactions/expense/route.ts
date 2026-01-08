@@ -3,6 +3,7 @@ import { createExpense } from "@/modules/Transaction/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
 import { ExpenseCreateSchema } from "@/db/schema";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * POST /api/transactions/expense
@@ -16,7 +17,7 @@ import { ExpenseCreateSchema } from "@/db/schema";
  * - note: string (optional)
  * - idempotencyKey: string (optional)
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     // Parse request body
     let body: typeof ExpenseCreateSchema;
@@ -30,8 +31,6 @@ export async function POST(request: NextRequest) {
 
     return ok(transaction);
   } catch (error: any) {
-    console.error("Error creating expense transaction:", error);
-
     // Handle validation errors (already formatted as Response)
     if (error instanceof Response) {
       return error;
@@ -84,3 +83,9 @@ export async function POST(request: NextRequest) {
     return serverError("Failed to create expense transaction");
   }
 }
+
+export const POST = withRouteLogging(handlePost, {
+  operation: "api.transactions.expense.create",
+  logQuery: false,
+  logBodyMetadata: true,
+});
