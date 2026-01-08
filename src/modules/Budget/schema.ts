@@ -36,12 +36,9 @@ export const budgets = pgTable(
       () => new Date(),
     ),
   },
-  (table) => ({
-    monthCategoryUnique: uniqueIndex("budget_month_category_idx").on(
-      table.month,
-      table.category_id,
-    ),
-  }),
+  (table) => [
+    uniqueIndex("budget_month_category_idx").on(table.month, table.category_id),
+  ],
 );
 
 // Zod schemas for validation

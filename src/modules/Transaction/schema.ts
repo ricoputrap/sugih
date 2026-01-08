@@ -1,44 +1,79 @@
-import { pgTable, text, timestamp, bigint, varchar } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  bigint,
+  varchar,
+  index,
+} from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // Drizzle schema for transaction events
-export const transactionEvents = pgTable("transaction_events", {
-  id: text("id").primaryKey(), // UUID as text
-  occurred_at: timestamp("occurred_at", { withTimezone: true }).notNull(),
-  type: varchar("type", {
-    length: 32,
-    enum: [
-      "expense",
-      "income",
-      "transfer",
-      "savings_contribution",
-      "savings_withdrawal",
-    ],
-  }).notNull(),
-  note: text("note"),
-  payee: text("payee"),
-  category_id: text("category_id"), // Foreign key to categories (nullable)
-  deleted_at: timestamp("deleted_at", { withTimezone: true }),
-  created_at: timestamp("created_at", { withTimezone: true }).$default(
-    () => new Date(),
-  ),
-  updated_at: timestamp("updated_at", { withTimezone: true }).$default(
-    () => new Date(),
-  ),
-  idempotency_key: varchar("idempotency_key", { length: 36 }).unique(),
-});
+export const transactionEvents = pgTable(
+  "transaction_events",
+  {
+    id: text("id").primaryKey(), // UUID as text
+    occurred_at: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    type: varchar("type", {
+      length: 32,
+      enum: [
+        "expense",
+        "income",
+        "transfer",
+        "savings_contribution",
+        "savings_withdrawal",
+      ],
+    }).notNull(),
+    note: text("note"),
+    payee: text("payee"),
+    category_id: text("category_id"), // Foreign key to categories (nullable)
+    deleted_at: timestamp("deleted_at", { withTimezone: true }),
+    created_at: timestamp("created_at", { withTimezone: true }).$default(
+      () => new Date(),
+    ),
+    updated_at: timestamp("updated_at", { withTimezone: true }).$default(
+      () => new Date(),
+    ),
+    idempotency_key: varchar("idempotency_key", { length: 36 }).unique(),
+  },
+  (table) => [
+    index("idx_transaction_events_occurred_at").on(table.occurred_at),
+    index("idx_transaction_events_type_occurred_at").on(
+      table.type,
+      table.occurred_at,
+    ),
+    index("idx_transaction_events_category_id_occurred_at").on(
+      table.category_id,
+      table.occurred_at,
+    ),
+  ],
+);
 
 // Drizzle schema for postings (ledger entries)
-export const postings = pgTable("postings", {
-  id: text("id").primaryKey(), // UUID as text
-  event_id: text("event_id").notNull(),
-  wallet_id: text("wallet_id"), // Foreign key to wallets (nullable)
-  savings_bucket_id: text("savings_bucket_id"), // Foreign key to savings_buckets (nullable)
-  amount_idr: bigint("amount_idr", { mode: "number" }).notNull(), // Signed bigint for Rupiah amounts
-  created_at: timestamp("created_at", { withTimezone: true }).$default(
-    () => new Date(),
-  ),
-});
+export const postings = pgTable(
+  "postings",
+  {
+    id: text("id").primaryKey(), // UUID as text
+    event_id: text("event_id").notNull(),
+    wallet_id: text("wallet_id"), // Foreign key to wallets (nullable)
+    savings_bucket_id: text("savings_bucket_id"), // Foreign key to savings_buckets (nullable)
+    amount_idr: bigint("amount_idr", { mode: "number" }).notNull(), // Signed bigint for Rupiah amounts
+    created_at: timestamp("created_at", { withTimezone: true }).$default(
+      () => new Date(),
+    ),
+  },
+  (table) => [
+    index("idx_postings_event_id").on(table.event_id),
+    index("idx_postings_wallet_id_created_at").on(
+      table.wallet_id,
+      table.created_at,
+    ),
+    index("idx_postings_savings_bucket_id_created_at").on(
+      table.savings_bucket_id,
+      table.created_at,
+    ),
+  ],
+);
 
 // Zod schemas for validation
 export const ExpenseCreateSchema = z.object({

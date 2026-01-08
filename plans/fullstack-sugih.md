@@ -304,7 +304,7 @@ Deliverable: MVP dashboard with core insights.
   - Add optional `idempotencyKey` to create endpoints.
   - Enforce `UNIQUE(idempotency_key)` in schema (already planned).
   - Action logic: if key exists, return existing event instead of inserting new.
-- [ ] **Step 7.2**: Add/verify indexes
+- [x] **Step 7.2**: Add/verify indexes
   - `transaction_events(occurred_at)`
   - `transaction_events(type, occurred_at)`
   - `transaction_events(category_id, occurred_at)`
