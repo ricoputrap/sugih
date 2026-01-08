@@ -86,7 +86,11 @@ export const ExpenseCreateSchema = z.object({
     .string()
     .min(1, "Category ID is required")
     .max(50, "Category ID too long"),
-  amountIdr: z.number().int().positive("Amount must be positive"),
+  amountIdr: z
+    .number()
+    .int()
+    .min(100, "Amount must be at least 100 IDR (100 Rupiah)")
+    .positive("Amount must be positive (greater than 0)"),
   note: z.string().optional(),
   idempotencyKey: z.string().max(36).optional(),
 });
@@ -97,7 +101,11 @@ export const IncomeCreateSchema = z.object({
     .string()
     .min(1, "Wallet ID is required")
     .max(50, "Wallet ID too long"),
-  amountIdr: z.number().int().positive("Amount must be positive"),
+  amountIdr: z
+    .number()
+    .int()
+    .min(100, "Amount must be at least 100 IDR (100 Rupiah)")
+    .positive("Amount must be positive (greater than 0)"),
   note: z.string().optional(),
   payee: z.string().optional(),
   idempotencyKey: z.string().max(36).optional(),
@@ -114,7 +122,11 @@ export const TransferCreateSchema = z
       .string()
       .min(1, "To wallet ID is required")
       .max(50, "To wallet ID too long"),
-    amountIdr: z.number().int().positive("Amount must be positive"),
+    amountIdr: z
+      .number()
+      .int()
+      .min(100, "Amount must be at least 100 IDR (1 Rupiah)")
+      .positive("Amount must be positive (greater than 0)"),
     note: z.string().optional(),
     idempotencyKey: z.string().max(36).optional(),
   })
@@ -133,7 +145,11 @@ export const SavingsContributeSchema = z.object({
     .string()
     .min(1, "Bucket ID is required")
     .max(50, "Bucket ID too long"),
-  amountIdr: z.number().int().positive("Amount must be positive"),
+  amountIdr: z
+    .number()
+    .int()
+    .min(100, "Amount must be at least 100 IDR (1 Rupiah)")
+    .positive("Amount must be positive (greater than 0)"),
   note: z.string().optional(),
   idempotencyKey: z.string().max(36).optional(),
 });
@@ -148,7 +164,11 @@ export const SavingsWithdrawSchema = z.object({
     .string()
     .min(1, "Bucket ID is required")
     .max(50, "Bucket ID too long"),
-  amountIdr: z.number().int().positive("Amount must be positive"),
+  amountIdr: z
+    .number()
+    .int()
+    .min(100, "Amount must be at least 100 IDR (1 Rupiah)")
+    .positive("Amount must be positive (greater than 0)"),
   note: z.string().optional(),
   idempotencyKey: z.string().max(36).optional(),
 });
