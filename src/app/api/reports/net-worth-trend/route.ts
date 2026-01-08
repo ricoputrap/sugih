@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { netWorthTrend } from "@/modules/Report/actions";
 import { ok, badRequest } from "@/lib/http";
+import { withReportTiming } from "@/lib/logging/route-helpers";
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
@@ -36,3 +37,7 @@ export async function GET(request: NextRequest) {
     return badRequest("Failed to fetch net worth trend");
   }
 }
+
+export const GET = withReportTiming(handleGet, {
+  operation: "report.net-worth-trend",
+});

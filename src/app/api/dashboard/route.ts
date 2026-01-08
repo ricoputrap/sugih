@@ -8,6 +8,7 @@ import {
   getRecentTransactions,
 } from "@/modules/Dashboard/actions";
 import { ok, badRequest } from "@/lib/http";
+import { withReportTiming } from "@/lib/logging/route-helpers";
 
 /**
  * Dashboard API Route
@@ -17,7 +18,7 @@ import { ok, badRequest } from "@/lib/http";
  * without exposing database dependencies to the client.
  */
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
@@ -78,3 +79,7 @@ export async function GET(request: NextRequest) {
     return badRequest("Failed to fetch dashboard data");
   }
 }
+
+export const GET = withReportTiming(handleGet, {
+  operation: "dashboard",
+});
