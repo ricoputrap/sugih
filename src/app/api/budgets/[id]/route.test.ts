@@ -340,9 +340,7 @@ describe("Budgets [id] API Routes", () => {
     });
 
     it("should return 404 when budget not found", async () => {
-      vi.mocked(updateBudget).mockRejectedValue(
-        new Error("Budget not found"),
-      );
+      vi.mocked(updateBudget).mockRejectedValue(new Error("Budget not found"));
 
       const request = createMockRequest(
         "PATCH",
@@ -550,9 +548,7 @@ describe("Budgets [id] API Routes", () => {
     });
 
     it("should return 404 when budget not found", async () => {
-      vi.mocked(deleteBudget).mockRejectedValue(
-        new Error("Budget not found"),
-      );
+      vi.mocked(deleteBudget).mockRejectedValue(new Error("Budget not found"));
 
       const request = createMockRequest(
         "DELETE",
@@ -638,10 +634,10 @@ describe("Budgets [id] API Routes", () => {
     });
 
     it("should handle Response object errors", async () => {
-      const responseError = new Response(
-        JSON.stringify({ error: { message: "Custom error" } }),
-        { status: 400 },
-      );
+      const errorBody = { error: { message: "Custom error" } };
+      const responseError = new Response(JSON.stringify(errorBody), {
+        status: 400,
+      });
 
       vi.mocked(deleteBudget).mockRejectedValue(responseError);
 
@@ -651,7 +647,12 @@ describe("Budgets [id] API Routes", () => {
       );
       const response = await DELETE(request, createMockParams("budget1"));
 
-      expect(response).toBe(responseError);
+      // Check status and body instead of exact Response object match
+      // The x-request-id header is added by the logging wrapper, which is expected
+      expect(response.status).toBe(400);
+
+      const responseData = await response.json();
+      expect(responseData.error.message).toBe("Custom error");
     });
   });
 });

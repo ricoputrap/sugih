@@ -6,12 +6,13 @@ import {
 } from "@/modules/Budget/actions";
 import { ok, badRequest, notFound, serverError, conflict } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * GET /api/budgets/[id]
  * Get a budget by ID
  */
-export async function GET(
+async function handleGet(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -25,8 +26,6 @@ export async function GET(
 
     return ok(budget);
   } catch (error: any) {
-    console.error("Error fetching budget:", error);
-
     // Handle validation errors (already formatted as Response)
     if (error instanceof Response) {
       return error;
@@ -48,6 +47,12 @@ export async function GET(
   }
 }
 
+export const GET = withRouteLogging(handleGet, {
+  operation: "api.budgets.get",
+  logQuery: false,
+  logRouteParams: true,
+});
+
 /**
  * PATCH /api/budgets/[id]
  * Update a budget amount
@@ -57,7 +62,7 @@ export async function GET(
  *   amountIdr: number (positive integer)
  * }
  */
-export async function PATCH(
+async function handlePatch(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -85,8 +90,6 @@ export async function PATCH(
     const budget = await updateBudget(id, amountIdr);
     return ok(budget);
   } catch (error: any) {
-    console.error("Error updating budget:", error);
-
     // Handle validation errors (already formatted as Response)
     if (error instanceof Response) {
       return error;
@@ -138,11 +141,18 @@ export async function PATCH(
   }
 }
 
+export const PATCH = withRouteLogging(handlePatch, {
+  operation: "api.budgets.update",
+  logQuery: false,
+  logRouteParams: true,
+  logBodyMetadata: true,
+});
+
 /**
  * DELETE /api/budgets/[id]
  * Delete a budget
  */
-export async function DELETE(
+async function handleDelete(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -152,8 +162,6 @@ export async function DELETE(
     await deleteBudget(id);
     return ok({ message: "Budget deleted successfully" });
   } catch (error: any) {
-    console.error("Error deleting budget:", error);
-
     // Handle validation errors (already formatted as Response)
     if (error instanceof Response) {
       return error;
@@ -171,7 +179,9 @@ export async function DELETE(
 
     // Handle PostgreSQL foreign key violation
     if (error.code === "23503") {
-      return conflict("Cannot delete budget: it is referenced by other records");
+      return conflict(
+        "Cannot delete budget: it is referenced by other records",
+      );
     }
 
     // Handle other PostgreSQL errors
@@ -184,3 +194,9 @@ export async function DELETE(
     return serverError("Failed to delete budget");
   }
 }
+
+export const DELETE = withRouteLogging(handleDelete, {
+  operation: "api.budgets.delete",
+  logQuery: false,
+  logRouteParams: true,
+});
