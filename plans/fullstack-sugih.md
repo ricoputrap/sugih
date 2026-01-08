@@ -310,7 +310,7 @@ Deliverable: MVP dashboard with core insights.
   - `transaction_events(category_id, occurred_at)`
   - `postings(event_id)`, `(wallet_id, created_at)`, `(savings_bucket_id, created_at)`
   - `budgets(month, category_id)` unique
-- [ ] **Step 7.3**: Input hardening
+- [x] **Step 7.3**: Input hardening
   - amount must be positive for user input; convert to signed in posting layer
   - prevent transfer with same from/to wallet
   - prevent negative/zero inputs
