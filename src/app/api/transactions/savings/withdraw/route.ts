@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createSavingsWithdrawal } from "@/modules/Transaction/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * POST /api/transactions/savings/withdraw
@@ -15,7 +16,7 @@ import { formatPostgresError } from "@/db/client";
  * - note: string (optional)
  * - idempotencyKey: string (optional)
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     // Parse request body
     let body: any;
@@ -30,8 +31,6 @@ export async function POST(request: NextRequest) {
 
     return ok(transaction);
   } catch (error: any) {
-    console.error("Error creating savings withdrawal:", error);
-
     // Handle validation errors (already formatted as Response)
     if (error instanceof Response) {
       return error;
@@ -82,3 +81,10 @@ export async function POST(request: NextRequest) {
     return serverError("Failed to create savings withdrawal");
   }
 }
+
+export const POST = withRouteLogging(handlePost, {
+  operation: "api.transactions.savings.withdraw.create",
+  logQuery: false,
+  logRouteParams: false,
+  logBodyMetadata: true,
+});

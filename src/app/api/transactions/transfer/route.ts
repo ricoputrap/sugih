@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createTransfer } from "@/modules/Transaction/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * POST /api/transactions/transfer
@@ -19,7 +20,7 @@ import { formatPostgresError } from "@/db/client";
  * - fromWalletId and toWalletId must be different
  * - Both wallets must exist and not be archived
  */
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     // Parse request body
     let body: any;
@@ -39,8 +40,6 @@ export async function POST(request: NextRequest) {
 
     return ok(transaction);
   } catch (error: any) {
-    console.error("Error creating transfer transaction:", error);
-
     // Handle validation errors (already formatted as Response)
     if (error instanceof Response) {
       return error;
@@ -68,7 +67,9 @@ export async function POST(request: NextRequest) {
 
     // Handle PostgreSQL unique constraint violation (idempotency key)
     if (error.code === "23505") {
-      return conflict("Transfer transaction with this idempotency key already exists");
+      return conflict(
+        "Transfer transaction with this idempotency key already exists",
+      );
     }
 
     // Handle PostgreSQL foreign key violation
@@ -96,3 +97,10 @@ export async function POST(request: NextRequest) {
     return serverError("Failed to create transfer transaction");
   }
 }
+
+export const POST = withRouteLogging(handlePost, {
+  operation: "api.transactions.transfer.create",
+  logQuery: false,
+  logRouteParams: false,
+  logBodyMetadata: true,
+});

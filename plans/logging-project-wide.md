@@ -143,7 +143,7 @@ Non-goals:
   - Ensure route `operation` naming conventions:
     - `api.wallets.list`, `api.wallets.create`, `api.wallets.update`, `api.wallets.archive`
     - `api.transactions.expense.create`, etc.
-  - ✅ **Completed for 17/21 routes:**
+  - ✅ **Completed for 21/21 routes:**
     - ✅ `/api/wallets` (GET, POST)
     - ✅ `/api/wallets/[id]` (GET, PATCH, DELETE)
     - ✅ `/api/categories` (GET, POST)
@@ -155,19 +155,19 @@ Non-goals:
     - ✅ /api/transactions (GET)
     - ✅ `/api/transactions/[id]` (GET, DELETE)
     - ✅ `/api/transactions/expense` (POST)
+    - ✅ `/api/transactions/income` (POST)
+    - ✅ `/api/transactions/transfer` (POST)
+    - ✅ `/api/transactions/savings/contribute` (POST)
+    - ✅ `/api/transactions/savings/withdraw` (POST)
     - ✅ `/api/health` (GET)
     - ✅ `/api/dashboard` (GET) - already had logging
     - ✅ `/api/reports/spending-trend` (GET) - already had logging
     - ✅ `/api/reports/category-breakdown` (GET) - already had logging
     - ✅ `/api/reports/net-worth-trend` (GET) - already had logging
     - ✅ `/api/reports/money-left-to-spend` (GET) - already had logging
-  - ⚠️ **Remaining 4 routes to update:**
-    - /api/transactions/income (POST)
-    - /api/transactions/transfer (POST)
-    - /api/transactions/savings/contribute (POST)
-    - /api/transactions/savings/withdraw (POST)
+  - ✅ **All routes complete - no remaining routes**
 
-**Deliverable Status:** ⚠️ **PARTIALLY COMPLETE** - 17/21 routes updated (81%)
+**Deliverable Status:** ✅ **COMPLETE** - 21/21 routes updated (100%)
 
 - All updated endpoints emit request-complete logs with `requestId` and `durationMs`
 - All 800 tests pass ✅
