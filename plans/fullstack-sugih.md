@@ -300,7 +300,7 @@ Deliverable: MVP dashboard with core insights.
 
 ## Phase 7: Hardening (Idempotency, Indexes, Guardrails)
 
-- [ ] **Step 7.1**: Idempotency keys
+- [x] **Step 7.1**: Idempotency keys ✅ COMPLETE
   - Add optional `idempotencyKey` to create endpoints.
   - Enforce `UNIQUE(idempotency_key)` in schema (already planned).
   - Action logic: if key exists, return existing event instead of inserting new.
