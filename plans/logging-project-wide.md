@@ -143,31 +143,31 @@ Non-goals:
   - Ensure route `operation` naming conventions:
     - `api.wallets.list`, `api.wallets.create`, `api.wallets.update`, `api.wallets.archive`
     - `api.transactions.expense.create`, etc.
-  - ✅ **Completed for 13/21 routes:**
+  - ✅ **Completed for 14/21 routes:**
     - ✅ `/api/wallets` (GET, POST)
     - ✅ `/api/wallets/[id]` (GET, PATCH, DELETE)
     - ✅ `/api/categories` (GET, POST)
     - ✅ `/api/categories/[id]` (GET, PATCH, DELETE)
-    - ✅ `/api/budgets` (GET, POST, PUT)
-    - ✅ `/api/savings-buckets` (GET, POST)
-    - ✅ `/api/transactions` (GET)
+    - ✅ /api/budgets (GET, POST, PUT)
+    - ✅ /api/savings-buckets (GET, POST)
+    - ✅ /api/savings-buckets/[id] (GET, PATCH, DELETE)
+    - ✅ /api/transactions (GET)
     - ✅ `/api/health` (GET)
     - ✅ `/api/dashboard` (GET) - already had logging
     - ✅ `/api/reports/spending-trend` (GET) - already had logging
     - ✅ `/api/reports/category-breakdown` (GET) - already had logging
     - ✅ `/api/reports/net-worth-trend` (GET) - already had logging
     - ✅ `/api/reports/money-left-to-spend` (GET) - already had logging
-  - ⚠️ **Remaining 8 routes to update:**
-    - `/api/savings-buckets/[id]` (GET, PATCH, DELETE)
-    - `/api/transactions/[id]` (GET, PATCH, DELETE)
-    - `/api/transactions/expense` (POST)
-    - `/api/transactions/income` (POST)
-    - `/api/transactions/transfer` (POST)
-    - `/api/transactions/savings/contribute` (POST)
-    - `/api/transactions/savings/withdraw` (POST)
-    - `/api/budgets/[id]` (GET, PATCH, DELETE)
+  - ⚠️ **Remaining 7 routes to update:**
+    - /api/transactions/[id] (GET, PATCH, DELETE)
+    - /api/transactions/expense (POST)
+    - /api/transactions/income (POST)
+    - /api/transactions/transfer (POST)
+    - /api/transactions/savings/contribute (POST)
+    - /api/transactions/savings/withdraw (POST)
+    - /api/budgets/[id] (GET, PATCH, DELETE)
 
-**Deliverable Status:** ⚠️ **PARTIALLY COMPLETE** - 13/21 routes updated (62%)
+**Deliverable Status:** ⚠️ **PARTIALLY COMPLETE** - 14/21 routes updated (67%)
 
 - All updated endpoints emit request-complete logs with `requestId` and `durationMs`
 - All 800 tests pass ✅

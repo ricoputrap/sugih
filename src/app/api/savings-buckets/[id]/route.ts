@@ -8,12 +8,13 @@ import {
 } from "@/modules/SavingsBucket/actions";
 import { ok, badRequest, notFound, serverError, conflict } from "@/lib/http";
 import { formatPostgresError } from "@/db/client";
+import { withRouteLogging } from "@/lib/logging";
 
 /**
  * GET /api/savings-buckets/[id]
  * Get a savings bucket by ID
  */
-export async function GET(
+async function handleGet(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -40,11 +41,17 @@ export async function GET(
   }
 }
 
+export const GET = withRouteLogging(handleGet, {
+  operation: "api.savings-buckets.get",
+  logQuery: false,
+  logRouteParams: true,
+});
+
 /**
  * PATCH /api/savings-buckets/[id]
  * Update a savings bucket
  */
-export async function PATCH(
+async function handlePatch(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -115,6 +122,13 @@ export async function PATCH(
   }
 }
 
+export const PATCH = withRouteLogging(handlePatch, {
+  operation: "api.savings-buckets.update",
+  logQuery: false,
+  logRouteParams: true,
+  logBodyMetadata: true,
+});
+
 /**
  * DELETE /api/savings-buckets/[id]
  * Delete or archive a savings bucket
@@ -122,7 +136,7 @@ export async function PATCH(
  * Query params:
  * - action: "archive" (default) or "delete"
  */
-export async function DELETE(
+async function handleDelete(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -207,3 +221,9 @@ export async function DELETE(
     return serverError("Failed to delete savings bucket");
   }
 }
+
+export const DELETE = withRouteLogging(handleDelete, {
+  operation: "api.savings-buckets.delete",
+  logQuery: true,
+  logRouteParams: true,
+});
