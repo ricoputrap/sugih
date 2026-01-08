@@ -123,13 +123,15 @@ export async function getSpendingTrendChartData(
   try {
     const validatedQuery = DashboardDateRangeSchema.parse(query);
 
-    // Default to last 12 months
+    // Default to last month
     let { from, to } = validatedQuery;
 
     if (!from && !to) {
-      to = new Date();
-      from = new Date();
-      from.setMonth(from.getMonth() - 12);
+      // Default to last 30 days for most data, current month for some
+      const now = new Date();
+      now.setDate(now.getDate() - 30);
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      to = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     }
 
     const trendData = await spendingTrend({
@@ -215,7 +217,7 @@ export async function getCategoryBreakdownData(
   try {
     const validatedQuery = DashboardDateRangeSchema.parse(query);
 
-    // Default to current month
+    // Default to last month
     let { from, to } = validatedQuery;
 
     if (!from && !to) {
