@@ -15,29 +15,71 @@ import { formatZodError } from "@/lib/zod";
 import { unprocessableEntity } from "@/lib/http";
 
 /**
- * List all wallets ordered by name
+ * List all wallets ordered by name with calculated balances
  */
-export async function listWallets(): Promise<Wallet[]> {
+export async function listWallets(): Promise<(Wallet & { balance: number })[]> {
   const db = getDb();
   const wallets = await db<Wallet[]>`
     SELECT id, name, type, currency, archived, created_at, updated_at
     FROM wallets
     ORDER BY name ASC
   `;
-  return Array.from(wallets);
+
+  // Calculate balance for each wallet from postings
+  const walletsWithBalance = await Promise.all(
+    wallets.map(async (wallet) => {
+      const balanceResult = await db<{ total: string | null }[]>`
+        SELECT COALESCE(SUM(amount_idr), 0)::numeric as total
+        FROM postings p
+        JOIN transaction_events te ON p.event_id = te.id
+        WHERE p.wallet_id = ${wallet.id} AND te.deleted_at IS NULL
+      `;
+
+      const balance = Number(balanceResult[0]?.total) || 0;
+
+      return {
+        ...wallet,
+        balance,
+      };
+    }),
+  );
+
+  return walletsWithBalance;
 }
 
 /**
- * Get a wallet by ID
+ * Get a wallet by ID with calculated balance
  */
-export async function getWalletById(id: string): Promise<Wallet | null> {
+export async function getWalletById(
+  id: string,
+): Promise<(Wallet & { balance: number }) | null> {
   const db = getDb();
   const wallets = await db<Wallet[]>`
     SELECT id, name, type, currency, archived, created_at, updated_at
     FROM wallets
     WHERE id = ${id}
   `;
-  return wallets[0] || null;
+
+  if (!wallets[0]) {
+    return null;
+  }
+
+  const wallet = wallets[0];
+
+  // Calculate balance from postings
+  const balanceResult = await db<{ total: string | null }[]>`
+    SELECT COALESCE(SUM(amount_idr), 0)::numeric as total
+    FROM postings p
+    JOIN transaction_events te ON p.event_id = te.id
+    WHERE p.wallet_id = ${id} AND te.deleted_at IS NULL
+  `;
+
+  const balance = Number(balanceResult[0]?.total) || 0;
+
+  return {
+    ...wallet,
+    balance,
+  };
 }
 
 /**

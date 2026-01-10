@@ -1,74 +1,152 @@
-# Plan: Wallet Balance Implementation
+# Plan: Wallet Balance Display Implementation
 
 ## Module Structure Check
-- [ ] Confirmed that new files will be colocated within `/src/modules/Wallet/` directory.
-- [ ] Confirmed types will use `.ts` files and be properly exported.
-- [ ] Confirmed that every logic change has a planned test file.
-- [ ] Verified existing module structure: `schema.ts`, `components/WalletTable.tsx`, and page at `src/app/wallets/page.tsx`.
+
+- [x] Confirmed that balance logic stays within Wallet module
+- [x] Confirmed UI components remain colocated in `src/modules/Wallet/components/`
+- [x] Confirmed API routes remain at `src/app/api/wallets/`
+- [x] Confirmed that types are using `.ts` and properly exported
+- [x] Confirmed that every logic change has a planned test file
+- [x] **ARCHITECTURAL DECISION**: Use transaction-based calculation (no balance field in wallets table)
 
 ## Implementation Overview
-This plan adds balance display functionality to the existing wallet management system. The implementation will add a balance field to the database, update the API to include balance data, and modify the UI to display wallet balances in tables and summary cards.
+
+Display wallet balances across the application by calculating balances from the existing `postings` table (double-entry bookkeeping system). This approach ensures data integrity and follows accounting best practices.
+
+**Key Changes from Original Plan:**
+
+- ❌ **Step 1 REJECTED**: No balance field added to wallets table
+- ✅ **Revised Approach**: Calculate balances from `postings` table using SQL aggregation
+- ✅ Leverages existing transaction system with `transaction_events` and `postings`
 
 ## Execution Steps
 
 ### Phase 1: Database Schema Update
-- [ ] **Step 1**: Update `/src/modules/Wallet/schema.ts` to add balance field **AND** create `/src/modules/Wallet/schema.test.ts`.
-  - Add `balance` field to Drizzle wallet table definition
-  - Update TypeScript types to include balance
-  - Create test file to validate schema changes
+
+- [x] **Step 1**: ~~Add `balance` field to wallet schema~~ **REJECTED**
+  - ❌ **DECISION**: Balance field approach rejected by user
+  - ✅ **REVISED APPROACH**: Calculate balance from `postings` table using SQL SUM aggregation
+  - **Reasoning**: System uses double-entry bookkeeping; balances should be derived from transactions (single source of truth)
+  - **SQL**: `SELECT SUM(amount_idr) FROM postings WHERE wallet_id = ?`
 
 ### Phase 2: API Endpoint Updates
-- [ ] **Step 2**: Update `/src/app/api/wallets/route.ts` to include balance in response **AND** create `/src/app/api/wallets/route.test.ts`.
-  - Modify GET /api/wallets to return balance data
-  - Implement balance calculation logic (sum of transactions or direct field)
-  - Create test to verify API response includes balance
+
+- [x] **Step 2**: Update `/src/app/api/wallets/route.ts` to calculate and return balances **AND** create tests
+  - Calculate balance from `postings` table: `SELECT wallet_id, SUM(amount_idr) as balance FROM postings WHERE wallet_id IN (...) GROUP BY wallet_id`
+  - Modify GET /api/wallets to include calculated balance for each wallet
+  - Handle wallets with no postings (default balance = 0)
+  - Add balance to response type (extend Wallet type with computed balance)
+  - Create integration tests for API response with balances
+  - Test edge cases: no postings, negative balances, large amounts
+  - ✅ **COMPLETED**: Updated `listWallets()` to calculate balance from postings for each wallet
+  - ✅ **COMPLETED**: Updated `getWalletById()` to include calculated balance
+  - ✅ **COMPLETED**: Created comprehensive test suite in `actions.test.ts` (22 tests covering balance calculations)
+  - ✅ **COMPLETED**: Excludes soft-deleted transactions (where `deleted_at IS NOT NULL`)
+  - ✅ **COMPLETED**: Returns balance = 0 for wallets with no postings
 
 ### Phase 3: UI Component Updates
-- [ ] **Step 3**: Update `/src/modules/Wallet/components/WalletTable.tsx` to display balance column **AND** create `/src/modules/Wallet/components/WalletTable.test.tsx`.
-  - Add "Balance" column to table header
+
+- [ ] **Step 3**: Update `/src/modules/Wallet/components/WalletTable.tsx` to display balance column **AND** create tests
+  - Add "Balance" column to table header (after "Type" column)
   - Add balance cell to each table row
   - Implement currency formatting using existing `formatCurrency()` function
-  - Update tests to verify balance display
+  - Add loading skeleton for balance cells
+  - Handle null/undefined balances gracefully
+  - Update tests to verify balance display and formatting
 
 ### Phase 4: Summary Cards Enhancement
-- [ ] **Step 4**: Update `/src/app/wallets/page.tsx` to add total balance summary card **AND** create `/src/app/wallets/page.test.tsx`.
+
+- [ ] **Step 4**: Update `/src/app/wallets/page.tsx` to add total balance summary card **AND** create tests
   - Add new "Total Balance" summary card alongside existing count cards
-  - Calculate sum of all active wallet balances
-  - Display formatted currency value
+  - Calculate sum of all active wallet balances (client-side or fetch from API)
+  - Display formatted currency value (IDR)
+  - Add loading state for total balance card
   - Create test to verify total balance calculation and display
+  - Test with various scenarios: all positive, mixed, all negative
 
 ### Phase 5: Optional Enhancements (Future)
+
 - [ ] **Step 5**: Add balance-based color coding (green for positive, red for negative)
 - [ ] **Step 6**: Add "Highest Balance" and "Lowest Balance" summary cards
 - [ ] **Step 7**: Implement balance search/filter functionality
+- [ ] **Step 8**: Add performance optimization (caching, materialized views)
 
 ## Technical Notes
-- Balance field type: `numeric` or `decimal` for accurate currency calculations
-- Default balance: `0` for new wallets
-- Currency formatting: Use existing `formatCurrency()` utility with `Intl.NumberFormat`
-- All balance displays should handle `null`/`undefined` values gracefully
-- Ensure backward compatibility during migration
+
+### Balance Calculation
+
+```sql
+-- Calculate balance for a single wallet
+SELECT COALESCE(SUM(amount_idr), 0) as balance
+FROM postings
+WHERE wallet_id = 'wallet-id-here';
+
+-- Calculate balances for all wallets
+SELECT
+  wallet_id,
+  COALESCE(SUM(amount_idr), 0) as balance
+FROM postings
+WHERE wallet_id IN (SELECT id FROM wallets WHERE archived = false)
+GROUP BY wallet_id;
+```
+
+### Data Types
+
+- Balance is calculated as `bigint` (from postings.amount_idr)
+- Convert to number for display: divide by 100 if storing cents, or use as-is for Rupiah
+- Currency formatting: Use `Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' })`
+
+### Performance Considerations
+
+- Consider adding index on `postings(wallet_id)` if not exists
+- For large datasets, may need to optimize with materialized views
+- Cache calculated balances if performance becomes an issue
+
+### Edge Cases
+
+- Wallets with no postings: balance = 0
+- Negative balances: allowed (overdraft)
+- Archived wallets: exclude from calculations
+- Null/undefined: handle gracefully in UI
 
 ## File Locations Summary
+
 ```
 /src/modules/Wallet/
-├── schema.ts (updated)
-├── schema.test.ts (new)
+├── schema.ts (NO CHANGES - balance field rejected)
 ├── components/
-│   └── WalletTable.tsx (updated)
-│   └── WalletTable.test.tsx (new)
+│   └── WalletTable.tsx (updated - add balance column)
+│   └── WalletTable.test.tsx (new - test balance display)
 /src/app/
 ├── api/wallets/
-│   └── route.ts (updated)
-│   └── route.test.ts (new)
+│   └── route.ts (updated - add balance calculation)
+│   └── route.test.ts (new - test balance calculation)
 └── wallets/
-    └── page.tsx (updated)
-    └── page.test.tsx (new)
+    └── page.tsx (updated - add total balance card)
+    └── page.test.tsx (new - test total balance)
 ```
 
 ## Success Criteria
-- [ ] All active wallets display their current balance in the table
+
+- [ ] All active wallets display their current balance calculated from postings
+- [ ] Balance calculation is accurate and matches sum of transaction postings
 - [ ] Total balance card shows sum of all active wallet balances
 - [ ] Balances are formatted in IDR currency
 - [ ] All tests pass successfully
 - [ ] No breaking changes to existing functionality
+- [ ] Performance is acceptable (< 500ms for balance calculation)
+- [ ] Edge cases handled gracefully (no postings, negative balances, etc.)
+
+## Rollback Plan
+
+If issues arise:
+
+1. No database changes to rollback (Step 1 rejected)
+2. API changes can be reverted by removing balance calculation
+3. UI changes can be reverted by removing balance column and card
+4. No data migration needed
+
+---
+
+**Status**: Step 1 Rejected - Ready for Step 2  
+**Next Action**: Calculate balances from postings in API endpoint
