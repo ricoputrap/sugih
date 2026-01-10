@@ -314,10 +314,25 @@ Deliverable: MVP dashboard with core insights.
   - amount must be positive for user input; convert to signed in posting layer
   - prevent transfer with same from/to wallet
   - prevent negative/zero inputs
-- [ ] **Step 7.4**: Logging
+- [x] **Step 7.4**: Logging
   - Add request IDs, log timings for report endpoints.
-- [ ] **Step 7.5**: Backup/export (optional MVP+)
-  - Add a “download sqlite.db” or export CSV for transactions.
+- [x] **Step 7.5**: Backup/export (optional MVP+) ✅ COMPLETE
+  - **Export Module**: `src/modules/Export/schema.ts` + `actions.ts`
+  - **API Endpoints**:
+    - `GET /api/export` - Main index with stats and available export options
+    - `GET /api/export/transactions` - CSV export with date range and includeDeleted filters
+    - `GET /api/export/database` - Full backup as JSON or SQL format (supports table selection)
+    - `GET /api/export/wallets` - CSV export with balance calculation
+    - `GET /api/export/categories` - CSV export
+    - `GET /api/export/savings-buckets` - CSV export with balance calculation
+    - `GET /api/export/budgets` - CSV export with month range filters
+  - **Features**:
+    - Proper CSV escaping for special characters
+    - Downloadable file with Content-Disposition headers
+    - JSON backup includes metadata (version, timestamp, tables)
+    - SQL backup with INSERT statements and foreign key handling
+    - Stats-only mode for database endpoint (`?stats=true`)
+  - **Tests**: 42 new tests for export routes (all passing)
 
 Deliverable: safer writes, fewer duplicates, predictable performance.
 
