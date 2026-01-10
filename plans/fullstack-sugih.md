@@ -340,23 +340,17 @@ Deliverable: safer writes, fewer duplicates, predictable performance.
 
 ## Phase 8: QA Checklist (MVP Acceptance)
 
-- [ ] Can create wallets, categories, savings buckets (archive works).
-- [ ] Can record expense/income/transfer/savings contribute/withdraw.
-- [ ] Balances:
+- [x] Can create wallets, categories, savings buckets (archive works).
+- [x] Can record expense/income/transfer/savings contribute/withdraw.
+- [x] Balances:
   - wallet balance reflects spendable cash
   - bucket balance reflects allocated savings
   - net worth = sum(wallet balances) + sum(bucket balances)
-- [ ] Budget:
+- [x] Budget:
   - budgets set per month per category
   - budget vs actual accurate (expenses only)
   - money left to spend correct
-- [ ] Dashboard:
+- [x] Dashboard:
   - trend charts render for a date range
   - category breakdown matches transaction sums
-- [ ] Soft delete hides any deleted event from all reports and balances.
-
----
-
-## Next Step
-
-When you say **“Start Phase 1”**, we’ll execute **only Step 1.1** first (project structure + `src/` layout), verify it, mark it complete, then stop.
+- [x] Soft delete hides any deleted event from all reports and balances.
