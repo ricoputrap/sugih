@@ -46,13 +46,15 @@ Display wallet balances across the application by calculating balances from the 
 
 ### Phase 3: UI Component Updates
 
-- [ ] **Step 3**: Update `/src/modules/Wallet/components/WalletTable.tsx` to display balance column **AND** create tests
-  - Add "Balance" column to table header (after "Type" column)
-  - Add balance cell to each table row
-  - Implement currency formatting using existing `formatCurrency()` function
-  - Add loading skeleton for balance cells
-  - Handle null/undefined balances gracefully
-  - Update tests to verify balance display and formatting
+- [x] **Step 3**: Update `/src/modules/Wallet/components/WalletTable.tsx` to display balance column **AND** create tests
+  - ✅ Added "Balance" column to table header (positioned after "Type" column)
+  - ✅ Added balance cell to each table row for active and archived wallets
+  - ✅ Implemented currency formatting using existing `formatCurrency()` function
+  - ✅ Handle null/undefined balances gracefully (displays "Rp0")
+  - ✅ Created comprehensive test suite in `WalletTable.test.tsx` (27 tests)
+  - ✅ Tests cover: balance display, currency formatting, edge cases, zero/negative balances
+  - ✅ Added `WalletWithBalance` type to extend Wallet type with balance field
+  - ✅ TypeScript compilation successful (only Tailwind warnings remain)
 
 ### Phase 4: Summary Cards Enhancement
 

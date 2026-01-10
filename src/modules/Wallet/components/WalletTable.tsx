@@ -29,8 +29,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+// Extended wallet type with balance from API
+type WalletWithBalance = Wallet & { balance: number };
+
 interface WalletTableProps {
-  wallets: Wallet[];
+  wallets: WalletWithBalance[];
   onRefresh: () => void;
 }
 
@@ -162,6 +165,7 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Balance</TableHead>
                   <TableHead>Currency</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
@@ -176,6 +180,9 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
                         {wallet.type.charAt(0).toUpperCase() +
                           wallet.type.slice(1)}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(wallet.balance || 0)}
                     </TableCell>
                     <TableCell>{wallet.currency}</TableCell>
                     <TableCell>
@@ -234,6 +241,7 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Balance</TableHead>
                   <TableHead>Currency</TableHead>
                   <TableHead>Archived</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
@@ -245,6 +253,9 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
                     <TableCell className="font-medium">{wallet.name}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{wallet.type}</Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(wallet.balance || 0)}
                     </TableCell>
                     <TableCell>{wallet.currency}</TableCell>
                     <TableCell>
