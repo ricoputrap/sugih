@@ -13,6 +13,7 @@ import {
   Wallet,
   Tags,
   PiggyBank,
+  Download,
 } from "lucide-react";
 
 const geistSans = Geist({
@@ -67,6 +68,11 @@ const navItems = [
         icon: PiggyBank,
       },
     ],
+  },
+  {
+    title: "Export",
+    href: "/export",
+    icon: Download,
   },
 ];
 
