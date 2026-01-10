@@ -58,13 +58,16 @@ Display wallet balances across the application by calculating balances from the 
 
 ### Phase 4: Summary Cards Enhancement
 
-- [ ] **Step 4**: Update `/src/app/wallets/page.tsx` to add total balance summary card **AND** create tests
-  - Add new "Total Balance" summary card alongside existing count cards
-  - Calculate sum of all active wallet balances (client-side or fetch from API)
-  - Display formatted currency value (IDR)
-  - Add loading state for total balance card
-  - Create test to verify total balance calculation and display
-  - Test with various scenarios: all positive, mixed, all negative
+- [x] **Step 4**: Update `/src/app/wallets/page.tsx` to add total balance summary card **AND** create tests
+  - ✅ Added "Total Balance" summary card as first card in grid
+  - ✅ Calculates sum of all active wallet balances using reduce()
+  - ✅ Displays formatted currency value (IDR) using Intl.NumberFormat
+  - ✅ Updated grid from 4 columns to 5 columns (lg:grid-cols-5)
+  - ✅ Handles null/undefined balances gracefully (defaults to 0)
+  - ✅ Created comprehensive test suite in `page.test.tsx` (50+ test cases)
+  - ✅ Tests cover: total calculation, currency formatting, edge cases, archived wallets
+  - ✅ Updated type to WalletWithBalance for component state
+  - ✅ TypeScript compilation successful (no errors)
 
 ### Phase 5: Optional Enhancements (Future)
 
