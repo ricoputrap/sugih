@@ -39,12 +39,18 @@ export async function listCategories(): Promise<Category[]> {
  */
 export async function getCategoryById(id: string): Promise<Category | null> {
   const db = getDb();
-  const categories = await db<Category[]>`
-    SELECT id, name, archived, created_at, updated_at
-    FROM categories
-    WHERE id = ${id}
-  `;
-  return categories[0] || null;
+  const result = await db.execute(
+    sql`SELECT id, name, archived, created_at, updated_at FROM categories WHERE id = ${id}`,
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    archived: row.archived as boolean,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
 }
 
 /**
