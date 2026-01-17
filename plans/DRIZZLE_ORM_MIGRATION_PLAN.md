@@ -728,8 +728,8 @@ describe("Category Integration Tests", () => {
 - [x] **Step 2.1**: Update imports in `src/modules/Wallet/actions.ts`
 - [x] **Step 2.2**: Migrate `listWallets()` (includes balance calculation)
 - [x] **Step 2.3**: Migrate `getWalletById()`, `createWallet()`, `updateWallet()`
-- [ ] **Step 2.4**: Migrate `archiveWallet()`, `restoreWallet()`, `deleteWallet()`
-- [ ] **Step 2.5**: Migrate `getWalletStats()`
+- [x] **Step 2.4**: Migrate `archiveWallet()`, `restoreWallet()`, `deleteWallet()`
+- [x] **Step 2.5**: Migrate `getWalletStats()`
 
 **Key Pattern for Balance Calculation using Raw SQL** (following Phase 1 patterns):
 

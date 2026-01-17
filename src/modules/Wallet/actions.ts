@@ -258,11 +258,9 @@ export async function archiveWallet(id: string): Promise<Wallet> {
 
     // Archive wallet
     const now = new Date();
-    await db`
-      UPDATE wallets
-      SET archived = ${true}, updated_at = ${now}
-      WHERE id = ${id}
-    `;
+    await db.execute(
+      sql`UPDATE wallets SET archived = ${true}, updated_at = ${now} WHERE id = ${id}`,
+    );
 
     // Return archived wallet
     const archivedWallet = await getWalletById(id);
@@ -301,11 +299,9 @@ export async function restoreWallet(id: string): Promise<Wallet> {
 
     // Restore wallet
     const now = new Date();
-    await db`
-      UPDATE wallets
-      SET archived = ${false}, updated_at = ${now}
-      WHERE id = ${id}
-    `;
+    await db.execute(
+      sql`UPDATE wallets SET archived = ${false}, updated_at = ${now} WHERE id = ${id}`,
+    );
 
     // Return restored wallet
     const restoredWallet = await getWalletById(id);
@@ -339,19 +335,31 @@ export async function deleteWallet(id: string): Promise<void> {
     }
 
     // Use transaction to ensure atomicity
-    await db.begin(async (tx) => {
-      // Check if wallet has any associated postings
-      const postingsCount = await tx<{ count: number }[]>`
-        SELECT COUNT(*)::int as count FROM postings WHERE wallet_id = ${id}
-      `;
+    const client = await getPool().connect();
+    try {
+      await client.query("BEGIN");
 
-      if (postingsCount[0] && postingsCount[0].count > 0) {
+      // Check if wallet has any associated postings
+      const postingsCountResult = await client.query(
+        `SELECT COUNT(*)::int as count FROM postings WHERE wallet_id = $1`,
+        [id],
+      );
+
+      const count = Number(postingsCountResult.rows[0]?.count) || 0;
+      if (count > 0) {
         throw new Error("Cannot delete wallet with existing transactions");
       }
 
       // Delete wallet
-      await tx`DELETE FROM wallets WHERE id = ${id}`;
-    });
+      await client.query(`DELETE FROM wallets WHERE id = $1`, [id]);
+
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity("Invalid wallet ID", formatZodError(error));
@@ -379,25 +387,22 @@ export async function getWalletStats(id: string): Promise<{
       throw new Error("Wallet not found");
     }
 
-    // Get balance (sum of all non-deleted postings for this wallet)
-    const balanceResult = await db<{ total: number }[]>`
-      SELECT COALESCE(SUM(amount_idr), 0)::numeric as total
+    // Get balance and transaction count using pool for complex query
+    const statsResult = await getPool().query(
+      `SELECT
+        COALESCE(SUM(p.amount_idr), 0)::numeric as balance,
+        COUNT(DISTINCT te.id)::int as count
       FROM postings p
-      JOIN transaction_events te ON p.event_id = te.id
-      WHERE p.wallet_id = ${id} AND te.deleted_at IS NULL
-    `;
+      INNER JOIN transaction_events te ON p.event_id = te.id
+      WHERE p.wallet_id = $1 AND te.deleted_at IS NULL`,
+      [id],
+    );
 
-    // Get transaction count
-    const transactionCountResult = await db<{ count: number }[]>`
-      SELECT COUNT(*)::int as count
-      FROM postings p
-      JOIN transaction_events te ON p.event_id = te.id
-      WHERE p.wallet_id = ${id} AND te.deleted_at IS NULL
-    `;
+    const stats = statsResult.rows[0] || { balance: 0, count: 0 };
 
     return {
-      balance: Number(balanceResult[0]?.total) || 0,
-      transactionCount: transactionCountResult[0]?.count || 0,
+      balance: Number(stats.balance) || 0,
+      transactionCount: stats.count || 0,
     };
   } catch (error: any) {
     if (error.name === "ZodError") {
