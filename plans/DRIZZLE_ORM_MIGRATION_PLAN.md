@@ -717,6 +717,12 @@ describe("Category Integration Tests", () => {
 
 **Priority**: HIGH - Simple module, no foreign key dependencies.
 
+
+**⚠️ IMPORTANT**: Follow the **Raw SQL patterns from Phase 1** (Category module). Do NOT use Drizzle query builder.
+- Use `db.execute(sql\`...\`)` for simple queries
+- Use `pool.query('SQL', [params])` for complex queries with JOINs
+- See `src/modules/Category/actions.ts` for reference patterns
+
 ### Backend Actions
 
 - [ ] **Step 2.1**: Update imports in `src/modules/Wallet/actions.ts`
@@ -725,40 +731,47 @@ describe("Category Integration Tests", () => {
 - [ ] **Step 2.4**: Migrate `archiveWallet()`, `restoreWallet()`, `deleteWallet()`
 - [ ] **Step 2.5**: Migrate `getWalletStats()`
 
-**Key Pattern for Balance Calculation using Drizzle**:
+**Key Pattern for Balance Calculation using Raw SQL** (following Phase 1 patterns):
 
 ```typescript
 export async function getWalletBalance(walletId: string): Promise<number> {
-  const db = getDb();
-  const { transactionEvents, postings } =
-    await import("@/modules/Transaction/schema");
+  const pool = getPool();
 
-  const result = await db
-    .select({
-      total: sql<number>`COALESCE(SUM(${postings.amount_idr}), 0)::numeric`,
-    })
-    .from(postings)
-    .innerJoin(transactionEvents, eq(postings.event_id, transactionEvents.id))
-    .where(
-      and(
-        eq(postings.wallet_id, walletId),
-        isNull(transactionEvents.deleted_at),
-      ),
-    );
+  const result = await pool.query(
+    `SELECT COALESCE(SUM(p.amount_idr), 0)::numeric as total
+     FROM postings p
+     INNER JOIN transaction_events te ON p.event_id = te.id
+     WHERE p.wallet_id = $1 AND te.deleted_at IS NULL`,
+    [walletId]
+  );
 
-  return Number(result[0]?.total) || 0;
+  return Number(result.rows[0]?.total) || 0;
 }
 
 export async function listWallets(): Promise<(Wallet & { balance: number })[]> {
   const db = getDb();
 
-  const walletList = await db.select().from(wallets).orderBy(wallets.name);
+  const result = await db.execute(
+    sql`SELECT id, name, type, currency, archived, created_at, updated_at 
+        FROM wallets 
+        ORDER BY name ASC`
+  );
+
+  const walletList = result.rows.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    type: row.type as string,
+    currency: row.currency as string,
+    archived: row.archived as boolean,
+    created_at: row.created_at as Date,
+    updated_at: row.updated_at as Date,
+  }));
 
   const walletsWithBalance = await Promise.all(
     walletList.map(async (wallet) => ({
       ...wallet,
       balance: await getWalletBalance(wallet.id),
-    })),
+    }))
   );
 
   return walletsWithBalance;
@@ -801,25 +814,22 @@ describe("Wallet Integration Tests", () => {
   }
 
   async function createTestPosting(walletId: string, amount: number) {
-    const db = getDb();
+    const pool = getPool();
     const eventId = nanoid();
     const postingId = nanoid();
+    const now = new Date();
 
-    await db.insert(transactionEvents).values({
-      id: eventId,
-      occurred_at: new Date(),
-      type: amount > 0 ? "income" : "expense",
-      created_at: new Date(),
-      updated_at: new Date(),
-    });
+    await pool.query(
+      `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [eventId, now, amount > 0 ? "income" : "expense", now, now]
+    );
 
-    await db.insert(postings).values({
-      id: postingId,
-      event_id: eventId,
-      wallet_id: walletId,
-      amount_idr: amount,
-      created_at: new Date(),
-    });
+    await pool.query(
+      `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [postingId, eventId, walletId, amount, now]
+    );
   }
 
   afterEach(async () => {
@@ -932,18 +942,37 @@ describe("Wallet Integration Tests", () => {
 
 **Priority**: MEDIUM - Simple module, no foreign key dependencies.
 
+
+**⚠️ IMPORTANT**: Follow the **Raw SQL patterns from Phase 1** (Category module). Do NOT use Drizzle query builder.
+- Use `db.execute(sql\`...\`)` for simple queries
+- Use `pool.query('SQL', [params])` for complex queries with JOINs
+- See `src/modules/Category/actions.ts` for reference patterns
+
 ### Backend Actions
 
 - [ ] **Step 3.1**: Update imports in `src/modules/SavingsBucket/actions.ts`
 - [ ] **Step 3.2**: Migrate all CRUD operations using Drizzle Query Builder
 
-**Pattern for Savings Bucket CRUD**:
+**Pattern for Savings Bucket CRUD using Raw SQL** (following Phase 1 patterns):
 
 ```typescript
 // List all buckets
 export async function listSavingsBuckets(): Promise<SavingsBucket[]> {
   const db = getDb();
-  return await db.select().from(savingsBuckets).orderBy(savingsBuckets.name);
+  const result = await db.execute(
+    sql`SELECT id, name, description, archived, created_at, updated_at 
+        FROM savings_buckets 
+        ORDER BY name ASC`
+  );
+  
+  return result.rows.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    description: row.description as string | null,
+    archived: row.archived as boolean,
+    created_at: row.created_at as Date,
+    updated_at: row.updated_at as Date,
+  })) as SavingsBucket[];
 }
 
 // Get by ID
@@ -951,12 +980,23 @@ export async function getSavingsBucketById(
   id: string,
 ): Promise<SavingsBucket | null> {
   const db = getDb();
-  const result = await db
-    .select()
-    .from(savingsBuckets)
-    .where(eq(savingsBuckets.id, id))
-    .limit(1);
-  return result[0] || null;
+  const result = await db.execute(
+    sql`SELECT id, name, description, archived, created_at, updated_at 
+        FROM savings_buckets 
+        WHERE id = ${id}`
+  );
+  
+  const row = result.rows[0];
+  if (!row) return null;
+  
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: row.description as string | null,
+    archived: row.archived as boolean,
+    created_at: row.created_at as Date,
+    updated_at: row.updated_at as Date,
+  };
 }
 
 // Create
@@ -965,28 +1005,28 @@ export async function createSavingsBucket(
 ): Promise<SavingsBucket> {
   const db = getDb();
   const validatedInput = SavingsBucketCreateSchema.parse(input);
+  
+  // Check for duplicates
+  const existingResult = await db.execute(
+    sql`SELECT id FROM savings_buckets WHERE name = ${validatedInput.name}`
+  );
 
-  const existing = await db
-    .select({ id: savingsBuckets.id })
-    .from(savingsBuckets)
-    .where(eq(savingsBuckets.name, validatedInput.name))
-    .limit(1);
-
-  if (existing.length > 0) {
+  if (existingResult.rows.length > 0) {
     throw new Error("Savings bucket name already exists");
   }
 
-  const [created] = await db
-    .insert(savingsBuckets)
-    .values({
-      id: nanoid(),
-      name: validatedInput.name,
-      description: validatedInput.description,
-      archived: false,
-      created_at: new Date(),
-      updated_at: new Date(),
-    })
-    .returning();
+  const id = nanoid();
+  const now = new Date();
+  
+  await db.execute(
+    sql`INSERT INTO savings_buckets (id, name, description, archived, created_at, updated_at) 
+        VALUES (${id}, ${validatedInput.name}, ${validatedInput.description || null}, ${false}, ${now}, ${now})`
+  );
+
+  const created = await getSavingsBucketById(id);
+  if (!created) {
+    throw new Error("Failed to retrieve created savings bucket");
+  }
 
   return created;
 }
@@ -1097,6 +1137,12 @@ describe("Savings Bucket Integration Tests", () => {
 
 **Priority**: MEDIUM - Depends on Category.
 
+
+**⚠️ IMPORTANT**: Follow the **Raw SQL patterns from Phase 1** (Category module). Do NOT use Drizzle query builder.
+- Use `db.execute(sql\`...\`)` for simple queries
+- Use `pool.query('SQL', [params])` for complex queries with JOINs
+- See `src/modules/Category/actions.ts` for reference patterns
+
 ### Backend Actions
 
 - [ ] **Step 4.1**: Update imports in `src/modules/Budget/actions.ts`
@@ -1105,91 +1151,87 @@ describe("Savings Bucket Integration Tests", () => {
 - [ ] **Step 4.4**: Migrate `createBudget()`, `updateBudget()`, `deleteBudget()`
 - [ ] **Step 4.5**: Migrate `getBudgetSummary()`, `copyBudgets()`
 
-**Key Pattern for Upsert with Drizzle Transaction**:
+**Key Pattern for Upsert with Raw SQL Transaction** (following Phase 1 patterns):
 
 ```typescript
 export async function upsertBudgets(
   input: unknown,
-): Promise<BudgetWithCategory[]> {
-  const db = getDb();
+): Promise<{ month: string; items: Array<Budget & { category_name: string }> }> {
+  const pool = getPool();
   const validatedInput = BudgetUpsertSchema.parse(input);
-  const { categories } = await import("@/modules/Category/schema");
+  const { month, categories } = validatedInput;
 
-  // Verify all categories exist
-  const categoryCheck = await db
-    .select({ id: categories.id })
-    .from(categories)
-    .where(sql`${categories.id} = ANY($1) AND ${categories.archived} = false`, [
-      validatedInput.items.map((i) => i.categoryId),
-    ]);
+  // Validate all categories exist
+  const categoryIds = categories.map(c => c.categoryId);
+  const categoryCheck = await pool.query(
+    `SELECT id, name FROM categories WHERE id = ANY($1::text[])`,
+    [categoryIds]
+  );
 
-  if (categoryCheck.length !== validatedInput.items.length) {
-    throw new Error("Some categories not found or archived");
+  if (categoryCheck.rows.length !== categoryIds.length) {
+    throw new Error("One or more categories not found");
   }
 
-  return await db.transaction(async (tx) => {
-    const results: BudgetWithCategory[] = [];
-    const now = new Date();
+  // Use transaction for atomicity
+  const client = await pool.connect();
+  const results: Array<Budget & { category_name: string }> = [];
+  const now = new Date();
 
-    for (const item of validatedInput.items) {
-      // Check for existing budget
-      const existing = await tx
-        .select({ id: budgets.id })
-        .from(budgets)
-        .where(
-          and(
-            eq(budgets.month, validatedInput.month),
-            eq(budgets.category_id, item.categoryId),
-          ),
-        )
-        .limit(1);
+  try {
+    await client.query('BEGIN');
 
-      if (existing.length > 0) {
+    for (const item of categories) {
+      // Check if budget exists
+      const existing = await client.query(
+        `SELECT id FROM budgets WHERE month = $1 AND category_id = $2`,
+        [month, item.categoryId]
+      );
+
+      if (existing.rows.length > 0) {
         // Update existing
-        await tx
-          .update(budgets)
-          .set({ amount_idr: item.amountIdr, updated_at: now })
-          .where(eq(budgets.id, existing[0].id));
+        const updated = await client.query(
+          `UPDATE budgets 
+           SET amount_idr = $1, updated_at = $2
+           WHERE month = $3 AND category_id = $4
+           RETURNING id, month, category_id, amount_idr, created_at, updated_at`,
+          [item.amountIdr, now, month, item.categoryId]
+        );
 
+        const category = categoryCheck.rows.find(c => c.id === item.categoryId);
         results.push({
-          id: existing[0].id,
-          month: validatedInput.month,
-          category_id: item.categoryId,
-          amount_idr: item.amountIdr,
-          created_at: now,
-          updated_at: now,
-          category_name: "",
+          ...updated.rows[0],
+          category_name: category.name,
         });
       } else {
         // Insert new
         const newId = nanoid();
-        await tx.insert(budgets).values({
-          id: newId,
-          month: validatedInput.month,
-          category_id: item.categoryId,
-          amount_idr: item.amountIdr,
-          created_at: now,
-          updated_at: now,
-        });
+        const inserted = await client.query(
+          `INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id, month, category_id, amount_idr, created_at, updated_at`,
+          [newId, month, item.categoryId, item.amountIdr, now, now]
+        );
 
+        const category = categoryCheck.rows.find(c => c.id === item.categoryId);
         results.push({
-          id: newId,
-          month: validatedInput.month,
-          category_id: item.categoryId,
-          amount_idr: item.amountIdr,
-          created_at: now,
-          updated_at: now,
-          category_name: "",
+          ...inserted.rows[0],
+          category_name: category.name,
         });
       }
     }
 
-    return results;
-  });
+    await client.query('COMMIT');
+    return { month, items: results };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 ```
 
-**Why Drizzle**: `db.transaction()` ensures atomicity. If any operation fails, all changes are rolled back.
+**Why Transactions**: `pool.connect()` with BEGIN/COMMIT/ROLLBACK ensures atomicity. If any operation fails, all changes are rolled back.
 
 ### Tests
 
@@ -1334,6 +1376,12 @@ describe("Budget Integration Tests", () => {
 
 **Priority**: HIGH - Most complex module, depends on all previous modules.
 
+
+**⚠️ IMPORTANT**: Follow the **Raw SQL patterns from Phase 1** (Category module). Do NOT use Drizzle query builder.
+- Use `db.execute(sql\`...\`)` for simple queries
+- Use `pool.query('SQL', [params])` for complex queries with JOINs
+- See `src/modules/Category/actions.ts` for reference patterns
+
 ### Backend Actions
 
 - [ ] **Step 5.1**: Update imports in `src/modules/Transaction/actions.ts`
@@ -1343,101 +1391,97 @@ describe("Budget Integration Tests", () => {
 - [ ] **Step 5.5**: Migrate `deleteTransaction()`, `restoreTransaction()`, `permanentlyDeleteTransaction()`
 - [ ] **Step 5.6**: Migrate `getTransactionStats()`
 
-**Key Pattern for Transaction Creation with Drizzle**:
+**Key Pattern for Transaction Creation with Raw SQL** (following Phase 1 patterns):
 
 ```typescript
 export async function createExpense(
   input: unknown,
 ): Promise<TransactionWithPostings> {
-  const db = getDb();
+  const pool = getPool();
   const validatedInput = ExpenseCreateSchema.parse(input);
-  const { wallets } = await import("@/modules/Wallet/schema");
-  const { categories } = await import("@/modules/Category/schema");
-  const { transactionEvents, postings } = await import("./schema");
 
-  // Check idempotency
+  // Check for idempotency
   if (validatedInput.idempotencyKey) {
-    const existing = await db
-      .select({ id: transactionEvents.id })
-      .from(transactionEvents)
-      .where(
-        eq(transactionEvents.idempotency_key, validatedInput.idempotencyKey),
-      )
-      .limit(1);
+    const existing = await pool.query(
+      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+      [validatedInput.idempotencyKey]
+    );
 
-    if (existing.length > 0) {
-      return getTransactionById(
-        existing[0].id,
-      ) as Promise<TransactionWithPostings>;
+    if (existing.rows.length > 0) {
+      // Return existing transaction
+      return getTransactionById(existing.rows[0].id);
     }
   }
 
-  // Verify wallet exists and is not archived
-  const wallet = await db
-    .select()
-    .from(wallets)
-    .where(
-      and(eq(wallets.id, validatedInput.walletId), eq(wallets.archived, false)),
-    )
-    .limit(1);
+  // Validate wallet exists
+  const walletCheck = await pool.query(
+    `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+    [validatedInput.walletId]
+  );
 
-  if (!wallet.length) {
+  if (walletCheck.rows.length === 0) {
     throw new Error("Wallet not found or archived");
   }
 
-  // Verify category exists
-  const category = await db
-    .select()
-    .from(categories)
-    .where(
-      and(
-        eq(categories.id, validatedInput.categoryId),
-        eq(categories.archived, false),
-      ),
-    )
-    .limit(1);
+  // Validate category exists if provided
+  if (validatedInput.categoryId) {
+    const categoryCheck = await pool.query(
+      `SELECT id FROM categories WHERE id = $1`,
+      [validatedInput.categoryId]
+    );
 
-  if (!category.length) {
-    throw new Error("Category not found or archived");
+    if (categoryCheck.rows.length === 0) {
+      throw new Error("Category not found");
+    }
   }
 
   const eventId = nanoid();
   const postingId = nanoid();
   const now = new Date();
 
-  return await db.transaction(async (tx) => {
-    // Insert transaction event
-    const [event] = await tx
-      .insert(transactionEvents)
-      .values({
-        id: eventId,
-        occurred_at: validatedInput.occurredAt,
-        type: "expense",
-        note: validatedInput.note,
-        category_id: validatedInput.categoryId,
-        idempotency_key: validatedInput.idempotencyKey,
-        created_at: now,
-        updated_at: now,
-      })
-      .returning();
+  // Begin transaction
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-    // Insert posting (negative for expense)
-    const [posting] = await tx
-      .insert(postings)
-      .values({
-        id: postingId,
-        event_id: eventId,
-        wallet_id: validatedInput.walletId,
-        amount_idr: -validatedInput.amountIdr,
-        created_at: now,
-      })
-      .returning();
+    // Insert transaction event
+    const event = await client.query(
+      `INSERT INTO transaction_events 
+       (id, occurred_at, type, note, category_id, idempotency_key, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        eventId,
+        validatedInput.occurredAt,
+        'expense',
+        validatedInput.note || null,
+        validatedInput.categoryId || null,
+        validatedInput.idempotencyKey || null,
+        now,
+        now
+      ]
+    );
+
+    // Insert posting (negative amount for expense)
+    const posting = await client.query(
+      `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [postingId, eventId, validatedInput.walletId, -validatedInput.amountIdr, now]
+    );
+
+    await client.query('COMMIT');
 
     return {
-      ...event,
-      postings: [posting],
+      ...event.rows[0],
+      postings: [posting.rows[0]],
     };
-  });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 ```
 
@@ -1657,6 +1701,12 @@ describe("Transaction Integration Tests", () => {
 
 **Priority**: MEDIUM - Read-only, depends on all above.
 
+
+**⚠️ IMPORTANT**: Follow the **Raw SQL patterns from Phase 1** (Category module). Do NOT use Drizzle query builder.
+- Use `db.execute(sql\`...\`)` for simple queries
+- Use `pool.query('SQL', [params])` for complex queries with JOINs
+- See `src/modules/Category/actions.ts` for reference patterns
+
 ### Backend Actions
 
 - [ ] **Step 6.1**: Update imports in `src/modules/Report/actions.ts`
@@ -1665,48 +1715,39 @@ describe("Transaction Integration Tests", () => {
 - [ ] **Step 6.4**: Migrate `netWorthTrend()` using Drizzle CTEs
 - [ ] **Step 6.5**: Migrate `moneyLeftToSpend()` using Drizzle joins
 
-**Key Pattern for Complex Aggregations with Drizzle**:
+**Key Pattern for Complex Aggregations with Raw SQL** (following Phase 1 patterns):
 
 ```typescript
 export async function spendingTrend(
   query: unknown,
 ): Promise<SpendingTrendData[]> {
-  const db = getDb();
+  const pool = getPool();
   const validatedQuery = SpendingTrendQuerySchema.parse(query);
-  const { transactionEvents, postings } =
-    await import("@/modules/Transaction/schema");
 
-  const result = await db
-    .select({
-      period: sql<Date>`DATE_TRUNC(${validatedQuery.granularity || "month"}, ${transactionEvents.occurred_at})`,
-      totalAmount: sql<number>`COALESCE(SUM(ABS(${postings.amount_idr})), 0)::numeric`,
-      transactionCount: sql<number>`COUNT(DISTINCT ${transactionEvents.id})::int`,
-    })
-    .from(transactionEvents)
-    .innerJoin(postings, eq(transactionEvents.id, postings.event_id))
-    .where(
-      and(
-        eq(transactionEvents.type, "expense"),
-        isNull(transactionEvents.deleted_at),
-        validatedQuery.from
-          ? gte(transactionEvents.occurred_at, validatedQuery.from)
-          : undefined,
-        validatedQuery.to
-          ? lte(transactionEvents.occurred_at, validatedQuery.to)
-          : undefined,
-      ),
-    )
-    .groupBy(
-      sql`DATE_TRUNC(${validatedQuery.granularity || "month"}, ${transactionEvents.occurred_at})`,
-    )
-    .orderBy(
-      sql`DATE_TRUNC(${validatedQuery.granularity || "month"}, ${transactionEvents.occurred_at})`,
-    );
+  const result = await pool.query(
+    `SELECT 
+      to_char(te.occurred_at, $1) as period,
+      COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as totalAmount,
+      COUNT(DISTINCT te.id)::int as transactionCount
+     FROM transaction_events te
+     LEFT JOIN postings p ON te.id = p.event_id
+     WHERE te.type = 'expense'
+       AND te.deleted_at IS NULL
+       AND te.occurred_at >= $2
+       AND te.occurred_at <= $3
+     GROUP BY period
+     ORDER BY period ASC`,
+    [
+      validatedQuery.granularity === 'month' ? 'YYYY-MM' : 'YYYY-MM-DD',
+      validatedQuery.from,
+      validatedQuery.to
+    ]
+  );
 
-  return result.map((row) => ({
-    period: row.period.toISOString().split("T")[0],
+  return result.rows.map(row => ({
+    period: row.period,
     totalAmount: Number(row.totalAmount),
-    transactionCount: Number(row.transactionCount),
+    transactionCount: row.transactionCount,
   }));
 }
 ```
@@ -1931,3 +1972,28 @@ If issues are encountered during migration:
 3. Say "Start Phase 0" to begin infrastructure setup
 
 **Ready to proceed?**
+
+---
+
+## ⚠️ IMPORTANT UPDATE: Raw SQL Pattern
+
+After completing Phase 1 (Category Module), we have decided to **continue using raw SQL statements** instead of Drizzle ORM's query builder for all remaining phases. This decision provides:
+
+1. **Better Control**: Direct SQL gives more control over complex queries
+2. **Performance**: No ORM overhead for query generation
+3. **Consistency**: All modules use the same pattern established in Phase 1
+4. **Clarity**: Raw SQL is more explicit and easier to understand
+
+### Updated Code Pattern Reference
+
+For detailed code examples with raw SQL patterns for all remaining phases (2-7), please refer to:
+**`plans/DRIZZLE_ORM_MIGRATION_PLAN_RAW_SQL_UPDATE.md`**
+
+### Key Patterns to Use:
+
+1. **Simple queries**: Use `db.execute(sql\`...\`)`
+2. **Parameterized queries**: Use `pool.query('SQL', [params])`
+3. **Transactions**: Use `pool.connect()` with BEGIN/COMMIT/ROLLBACK
+4. **Stats/Aggregations**: Use `pool.query()` with JOIN and aggregate functions
+
+All code examples in Phases 2-7 should follow the patterns documented in the raw SQL update file, NOT the Drizzle query builder examples originally shown in this document.
