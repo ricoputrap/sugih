@@ -63,27 +63,25 @@ export async function getWalletById(
   id: string,
 ): Promise<(Wallet & { balance: number }) | null> {
   const db = getDb();
-  const wallets = await db<Wallet[]>`
-    SELECT id, name, type, currency, archived, created_at, updated_at
-    FROM wallets
-    WHERE id = ${id}
-  `;
 
-  if (!wallets[0]) {
-    return null;
-  }
+  const result = await db.execute(
+    sql`SELECT id, name, type, currency, archived, created_at, updated_at FROM wallets WHERE id = ${id}`,
+  );
 
-  const wallet = wallets[0];
+  const row = result.rows[0];
+  if (!row) return null;
 
-  // Calculate balance from postings
-  const balanceResult = await db<{ total: string | null }[]>`
-    SELECT COALESCE(SUM(amount_idr), 0)::numeric as total
-    FROM postings p
-    JOIN transaction_events te ON p.event_id = te.id
-    WHERE p.wallet_id = ${id} AND te.deleted_at IS NULL
-  `;
+  const wallet: Wallet = {
+    id: row.id as string,
+    name: row.name as string,
+    type: row.type as "cash" | "bank" | "ewallet" | "other",
+    currency: row.currency as string,
+    archived: row.archived as boolean,
+    created_at: row.created_at as Date | null,
+    updated_at: row.updated_at as Date | null,
+  };
 
-  const balance = Number(balanceResult[0]?.total) || 0;
+  const balance = await getWalletBalance(id);
 
   return {
     ...wallet,
@@ -104,28 +102,19 @@ export async function createWallet(input: unknown): Promise<Wallet> {
     const id = nanoid();
 
     // Check if wallet name already exists
-    const existingWallets = await db<{ id: string }[]>`
-      SELECT id FROM wallets WHERE name = ${validatedInput.name}
-    `;
+    const existingResult = await db.execute(
+      sql`SELECT id FROM wallets WHERE name = ${validatedInput.name}`,
+    );
 
-    if (existingWallets.length > 0) {
+    if (existingResult.rows.length > 0) {
       throw new Error("Wallet name already exists");
     }
 
     // Insert wallet with PostgreSQL timestamp
     const now = new Date();
-    await db`
-      INSERT INTO wallets (id, name, type, currency, archived, created_at, updated_at)
-      VALUES (
-        ${id},
-        ${validatedInput.name},
-        ${validatedInput.type},
-        ${validatedInput.currency},
-        ${false},
-        ${now},
-        ${now}
-      )
-    `;
+    await db.execute(
+      sql`INSERT INTO wallets (id, name, type, currency, archived, created_at, updated_at) VALUES (${id}, ${validatedInput.name}, ${validatedInput.type}, ${validatedInput.currency}, ${false}, ${now}, ${now})`,
+    );
 
     // Return created wallet
     const createdWallet = await getWalletById(id);
@@ -168,11 +157,11 @@ export async function updateWallet(
 
     if (validatedInput.name !== undefined) {
       // Check if new name conflicts with another wallet
-      const nameConflicts = await db<{ id: string }[]>`
-        SELECT id FROM wallets WHERE name = ${validatedInput.name} AND id != ${id}
-      `;
+      const nameConflictResult = await db.execute(
+        sql`SELECT id FROM wallets WHERE name = ${validatedInput.name} AND id != ${id}`,
+      );
 
-      if (nameConflicts.length > 0) {
+      if (nameConflictResult.rows.length > 0) {
         throw new Error("Wallet name already exists");
       }
 
@@ -200,47 +189,33 @@ export async function updateWallet(
       updates.type !== undefined &&
       updates.archived !== undefined
     ) {
-      await db`
-        UPDATE wallets
-        SET name = ${updates.name}, type = ${updates.type}, archived = ${updates.archived}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE wallets SET name = ${updates.name}, type = ${updates.type}, archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (updates.name !== undefined && updates.type !== undefined) {
-      await db`
-        UPDATE wallets
-        SET name = ${updates.name}, type = ${updates.type}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE wallets SET name = ${updates.name}, type = ${updates.type}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (updates.name !== undefined && updates.archived !== undefined) {
-      await db`
-        UPDATE wallets
-        SET name = ${updates.name}, archived = ${updates.archived}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE wallets SET name = ${updates.name}, archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (updates.type !== undefined && updates.archived !== undefined) {
-      await db`
-        UPDATE wallets
-        SET type = ${updates.type}, archived = ${updates.archived}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE wallets SET type = ${updates.type}, archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (updates.name !== undefined) {
-      await db`
-        UPDATE wallets
-        SET name = ${updates.name}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE wallets SET name = ${updates.name}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (updates.type !== undefined) {
-      await db`
-        UPDATE wallets
-        SET type = ${updates.type}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE wallets SET type = ${updates.type}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (updates.archived !== undefined) {
-      await db`
-        UPDATE wallets
-        SET archived = ${updates.archived}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE wallets SET archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
     }
 
     // Return updated wallet

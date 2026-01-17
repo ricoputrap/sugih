@@ -727,7 +727,7 @@ describe("Category Integration Tests", () => {
 
 - [x] **Step 2.1**: Update imports in `src/modules/Wallet/actions.ts`
 - [x] **Step 2.2**: Migrate `listWallets()` (includes balance calculation)
-- [ ] **Step 2.3**: Migrate `getWalletById()`, `createWallet()`, `updateWallet()`
+- [x] **Step 2.3**: Migrate `getWalletById()`, `createWallet()`, `updateWallet()`
 - [ ] **Step 2.4**: Migrate `archiveWallet()`, `restoreWallet()`, `deleteWallet()`
 - [ ] **Step 2.5**: Migrate `getWalletStats()`
 
@@ -1154,9 +1154,7 @@ describe("Savings Bucket Integration Tests", () => {
 **Key Pattern for Upsert with Raw SQL Transaction** (following Phase 1 patterns):
 
 ```typescript
-export async function upsertBudgets(
-  input: unknown,
-): Promise<{
+export async function upsertBudgets(input: unknown): Promise<{
   month: string;
   items: Array<Budget & { category_name: string }>;
 }> {
