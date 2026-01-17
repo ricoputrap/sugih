@@ -12,7 +12,8 @@ import {
   CategoryIdSchema,
   Category,
 } from "./schema";
-import { getDb } from "@/db/client";
+import { getDb, eq, and, sql, isNull, desc, asc } from "@/db/drizzle-client";
+import { categories } from "./schema";
 import { formatZodError } from "@/lib/zod";
 import { unprocessableEntity } from "@/lib/http";
 
@@ -21,12 +22,16 @@ import { unprocessableEntity } from "@/lib/http";
  */
 export async function listCategories(): Promise<Category[]> {
   const db = getDb();
-  const categories = await db<Category[]>`
-    SELECT id, name, archived, created_at, updated_at
-    FROM categories
-    ORDER BY name ASC
-  `;
-  return Array.from(categories);
+  const result = await db.execute(
+    sql`SELECT id, name, archived, created_at, updated_at FROM categories ORDER BY name ASC`,
+  );
+  return result.rows.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    archived: row.archived as boolean,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  })) as Category[];
 }
 
 /**

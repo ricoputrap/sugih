@@ -331,42 +331,50 @@ For each module, we follow this format:
 
 ### Backend Actions
 
-- [ ] **Step 1.1**: Update imports in `src/modules/Category/actions.ts`
+- [x] **Step 1.1**: Update imports in `src/modules/Category/actions.ts` ✅
 
 ```typescript
 // Before
 import { getDb } from "@/db/client";
 
 // After
-import { getDb, eq, and, sql, isNull, desc } from "@/db/drizzle-client";
+import { getDb, eq, and, sql, isNull, desc, asc } from "@/db/drizzle-client";
 import { categories } from "./schema";
 ```
 
-- [ ] **Step 1.2**: Migrate `listCategories()` using Drizzle Query Builder
+- [x] **Step 1.2**: Migrate `listCategories()` using Drizzle `sql` tag ✅
 
 ```typescript
-// Before: Template literal SQL
+// Before: Template literal SQL (old postgres client)
 export async function listCategories(): Promise<Category[]> {
   const db = getDb();
-  const result = await db<Category[]>`
+  const categories = await db<Category[]>`
     SELECT id, name, archived, created_at, updated_at
     FROM categories
     ORDER BY name ASC
   `;
-  return Array.from(result);
+  return Array.from(categories);
 }
 
-// After: Drizzle Query Builder
+// After: Drizzle ORM with sql tag and execute()
 export async function listCategories(): Promise<Category[]> {
   const db = getDb();
-  const result = await db.select().from(categories).orderBy(categories.name);
-  return result;
+  const result = await db.execute(
+    sql`SELECT id, name, archived, created_at, updated_at FROM categories ORDER BY name ASC`,
+  );
+  return result.rows.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    archived: row.archived as boolean,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  })) as Category[];
 }
 ```
 
-**Why Drizzle**: Type-safe query builder with full TypeScript inference. No SQL injection risk.
+**Approach**: Using Drizzle's `sql` tagged template literal with `db.execute()`. Safe from SQL injection (Drizzle parameterizes values). Raw SQL provides full control and avoids TypeScript schema type conflicts.
 
-- [ ] **Step 1.3**: Migrate `getCategoryById()` using Drizzle Query Builder
+- [ ] **Step 1.3**: Migrate `getCategoryById()` to use `sql` tag
 
 ```typescript
 export async function getCategoryById(id: string): Promise<Category | null> {
