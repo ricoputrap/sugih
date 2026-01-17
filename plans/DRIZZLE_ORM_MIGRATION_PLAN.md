@@ -717,16 +717,16 @@ describe("Category Integration Tests", () => {
 
 **Priority**: HIGH - Simple module, no foreign key dependencies.
 
-
 **⚠️ IMPORTANT**: Follow the **Raw SQL patterns from Phase 1** (Category module). Do NOT use Drizzle query builder.
+
 - Use `db.execute(sql\`...\`)` for simple queries
 - Use `pool.query('SQL', [params])` for complex queries with JOINs
 - See `src/modules/Category/actions.ts` for reference patterns
 
 ### Backend Actions
 
-- [ ] **Step 2.1**: Update imports in `src/modules/Wallet/actions.ts`
-- [ ] **Step 2.2**: Migrate `listWallets()` (includes balance calculation)
+- [x] **Step 2.1**: Update imports in `src/modules/Wallet/actions.ts`
+- [x] **Step 2.2**: Migrate `listWallets()` (includes balance calculation)
 - [ ] **Step 2.3**: Migrate `getWalletById()`, `createWallet()`, `updateWallet()`
 - [ ] **Step 2.4**: Migrate `archiveWallet()`, `restoreWallet()`, `deleteWallet()`
 - [ ] **Step 2.5**: Migrate `getWalletStats()`
@@ -742,7 +742,7 @@ export async function getWalletBalance(walletId: string): Promise<number> {
      FROM postings p
      INNER JOIN transaction_events te ON p.event_id = te.id
      WHERE p.wallet_id = $1 AND te.deleted_at IS NULL`,
-    [walletId]
+    [walletId],
   );
 
   return Number(result.rows[0]?.total) || 0;
@@ -754,7 +754,7 @@ export async function listWallets(): Promise<(Wallet & { balance: number })[]> {
   const result = await db.execute(
     sql`SELECT id, name, type, currency, archived, created_at, updated_at 
         FROM wallets 
-        ORDER BY name ASC`
+        ORDER BY name ASC`,
   );
 
   const walletList = result.rows.map((row) => ({
@@ -771,7 +771,7 @@ export async function listWallets(): Promise<(Wallet & { balance: number })[]> {
     walletList.map(async (wallet) => ({
       ...wallet,
       balance: await getWalletBalance(wallet.id),
-    }))
+    })),
   );
 
   return walletsWithBalance;
@@ -822,13 +822,13 @@ describe("Wallet Integration Tests", () => {
     await pool.query(
       `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5)`,
-      [eventId, now, amount > 0 ? "income" : "expense", now, now]
+      [eventId, now, amount > 0 ? "income" : "expense", now, now],
     );
 
     await pool.query(
       `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
        VALUES ($1, $2, $3, $4, $5)`,
-      [postingId, eventId, walletId, amount, now]
+      [postingId, eventId, walletId, amount, now],
     );
   }
 
@@ -942,8 +942,8 @@ describe("Wallet Integration Tests", () => {
 
 **Priority**: MEDIUM - Simple module, no foreign key dependencies.
 
-
 **⚠️ IMPORTANT**: Follow the **Raw SQL patterns from Phase 1** (Category module). Do NOT use Drizzle query builder.
+
 - Use `db.execute(sql\`...\`)` for simple queries
 - Use `pool.query('SQL', [params])` for complex queries with JOINs
 - See `src/modules/Category/actions.ts` for reference patterns
@@ -962,9 +962,9 @@ export async function listSavingsBuckets(): Promise<SavingsBucket[]> {
   const result = await db.execute(
     sql`SELECT id, name, description, archived, created_at, updated_at 
         FROM savings_buckets 
-        ORDER BY name ASC`
+        ORDER BY name ASC`,
   );
-  
+
   return result.rows.map((row) => ({
     id: row.id as string,
     name: row.name as string,
@@ -983,12 +983,12 @@ export async function getSavingsBucketById(
   const result = await db.execute(
     sql`SELECT id, name, description, archived, created_at, updated_at 
         FROM savings_buckets 
-        WHERE id = ${id}`
+        WHERE id = ${id}`,
   );
-  
+
   const row = result.rows[0];
   if (!row) return null;
-  
+
   return {
     id: row.id as string,
     name: row.name as string,
@@ -1005,10 +1005,10 @@ export async function createSavingsBucket(
 ): Promise<SavingsBucket> {
   const db = getDb();
   const validatedInput = SavingsBucketCreateSchema.parse(input);
-  
+
   // Check for duplicates
   const existingResult = await db.execute(
-    sql`SELECT id FROM savings_buckets WHERE name = ${validatedInput.name}`
+    sql`SELECT id FROM savings_buckets WHERE name = ${validatedInput.name}`,
   );
 
   if (existingResult.rows.length > 0) {
@@ -1017,10 +1017,10 @@ export async function createSavingsBucket(
 
   const id = nanoid();
   const now = new Date();
-  
+
   await db.execute(
     sql`INSERT INTO savings_buckets (id, name, description, archived, created_at, updated_at) 
-        VALUES (${id}, ${validatedInput.name}, ${validatedInput.description || null}, ${false}, ${now}, ${now})`
+        VALUES (${id}, ${validatedInput.name}, ${validatedInput.description || null}, ${false}, ${now}, ${now})`,
   );
 
   const created = await getSavingsBucketById(id);
@@ -1137,8 +1137,8 @@ describe("Savings Bucket Integration Tests", () => {
 
 **Priority**: MEDIUM - Depends on Category.
 
-
 **⚠️ IMPORTANT**: Follow the **Raw SQL patterns from Phase 1** (Category module). Do NOT use Drizzle query builder.
+
 - Use `db.execute(sql\`...\`)` for simple queries
 - Use `pool.query('SQL', [params])` for complex queries with JOINs
 - See `src/modules/Category/actions.ts` for reference patterns
@@ -1156,16 +1156,19 @@ describe("Savings Bucket Integration Tests", () => {
 ```typescript
 export async function upsertBudgets(
   input: unknown,
-): Promise<{ month: string; items: Array<Budget & { category_name: string }> }> {
+): Promise<{
+  month: string;
+  items: Array<Budget & { category_name: string }>;
+}> {
   const pool = getPool();
   const validatedInput = BudgetUpsertSchema.parse(input);
   const { month, categories } = validatedInput;
 
   // Validate all categories exist
-  const categoryIds = categories.map(c => c.categoryId);
+  const categoryIds = categories.map((c) => c.categoryId);
   const categoryCheck = await pool.query(
     `SELECT id, name FROM categories WHERE id = ANY($1::text[])`,
-    [categoryIds]
+    [categoryIds],
   );
 
   if (categoryCheck.rows.length !== categoryIds.length) {
@@ -1178,13 +1181,13 @@ export async function upsertBudgets(
   const now = new Date();
 
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     for (const item of categories) {
       // Check if budget exists
       const existing = await client.query(
         `SELECT id FROM budgets WHERE month = $1 AND category_id = $2`,
-        [month, item.categoryId]
+        [month, item.categoryId],
       );
 
       if (existing.rows.length > 0) {
@@ -1194,10 +1197,12 @@ export async function upsertBudgets(
            SET amount_idr = $1, updated_at = $2
            WHERE month = $3 AND category_id = $4
            RETURNING id, month, category_id, amount_idr, created_at, updated_at`,
-          [item.amountIdr, now, month, item.categoryId]
+          [item.amountIdr, now, month, item.categoryId],
         );
 
-        const category = categoryCheck.rows.find(c => c.id === item.categoryId);
+        const category = categoryCheck.rows.find(
+          (c) => c.id === item.categoryId,
+        );
         results.push({
           ...updated.rows[0],
           category_name: category.name,
@@ -1209,10 +1214,12 @@ export async function upsertBudgets(
           `INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id, month, category_id, amount_idr, created_at, updated_at`,
-          [newId, month, item.categoryId, item.amountIdr, now, now]
+          [newId, month, item.categoryId, item.amountIdr, now, now],
         );
 
-        const category = categoryCheck.rows.find(c => c.id === item.categoryId);
+        const category = categoryCheck.rows.find(
+          (c) => c.id === item.categoryId,
+        );
         results.push({
           ...inserted.rows[0],
           category_name: category.name,
@@ -1220,10 +1227,10 @@ export async function upsertBudgets(
       }
     }
 
-    await client.query('COMMIT');
+    await client.query("COMMIT");
     return { month, items: results };
   } catch (error) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw error;
   } finally {
     client.release();
@@ -1376,8 +1383,8 @@ describe("Budget Integration Tests", () => {
 
 **Priority**: HIGH - Most complex module, depends on all previous modules.
 
-
 **⚠️ IMPORTANT**: Follow the **Raw SQL patterns from Phase 1** (Category module). Do NOT use Drizzle query builder.
+
 - Use `db.execute(sql\`...\`)` for simple queries
 - Use `pool.query('SQL', [params])` for complex queries with JOINs
 - See `src/modules/Category/actions.ts` for reference patterns
@@ -1404,7 +1411,7 @@ export async function createExpense(
   if (validatedInput.idempotencyKey) {
     const existing = await pool.query(
       `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
-      [validatedInput.idempotencyKey]
+      [validatedInput.idempotencyKey],
     );
 
     if (existing.rows.length > 0) {
@@ -1416,7 +1423,7 @@ export async function createExpense(
   // Validate wallet exists
   const walletCheck = await pool.query(
     `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
-    [validatedInput.walletId]
+    [validatedInput.walletId],
   );
 
   if (walletCheck.rows.length === 0) {
@@ -1427,7 +1434,7 @@ export async function createExpense(
   if (validatedInput.categoryId) {
     const categoryCheck = await pool.query(
       `SELECT id FROM categories WHERE id = $1`,
-      [validatedInput.categoryId]
+      [validatedInput.categoryId],
     );
 
     if (categoryCheck.rows.length === 0) {
@@ -1442,7 +1449,7 @@ export async function createExpense(
   // Begin transaction
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     // Insert transaction event
     const event = await client.query(
@@ -1453,13 +1460,13 @@ export async function createExpense(
       [
         eventId,
         validatedInput.occurredAt,
-        'expense',
+        "expense",
         validatedInput.note || null,
         validatedInput.categoryId || null,
         validatedInput.idempotencyKey || null,
         now,
-        now
-      ]
+        now,
+      ],
     );
 
     // Insert posting (negative amount for expense)
@@ -1467,17 +1474,23 @@ export async function createExpense(
       `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [postingId, eventId, validatedInput.walletId, -validatedInput.amountIdr, now]
+      [
+        postingId,
+        eventId,
+        validatedInput.walletId,
+        -validatedInput.amountIdr,
+        now,
+      ],
     );
 
-    await client.query('COMMIT');
+    await client.query("COMMIT");
 
     return {
       ...event.rows[0],
       postings: [posting.rows[0]],
     };
   } catch (error) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw error;
   } finally {
     client.release();
@@ -1701,8 +1714,8 @@ describe("Transaction Integration Tests", () => {
 
 **Priority**: MEDIUM - Read-only, depends on all above.
 
-
 **⚠️ IMPORTANT**: Follow the **Raw SQL patterns from Phase 1** (Category module). Do NOT use Drizzle query builder.
+
 - Use `db.execute(sql\`...\`)` for simple queries
 - Use `pool.query('SQL', [params])` for complex queries with JOINs
 - See `src/modules/Category/actions.ts` for reference patterns
@@ -1738,13 +1751,13 @@ export async function spendingTrend(
      GROUP BY period
      ORDER BY period ASC`,
     [
-      validatedQuery.granularity === 'month' ? 'YYYY-MM' : 'YYYY-MM-DD',
+      validatedQuery.granularity === "month" ? "YYYY-MM" : "YYYY-MM-DD",
       validatedQuery.from,
-      validatedQuery.to
-    ]
+      validatedQuery.to,
+    ],
   );
 
-  return result.rows.map(row => ({
+  return result.rows.map((row) => ({
     period: row.period,
     totalAmount: Number(row.totalAmount),
     transactionCount: row.transactionCount,

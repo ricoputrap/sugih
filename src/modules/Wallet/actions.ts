@@ -5,43 +5,52 @@ import {
   WalletIdSchema,
   Wallet,
 } from "./schema";
-import { getDb } from "@/db/client";
-import {
-  convertPlaceholders,
-  executeQuery,
-  executeQueryOne,
-} from "@/db/helpers";
+import { getDb, getPool, sql } from "@/db/drizzle-client";
 import { formatZodError } from "@/lib/zod";
 import { unprocessableEntity } from "@/lib/http";
+
+/**
+ * Get wallet balance from postings
+ */
+async function getWalletBalance(walletId: string): Promise<number> {
+  const pool = getPool();
+
+  const result = await pool.query(
+    `SELECT COALESCE(SUM(p.amount_idr), 0)::numeric as total
+     FROM postings p
+     INNER JOIN transaction_events te ON p.event_id = te.id
+     WHERE p.wallet_id = $1 AND te.deleted_at IS NULL`,
+    [walletId],
+  );
+
+  return Number(result.rows[0]?.total) || 0;
+}
 
 /**
  * List all wallets ordered by name with calculated balances
  */
 export async function listWallets(): Promise<(Wallet & { balance: number })[]> {
   const db = getDb();
-  const wallets = await db<Wallet[]>`
-    SELECT id, name, type, currency, archived, created_at, updated_at
-    FROM wallets
-    ORDER BY name ASC
-  `;
 
-  // Calculate balance for each wallet from postings
+  const result = await db.execute(
+    sql`SELECT id, name, type, currency, archived, created_at, updated_at FROM wallets ORDER BY name ASC`,
+  );
+
+  const walletList: Wallet[] = result.rows.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    type: row.type as "cash" | "bank" | "ewallet" | "other",
+    currency: row.currency as string,
+    archived: row.archived as boolean,
+    created_at: row.created_at as Date | null,
+    updated_at: row.updated_at as Date | null,
+  }));
+
   const walletsWithBalance = await Promise.all(
-    wallets.map(async (wallet) => {
-      const balanceResult = await db<{ total: string | null }[]>`
-        SELECT COALESCE(SUM(amount_idr), 0)::numeric as total
-        FROM postings p
-        JOIN transaction_events te ON p.event_id = te.id
-        WHERE p.wallet_id = ${wallet.id} AND te.deleted_at IS NULL
-      `;
-
-      const balance = Number(balanceResult[0]?.total) || 0;
-
-      return {
-        ...wallet,
-        balance,
-      };
-    }),
+    walletList.map(async (wallet) => ({
+      ...wallet,
+      balance: await getWalletBalance(wallet.id),
+    })),
   );
 
   return walletsWithBalance;
