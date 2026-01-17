@@ -121,11 +121,11 @@ export async function updateCategory(
 
     if (validatedInput.name !== undefined) {
       // Check if new name conflicts with another category
-      const nameConflicts = await db<{ id: string }[]>`
-        SELECT id FROM categories WHERE name = ${validatedInput.name} AND id != ${id}
-      `;
+      const nameConflictResult = await db.execute(
+        sql`SELECT id FROM categories WHERE name = ${validatedInput.name} AND id != ${id}`,
+      );
 
-      if (nameConflicts.length > 0) {
+      if (nameConflictResult.rows.length > 0) {
         throw new Error("Category name already exists");
       }
 
@@ -145,23 +145,17 @@ export async function updateCategory(
 
     // Build and execute update based on which fields are present
     if (updates.name !== undefined && updates.archived !== undefined) {
-      await db`
-        UPDATE categories
-        SET name = ${updates.name}, archived = ${updates.archived}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE categories SET name = ${updates.name}, archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (updates.name !== undefined) {
-      await db`
-        UPDATE categories
-        SET name = ${updates.name}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE categories SET name = ${updates.name}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (updates.archived !== undefined) {
-      await db`
-        UPDATE categories
-        SET archived = ${updates.archived}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE categories SET archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
     }
 
     // Return updated category
@@ -204,11 +198,9 @@ export async function archiveCategory(id: string): Promise<Category> {
 
     // Archive category
     const now = new Date();
-    await db`
-      UPDATE categories
-      SET archived = ${true}, updated_at = ${now}
-      WHERE id = ${id}
-    `;
+    await db.execute(
+      sql`UPDATE categories SET archived = ${true}, updated_at = ${now} WHERE id = ${id}`,
+    );
 
     // Return archived category
     const archivedCategory = await getCategoryById(id);
@@ -247,11 +239,9 @@ export async function restoreCategory(id: string): Promise<Category> {
 
     // Restore category
     const now = new Date();
-    await db`
-      UPDATE categories
-      SET archived = ${false}, updated_at = ${now}
-      WHERE id = ${id}
-    `;
+    await db.execute(
+      sql`UPDATE categories SET archived = ${false}, updated_at = ${now} WHERE id = ${id}`,
+    );
 
     // Return restored category
     const restoredCategory = await getCategoryById(id);
@@ -286,7 +276,7 @@ export async function deleteCategory(id: string): Promise<void> {
 
     // Delete category directly
     // Note: The transactions table check will be added in Phase 4 when transactions are implemented
-    await db`DELETE FROM categories WHERE id = ${id}`;
+    await db.execute(sql`DELETE FROM categories WHERE id = ${id}`);
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity("Invalid category ID", formatZodError(error));

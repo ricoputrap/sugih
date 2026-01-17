@@ -420,7 +420,7 @@ export async function createCategory(input: unknown): Promise<Category> {
 }
 ```
 
-- [ ] **Step 1.5**: Migrate `updateCategory()` to use `sql` tag
+- [x] **Step 1.5**: Migrate `updateCategory()` to use `sql` tag ✅
 
 ```typescript
 export async function updateCategory(
@@ -468,7 +468,7 @@ export async function updateCategory(
 }
 ```
 
-- [ ] **Step 1.6**: Migrate `archiveCategory()` and `restoreCategory()` to use `sql` tag
+- [x] **Step 1.6**: Migrate `archiveCategory()` and `restoreCategory()` to use `sql` tag ✅
 
 ```typescript
 export async function archiveCategory(id: string): Promise<Category> {
@@ -508,7 +508,7 @@ export async function restoreCategory(id: string): Promise<Category> {
 }
 ```
 
-- [ ] **Step 1.7**: Migrate `deleteCategory()` to use `sql` tag
+- [x] **Step 1.7**: Migrate `deleteCategory()` to use `sql` tag ✅
 
 ```typescript
 export async function deleteCategory(id: string): Promise<void> {
@@ -522,7 +522,7 @@ export async function deleteCategory(id: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 1.8**: Migrate `getCategoryStats()` to use `sql` tag
+- [x] **Step 1.8**: Migrate `getCategoryStats()` to use `sql` tag ✅
 
 ```typescript
 export async function getCategoryStats(id: string): Promise<{
@@ -545,8 +545,6 @@ export async function getCategoryStats(id: string): Promise<{
 ```
 
 **Approach**: Using Drizzle's `sql` tagged template literal with `db.execute()` for all queries. Safe from SQL injection (Drizzle parameterizes values). Raw SQL provides full control and consistency across all functions.
-
-- [ ] **Step 1.9**: Run tests for Category module
 
 ### Tests
 
