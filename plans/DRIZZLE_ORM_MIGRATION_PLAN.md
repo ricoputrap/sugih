@@ -934,7 +934,7 @@ describe("Wallet Integration Tests", () => {
 ### Verification
 
 - [x] **Step 2.7**: Run tests: `pnpm test src/modules/Wallet/actions.integration.test.ts`
-- [ ] **Step 2.8**: Manual test via API: `GET /api/wallets`
+- [x] **Step 2.8**: Manual test via API: `GET /api/wallets` ✅
 
 ---
 
