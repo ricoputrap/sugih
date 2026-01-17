@@ -379,16 +379,22 @@ export async function listCategories(): Promise<Category[]> {
 ```typescript
 export async function getCategoryById(id: string): Promise<Category | null> {
   const db = getDb();
-  const result = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.id, id))
-    .limit(1);
-  return result[0] || null;
+  const result = await db.execute(
+    sql`SELECT id, name, archived, created_at, updated_at FROM categories WHERE id = ${id}`,
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    archived: row.archived as boolean,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
 }
 ```
 
-- [ ] **Step 1.4**: Migrate `createCategory()` using Drizzle Query Builder
+- [ ] **Step 1.4**: Migrate `createCategory()` to use `sql` tag
 
 ```typescript
 export async function createCategory(input: unknown): Promise<Category> {
@@ -396,36 +402,25 @@ export async function createCategory(input: unknown): Promise<Category> {
   const validatedInput = CategoryCreateSchema.parse(input);
   const id = nanoid();
 
-  // Check for duplicate name using Drizzle
-  const existing = await db
-    .select({ id: categories.id })
-    .from(categories)
-    .where(eq(categories.name, validatedInput.name))
-    .limit(1);
-
-  if (existing.length > 0) {
+  // Check for duplicate name
+  const existing = await db.execute(
+    sql`SELECT id FROM categories WHERE name = ${validatedInput.name}`,
+  );
+  if (existing.rows.length > 0) {
     throw new Error("Category name already exists");
   }
 
   const now = new Date();
-  const [created] = await db
-    .insert(categories)
-    .values({
-      id,
-      name: validatedInput.name,
-      archived: false,
-      created_at: now,
-      updated_at: now,
-    })
-    .returning();
+  await db.execute(
+    sql`INSERT INTO categories (id, name, archived, created_at, updated_at)
+        VALUES (${id}, ${validatedInput.name}, ${false}, ${now}, ${now})`,
+  );
 
-  return created;
+  return getCategoryById(id)!;
 }
 ```
 
-**Why Drizzle**: `insert().values().returning()` provides type-safe inserts with automatic `created_at` handling.
-
-- [ ] **Step 1.5**: Migrate `updateCategory()` using Drizzle Query Builder
+- [ ] **Step 1.5**: Migrate `updateCategory()` to use `sql` tag
 
 ```typescript
 export async function updateCategory(
@@ -436,138 +431,98 @@ export async function updateCategory(
   const validatedInput = CategoryUpdateSchema.parse(input);
 
   // Check if category exists
-  const existing = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.id, id))
-    .limit(1);
-
-  if (!existing.length) {
+  const existing = await getCategoryById(id);
+  if (!existing) {
     throw new Error("Category not found");
   }
 
   // Check for duplicate name
   if (validatedInput.name !== undefined) {
-    const nameConflict = await db
-      .select({ id: categories.id })
-      .from(categories)
-      .where(
-        and(
-          eq(categories.name, validatedInput.name),
-          sql`${categories.id} != ${id}`,
-        ),
-      )
-      .limit(1);
-
-    if (nameConflict.length > 0) {
+    const nameConflict = await db.execute(
+      sql`SELECT id FROM categories WHERE name = ${validatedInput.name} AND id != ${id}`,
+    );
+    if (nameConflict.rows.length > 0) {
       throw new Error("Category name already exists");
     }
   }
 
-  const updateData: Partial<typeof categories.$inferInsert> = {
-    updated_at: new Date(),
-  };
-
-  if (validatedInput.name !== undefined) {
-    updateData.name = validatedInput.name;
+  const now = new Date();
+  if (
+    validatedInput.name !== undefined &&
+    validatedInput.archived !== undefined
+  ) {
+    await db.execute(
+      sql`UPDATE categories SET name = ${validatedInput.name}, archived = ${validatedInput.archived}, updated_at = ${now} WHERE id = ${id}`,
+    );
+  } else if (validatedInput.name !== undefined) {
+    await db.execute(
+      sql`UPDATE categories SET name = ${validatedInput.name}, updated_at = ${now} WHERE id = ${id}`,
+    );
+  } else if (validatedInput.archived !== undefined) {
+    await db.execute(
+      sql`UPDATE categories SET archived = ${validatedInput.archived}, updated_at = ${now} WHERE id = ${id}`,
+    );
   }
-  if (validatedInput.archived !== undefined) {
-    updateData.archived = validatedInput.archived;
-  }
 
-  const [updated] = await db
-    .update(categories)
-    .set(updateData)
-    .where(eq(categories.id, id))
-    .returning();
-
-  return updated;
+  return getCategoryById(id)!;
 }
 ```
 
-- [ ] **Step 1.6**: Migrate `archiveCategory()` and `restoreCategory()`
+- [ ] **Step 1.6**: Migrate `archiveCategory()` and `restoreCategory()` to use `sql` tag
 
 ```typescript
 export async function archiveCategory(id: string): Promise<Category> {
   const db = getDb();
-
-  const existing = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.id, id))
-    .limit(1);
-
-  if (!existing.length) {
+  const existing = await getCategoryById(id);
+  if (!existing) {
     throw new Error("Category not found");
   }
-
-  if (existing[0].archived) {
+  if (existing.archived) {
     throw new Error("Category is already archived");
   }
 
-  const [archived] = await db
-    .update(categories)
-    .set({
-      archived: true,
-      updated_at: new Date(),
-    })
-    .where(eq(categories.id, id))
-    .returning();
+  const now = new Date();
+  await db.execute(
+    sql`UPDATE categories SET archived = ${true}, updated_at = ${now} WHERE id = ${id}`,
+  );
 
-  return archived;
+  return getCategoryById(id)!;
 }
 
 export async function restoreCategory(id: string): Promise<Category> {
   const db = getDb();
-
-  const existing = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.id, id))
-    .limit(1);
-
-  if (!existing.length) {
+  const existing = await getCategoryById(id);
+  if (!existing) {
     throw new Error("Category not found");
   }
-
-  if (!existing[0].archived) {
+  if (!existing.archived) {
     throw new Error("Category is not archived");
   }
 
-  const [restored] = await db
-    .update(categories)
-    .set({
-      archived: false,
-      updated_at: new Date(),
-    })
-    .where(eq(categories.id, id))
-    .returning();
+  const now = new Date();
+  await db.execute(
+    sql`UPDATE categories SET archived = ${false}, updated_at = ${now} WHERE id = ${id}`,
+  );
 
-  return restored;
+  return getCategoryById(id)!;
 }
 ```
 
-- [ ] **Step 1.7**: Migrate `deleteCategory()`
+- [ ] **Step 1.7**: Migrate `deleteCategory()` to use `sql` tag
 
 ```typescript
 export async function deleteCategory(id: string): Promise<void> {
   const db = getDb();
-
-  const existing = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.id, id))
-    .limit(1);
-
-  if (!existing.length) {
+  const existing = await getCategoryById(id);
+  if (!existing) {
     throw new Error("Category not found");
   }
 
-  await db.delete(categories).where(eq(categories.id, id));
+  await db.execute(sql`DELETE FROM categories WHERE id = ${id}`);
 }
 ```
 
-- [ ] **Step 1.8**: Migrate `getCategoryStats()`
+- [ ] **Step 1.8**: Migrate `getCategoryStats()` to use `sql` tag
 
 ```typescript
 export async function getCategoryStats(id: string): Promise<{
@@ -576,30 +531,22 @@ export async function getCategoryStats(id: string): Promise<{
 }> {
   const db = getDb();
 
-  // Import transaction schemas
-  const { transactionEvents, postings } =
-    await import("@/modules/Transaction/schema");
+  const result = await db.execute(
+    sql`SELECT COUNT(*)::int as count, COALESCE(SUM(amount_idr), 0)::numeric as total
+        FROM transactions WHERE category_id = ${id} AND deleted_at IS NULL`,
+  );
 
-  const result = await db
-    .select({
-      count: sql<number>`COUNT(*)::int`,
-      total: sql<number>`COALESCE(SUM(${postings.amount_idr}), 0)::numeric`,
-    })
-    .from(transactionEvents)
-    .leftJoin(postings, eq(transactionEvents.id, postings.event_id))
-    .where(
-      and(
-        eq(transactionEvents.category_id, id),
-        isNull(transactionEvents.deleted_at),
-      ),
-    );
-
+  const stats = result.rows[0] || { count: 0, total: 0 };
   return {
-    transactionCount: result[0]?.count || 0,
-    totalAmount: Number(result[0]?.total) || 0,
+    transactionCount: (stats.count as number) || 0,
+    totalAmount: Number(stats.total) || 0,
   };
 }
 ```
+
+**Approach**: Using Drizzle's `sql` tagged template literal with `db.execute()` for all queries. Safe from SQL injection (Drizzle parameterizes values). Raw SQL provides full control and consistency across all functions.
+
+- [ ] **Step 1.9**: Run tests for Category module
 
 ### Tests
 
