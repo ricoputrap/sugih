@@ -780,7 +780,7 @@ export async function listWallets(): Promise<(Wallet & { balance: number })[]> {
 
 ### Tests
 
-- [ ] **Step 2.6**: Create `src/modules/Wallet/actions.integration.test.ts`
+- [x] **Step 2.6**: Create `src/modules/Wallet/actions.integration.test.ts`
 
 ```typescript
 import { describe, it, expect, afterEach, afterAll } from "vitest";
@@ -933,7 +933,7 @@ describe("Wallet Integration Tests", () => {
 
 ### Verification
 
-- [ ] **Step 2.7**: Run tests: `pnpm test src/modules/Wallet/actions.integration.test.ts`
+- [x] **Step 2.7**: Run tests: `pnpm test src/modules/Wallet/actions.integration.test.ts`
 - [ ] **Step 2.8**: Manual test via API: `GET /api/wallets`
 
 ---
