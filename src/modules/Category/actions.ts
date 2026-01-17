@@ -12,8 +12,7 @@ import {
   CategoryIdSchema,
   Category,
 } from "./schema";
-import { getDb, eq, and, sql, isNull, desc, asc } from "@/db/drizzle-client";
-import { categories } from "./schema";
+import { getDb, getPool, sql } from "@/db/drizzle-client";
 import { formatZodError } from "@/lib/zod";
 import { unprocessableEntity } from "@/lib/http";
 
@@ -29,8 +28,8 @@ export async function listCategories(): Promise<Category[]> {
     id: row.id as string,
     name: row.name as string,
     archived: row.archived as boolean,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    created_at: row.created_at as Date,
+    updated_at: row.updated_at as Date,
   })) as Category[];
 }
 
@@ -48,8 +47,8 @@ export async function getCategoryById(id: string): Promise<Category | null> {
     id: row.id as string,
     name: row.name as string,
     archived: row.archived as boolean,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    created_at: row.created_at as Date,
+    updated_at: row.updated_at as Date,
   };
 }
 
@@ -292,7 +291,7 @@ export async function getCategoryStats(id: string): Promise<{
   transactionCount: number;
   totalAmount: number;
 }> {
-  const db = getDb();
+  const pool = getPool();
 
   try {
     // Validate category ID
@@ -305,15 +304,17 @@ export async function getCategoryStats(id: string): Promise<{
     }
 
     // Get transaction count and total amount for this category
-    const statsResult = await db<{ count: number; total: number }[]>`
-      SELECT
-        COUNT(*)::int as count,
-        COALESCE(SUM(amount_idr), 0)::numeric as total
-      FROM transactions
-      WHERE category_id = ${id} AND deleted_at IS NULL
-    `;
+    const statsResult = await pool.query(
+      `SELECT
+        COUNT(DISTINCT te.id)::int as count,
+        COALESCE(SUM(p.amount_idr), 0)::numeric as total
+      FROM transaction_events te
+      LEFT JOIN postings p ON te.id = p.event_id
+      WHERE te.category_id = $1 AND te.deleted_at IS NULL`,
+      [id],
+    );
 
-    const stats = statsResult[0] || { count: 0, total: 0 };
+    const stats = statsResult.rows[0] || { count: 0, total: 0 };
 
     return {
       transactionCount: stats.count || 0,
