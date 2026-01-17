@@ -12,7 +12,7 @@ import {
   SavingsBucketIdSchema,
   SavingsBucket,
 } from "./schema";
-import { getDb } from "@/db/client";
+import { getDb, getPool, sql } from "@/db/drizzle-client";
 import { formatZodError } from "@/lib/zod";
 import { unprocessableEntity } from "@/lib/http";
 
@@ -21,12 +21,18 @@ import { unprocessableEntity } from "@/lib/http";
  */
 export async function listSavingsBuckets(): Promise<SavingsBucket[]> {
   const db = getDb();
-  const buckets = await db<SavingsBucket[]>`
-    SELECT id, name, description, archived, created_at, updated_at
-    FROM savings_buckets
-    ORDER BY name ASC
-  `;
-  return Array.from(buckets);
+  const result = await db.execute(
+    sql`SELECT id, name, description, archived, created_at, updated_at FROM savings_buckets ORDER BY name ASC`,
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    description: row.description as string | null,
+    archived: row.archived as boolean,
+    created_at: row.created_at as Date | null,
+    updated_at: row.updated_at as Date | null,
+  })) as SavingsBucket[];
 }
 
 /**
@@ -36,12 +42,21 @@ export async function getSavingsBucketById(
   id: string,
 ): Promise<SavingsBucket | null> {
   const db = getDb();
-  const buckets = await db<SavingsBucket[]>`
-    SELECT id, name, description, archived, created_at, updated_at
-    FROM savings_buckets
-    WHERE id = ${id}
-  `;
-  return buckets[0] || null;
+  const result = await db.execute(
+    sql`SELECT id, name, description, archived, created_at, updated_at FROM savings_buckets WHERE id = ${id}`,
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: row.description as string | null,
+    archived: row.archived as boolean,
+    created_at: row.created_at as Date | null,
+    updated_at: row.updated_at as Date | null,
+  };
 }
 
 /**
@@ -59,27 +74,19 @@ export async function createSavingsBucket(
     const id = nanoid();
 
     // Check if savings bucket name already exists
-    const existingBuckets = await db<{ id: string }[]>`
-      SELECT id FROM savings_buckets WHERE name = ${validatedInput.name}
-    `;
+    const existingResult = await db.execute(
+      sql`SELECT id FROM savings_buckets WHERE name = ${validatedInput.name}`,
+    );
 
-    if (existingBuckets.length > 0) {
+    if (existingResult.rows.length > 0) {
       throw new Error("Savings bucket name already exists");
     }
 
     // Insert savings bucket with PostgreSQL timestamp
     const now = new Date();
-    await db`
-      INSERT INTO savings_buckets (id, name, description, archived, created_at, updated_at)
-      VALUES (
-        ${id},
-        ${validatedInput.name},
-        ${validatedInput.description || null},
-        ${false},
-        ${now},
-        ${now}
-      )
-    `;
+    await db.execute(
+      sql`INSERT INTO savings_buckets (id, name, description, archived, created_at, updated_at) VALUES (${id}, ${validatedInput.name}, ${validatedInput.description || null}, ${false}, ${now}, ${now})`,
+    );
 
     // Return created savings bucket
     const createdBucket = await getSavingsBucketById(id);
@@ -125,11 +132,11 @@ export async function updateSavingsBucket(
 
     if (validatedInput.name !== undefined) {
       // Check if new name conflicts with another savings bucket
-      const nameConflicts = await db<{ id: string }[]>`
-        SELECT id FROM savings_buckets WHERE name = ${validatedInput.name} AND id != ${id}
-      `;
+      const nameConflictResult = await db.execute(
+        sql`SELECT id FROM savings_buckets WHERE name = ${validatedInput.name} AND id != ${id}`,
+      );
 
-      if (nameConflicts.length > 0) {
+      if (nameConflictResult.rows.length > 0) {
         throw new Error("Savings bucket name already exists");
       }
 
@@ -157,53 +164,39 @@ export async function updateSavingsBucket(
       updates.description !== undefined &&
       updates.archived !== undefined
     ) {
-      await db`
-        UPDATE savings_buckets
-        SET name = ${updates.name}, description = ${updates.description}, archived = ${updates.archived}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE savings_buckets SET name = ${updates.name}, description = ${updates.description}, archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (
       updates.name !== undefined &&
       updates.description !== undefined
     ) {
-      await db`
-        UPDATE savings_buckets
-        SET name = ${updates.name}, description = ${updates.description}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE savings_buckets SET name = ${updates.name}, description = ${updates.description}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (updates.name !== undefined && updates.archived !== undefined) {
-      await db`
-        UPDATE savings_buckets
-        SET name = ${updates.name}, archived = ${updates.archived}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE savings_buckets SET name = ${updates.name}, archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (
       updates.description !== undefined &&
       updates.archived !== undefined
     ) {
-      await db`
-        UPDATE savings_buckets
-        SET description = ${updates.description}, archived = ${updates.archived}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE savings_buckets SET description = ${updates.description}, archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
     } else if (updates.name !== undefined) {
-      await db`
-        UPDATE savings_buckets
-        SET name = ${updates.name}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
-    } else if (updates.description !== undefined) {
-      await db`
-        UPDATE savings_buckets
-        SET description = ${updates.description}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
-    } else if (updates.archived !== undefined) {
-      await db`
-        UPDATE savings_buckets
-        SET archived = ${updates.archived}, updated_at = ${now}
-        WHERE id = ${id}
-      `;
+      await db.execute(
+        sql`UPDATE savings_buckets SET name = ${updates.name}, updated_at = ${now} WHERE id = ${id}`,
+      );
+    } else if (validatedInput.description !== undefined) {
+      await db.execute(
+        sql`UPDATE savings_buckets SET description = ${validatedInput.description}, updated_at = ${now} WHERE id = ${id}`,
+      );
+    } else if (validatedInput.archived !== undefined) {
+      await db.execute(
+        sql`UPDATE savings_buckets SET archived = ${validatedInput.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
     }
 
     // Return updated savings bucket
@@ -246,11 +239,9 @@ export async function archiveSavingsBucket(id: string): Promise<SavingsBucket> {
 
     // Archive savings bucket
     const now = new Date();
-    await db`
-      UPDATE savings_buckets
-      SET archived = ${true}, updated_at = ${now}
-      WHERE id = ${id}
-    `;
+    await db.execute(
+      sql`UPDATE savings_buckets SET archived = ${true}, updated_at = ${now} WHERE id = ${id}`,
+    );
 
     // Return archived savings bucket
     const archivedBucket = await getSavingsBucketById(id);
@@ -292,11 +283,9 @@ export async function restoreSavingsBucket(id: string): Promise<SavingsBucket> {
 
     // Restore savings bucket
     const now = new Date();
-    await db`
-      UPDATE savings_buckets
-      SET archived = ${false}, updated_at = ${now}
-      WHERE id = ${id}
-    `;
+    await db.execute(
+      sql`UPDATE savings_buckets SET archived = ${false}, updated_at = ${now} WHERE id = ${id}`,
+    );
 
     // Return restored savings bucket
     const restoredBucket = await getSavingsBucketById(id);
@@ -333,21 +322,33 @@ export async function deleteSavingsBucket(id: string): Promise<void> {
     }
 
     // Use transaction to ensure atomicity
-    await db.begin(async (tx) => {
-      // Check if savings bucket has any associated transactions
-      const transactionsCount = await tx<{ count: number }[]>`
-        SELECT COUNT(*)::int as count FROM transactions WHERE savings_bucket_id = ${id}
-      `;
+    const client = await getPool().connect();
+    try {
+      await client.query("BEGIN");
 
-      if (transactionsCount[0] && transactionsCount[0].count > 0) {
+      // Check if savings bucket has any associated transactions
+      const transactionsCountResult = await client.query(
+        `SELECT COUNT(*)::int as count FROM transactions WHERE savings_bucket_id = $1`,
+        [id],
+      );
+
+      const count = Number(transactionsCountResult.rows[0]?.count) || 0;
+      if (count > 0) {
         throw new Error(
           "Cannot delete savings bucket with existing transactions",
         );
       }
 
       // Delete savings bucket
-      await tx`DELETE FROM savings_buckets WHERE id = ${id}`;
-    });
+      await client.query(`DELETE FROM savings_buckets WHERE id = $1`, [id]);
+
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity(
@@ -380,15 +381,16 @@ export async function getSavingsBucketStats(id: string): Promise<{
     }
 
     // Get transaction count and total amount for this savings bucket
-    const statsResult = await db<{ count: number; total: number }[]>`
-      SELECT
+    const statsResult = await getPool().query(
+      `SELECT
         COUNT(*)::int as count,
         COALESCE(SUM(amount_idr), 0)::numeric as total
       FROM transactions
-      WHERE savings_bucket_id = ${id} AND deleted_at IS NULL
-    `;
+      WHERE savings_bucket_id = $1 AND deleted_at IS NULL`,
+      [id],
+    );
 
-    const stats = statsResult[0] || { count: 0, total: 0 };
+    const stats = statsResult.rows[0] || { count: 0, total: 0 };
 
     return {
       transactionCount: stats.count || 0,

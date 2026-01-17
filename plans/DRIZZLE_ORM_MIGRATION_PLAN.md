@@ -950,8 +950,8 @@ describe("Wallet Integration Tests", () => {
 
 ### Backend Actions
 
-- [ ] **Step 3.1**: Update imports in `src/modules/SavingsBucket/actions.ts`
-- [ ] **Step 3.2**: Migrate all CRUD operations using Drizzle Query Builder
+- [x] **Step 3.1**: Update imports in `src/modules/SavingsBucket/actions.ts`
+- [x] **Step 3.2**: Migrate all CRUD operations using Drizzle Query Builder
 
 **Pattern for Savings Bucket CRUD using Raw SQL** (following Phase 1 patterns):
 
