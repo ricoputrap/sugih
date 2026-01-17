@@ -548,7 +548,7 @@ export async function getCategoryStats(id: string): Promise<{
 
 ### Tests
 
-- [ ] **Step 1.9**: Create `src/modules/Category/actions.integration.test.ts`
+- [x] **Step 1.9**: Create `src/modules/Category/actions.integration.test.ts`
 
 ```typescript
 import { describe, it, expect, beforeEach, afterEach, afterAll } from "vitest";
@@ -708,8 +708,8 @@ describe("Category Integration Tests", () => {
 
 ### Verification
 
-- [ ] **Step 1.10**: Run tests: `pnpm test src/modules/Category/actions.integration.test.ts`
-- [ ] **Step 1.11**: Manual test via API: `GET /api/categories`
+- [x] **Step 1.10**: Run tests: `pnpm test src/modules/Category/actions.integration.test.ts`
+- [x] **Step 1.11**: Manual test via API: `GET /api/categories`
 
 ---
 
