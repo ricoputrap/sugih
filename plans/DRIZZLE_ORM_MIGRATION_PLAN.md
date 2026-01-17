@@ -1130,6 +1130,12 @@ describe("Savings Bucket Integration Tests", () => {
 ### Verification
 
 - [x] **Step 3.4**: Run tests: `pnpm test src/modules/SavingsBucket/actions.integration.test.ts`
+- [x] **Step 3.5**: Manual test via API: `GET /api/savings-buckets` ✅
+
+**API Test Results**:
+
+- `GET /api/savings-buckets` - Returns all buckets with proper ordering
+- `GET /api/savings-buckets/:id` - Returns single bucket
 
 ---
 
