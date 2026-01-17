@@ -374,7 +374,7 @@ export async function listCategories(): Promise<Category[]> {
 
 **Approach**: Using Drizzle's `sql` tagged template literal with `db.execute()`. Safe from SQL injection (Drizzle parameterizes values). Raw SQL provides full control and avoids TypeScript schema type conflicts.
 
-- [ ] **Step 1.3**: Migrate `getCategoryById()` to use `sql` tag
+- [x] **Step 1.3**: Migrate `getCategoryById()` to use `sql` tag ✅
 
 ```typescript
 export async function getCategoryById(id: string): Promise<Category | null> {
@@ -394,7 +394,7 @@ export async function getCategoryById(id: string): Promise<Category | null> {
 }
 ```
 
-- [ ] **Step 1.4**: Migrate `createCategory()` to use `sql` tag
+- [x] **Step 1.4**: Migrate `createCategory()` to use `sql` tag ✅
 
 ```typescript
 export async function createCategory(input: unknown): Promise<Category> {

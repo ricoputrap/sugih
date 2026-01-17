@@ -66,26 +66,19 @@ export async function createCategory(input: unknown): Promise<Category> {
     const id = nanoid();
 
     // Check if category name already exists
-    const existingCategories = await db<{ id: string }[]>`
-      SELECT id FROM categories WHERE name = ${validatedInput.name}
-    `;
+    const existingResult = await db.execute(
+      sql`SELECT id FROM categories WHERE name = ${validatedInput.name}`,
+    );
 
-    if (existingCategories.length > 0) {
+    if (existingResult.rows.length > 0) {
       throw new Error("Category name already exists");
     }
 
     // Insert category with PostgreSQL timestamp
     const now = new Date();
-    await db`
-      INSERT INTO categories (id, name, archived, created_at, updated_at)
-      VALUES (
-        ${id},
-        ${validatedInput.name},
-        ${false},
-        ${now},
-        ${now}
-      )
-    `;
+    await db.execute(
+      sql`INSERT INTO categories (id, name, archived, created_at, updated_at) VALUES (${id}, ${validatedInput.name}, ${false}, ${now}, ${now})`,
+    );
 
     // Return created category
     const createdCategory = await getCategoryById(id);
