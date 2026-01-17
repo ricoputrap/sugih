@@ -26,11 +26,11 @@ This document provides a structured, phased plan to migrate the Sugih personal f
 
 ### Phase 0: Infrastructure Setup
 
-- [ ] **Step 0.1**: Install dependencies (Drizzle ORM, pg driver, types)
-- [ ] **Step 0.2**: Create `src/db/drizzle-client.ts` (Drizzle + pg Pool client)
-- [ ] **Step 0.3**: Verify `DATABASE_URL` environment variable works
-- [ ] **Step 0.4**: Update `drizzle.config.ts` for node-postgres adapter
-- [ ] **Step 0.5**: Update test setup to mock new Drizzle client
+- [x] **Step 0.1**: Install dependencies (Drizzle ORM, pg driver, types)
+- [x] **Step 0.2**: Create `src/db/drizzle-client.ts` (Drizzle + pg Pool client)
+- [x] **Step 0.3**: Verify `DATABASE_URL` environment variable works
+- [x] **Step 0.4**: Update `drizzle.config.ts` for node-postgres adapter
+- [x] **Step 0.5**: Update test setup to mock new Drizzle client
 
 #### Step 0.1: Install Dependencies
 
