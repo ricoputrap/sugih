@@ -326,13 +326,13 @@ export async function deleteSavingsBucket(id: string): Promise<void> {
     try {
       await client.query("BEGIN");
 
-      // Check if savings bucket has any associated transactions
-      const transactionsCountResult = await client.query(
-        `SELECT COUNT(*)::int as count FROM transactions WHERE savings_bucket_id = $1`,
+      // Check if savings bucket has any associated postings
+      const postingsCountResult = await client.query(
+        `SELECT COUNT(*)::int as count FROM postings WHERE savings_bucket_id = $1`,
         [id],
       );
 
-      const count = Number(transactionsCountResult.rows[0]?.count) || 0;
+      const count = Number(postingsCountResult.rows[0]?.count) || 0;
       if (count > 0) {
         throw new Error(
           "Cannot delete savings bucket with existing transactions",
@@ -383,10 +383,11 @@ export async function getSavingsBucketStats(id: string): Promise<{
     // Get transaction count and total amount for this savings bucket
     const statsResult = await getPool().query(
       `SELECT
-        COUNT(*)::int as count,
-        COALESCE(SUM(amount_idr), 0)::numeric as total
-      FROM transactions
-      WHERE savings_bucket_id = $1 AND deleted_at IS NULL`,
+        COUNT(DISTINCT te.id)::int as count,
+        COALESCE(SUM(p.amount_idr), 0)::numeric as total
+      FROM postings p
+      INNER JOIN transaction_events te ON p.event_id = te.id
+      WHERE p.savings_bucket_id = $1 AND te.deleted_at IS NULL`,
       [id],
     );
 

@@ -1034,7 +1034,7 @@ export async function createSavingsBucket(
 
 ### Tests
 
-- [ ] **Step 3.3**: Create `src/modules/SavingsBucket/actions.integration.test.ts`
+- [x] **Step 3.3**: Create `src/modules/SavingsBucket/actions.integration.test.ts`
 
 ```typescript
 import { describe, it, expect, afterEach, afterAll } from "vitest";
@@ -1129,7 +1129,7 @@ describe("Savings Bucket Integration Tests", () => {
 
 ### Verification
 
-- [ ] **Step 3.4**: Run tests: `pnpm test src/modules/SavingsBucket/actions.integration.test.ts`
+- [x] **Step 3.4**: Run tests: `pnpm test src/modules/SavingsBucket/actions.integration.test.ts`
 
 ---
 
