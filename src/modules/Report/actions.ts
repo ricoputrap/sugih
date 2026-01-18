@@ -88,63 +88,60 @@ export async function spendingTrend(
 export async function categoryBreakdown(
   query: unknown,
 ): Promise<CategoryBreakdownData[]> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    const validatedQuery = CategoryBreakdownQuerySchema.parse(query);
-    const fromStr = validatedQuery.from?.toISOString();
-    const toStr = validatedQuery.to?.toISOString();
+  const validatedQuery = CategoryBreakdownQuerySchema.parse(query);
+  const from = validatedQuery.from;
+  const to = validatedQuery.to;
 
-    const result = await db<
-      {
-        category_id: string;
-        category_name: string;
-        total_amount: string;
-        transaction_count: string;
-      }[]
-    >`
-      SELECT
-        te.category_id,
-        COALESCE(c.name, 'Uncategorized') as category_name,
-        COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total_amount,
-        COUNT(DISTINCT te.id)::int as transaction_count,
-        0.0 as percentage
-      FROM transaction_events te
-      JOIN postings p ON te.id = p.event_id
-      LEFT JOIN categories c ON te.category_id = c.id
-      WHERE
-        te.type = 'expense' AND
-        te.deleted_at IS NULL
-        ${fromStr ? db`AND te.occurred_at >= '2025-12-01T17:00:00.000Z'` : db``}
-        ${toStr ? db`AND te.occurred_at <= ${toStr}` : db``}
-      GROUP BY te.category_id, c.name
-      ORDER BY total_amount DESC
-    `;
+  // Build WHERE clause with proper parameterization
+  const whereConditions = ["te.type = 'expense'", "te.deleted_at IS NULL"];
+  const params: any[] = [];
+  let paramIndex = 1;
 
-    // Calculate percentages
-    const totalSpent = result.reduce(
-      (sum, row) => sum + Number(row.total_amount),
-      0,
-    );
-
-    console.log("===== result:", result);
-    return result.map((row) => ({
-      categoryId: row.category_id,
-      categoryName: row.category_name,
-      totalAmount: Number(row.total_amount),
-      transactionCount: Number(row.transaction_count),
-      percentage:
-        totalSpent > 0 ? (Number(row.total_amount) / totalSpent) * 100 : 0,
-    }));
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity(
-        "Invalid category breakdown query",
-        formatZodError(error),
-      );
-    }
-    throw error;
+  if (from) {
+    whereConditions.push(`te.occurred_at >= $${paramIndex}`);
+    params.push(from);
+    paramIndex++;
   }
+
+  if (to) {
+    whereConditions.push(`te.occurred_at <= $${paramIndex}`);
+    params.push(to);
+    paramIndex++;
+  }
+
+  const whereClause = whereConditions.join(" AND ");
+
+  const result = await pool.query(
+    `SELECT
+      te.category_id,
+      COALESCE(c.name, 'Uncategorized') as category_name,
+      COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total_amount,
+      COUNT(DISTINCT te.id)::int as transaction_count
+    FROM transaction_events te
+    JOIN postings p ON te.id = p.event_id
+    LEFT JOIN categories c ON te.category_id = c.id
+    WHERE ${whereClause}
+    GROUP BY te.category_id, c.name
+    ORDER BY total_amount DESC`,
+    params,
+  );
+
+  // Calculate percentages
+  const totalSpent = result.rows.reduce(
+    (sum, row) => sum + Number(row.total_amount),
+    0,
+  );
+
+  return result.rows.map((row) => ({
+    categoryId: row.category_id as string,
+    categoryName: row.category_name as string,
+    totalAmount: Number(row.total_amount),
+    transactionCount: row.transaction_count as number,
+    percentage:
+      totalSpent > 0 ? (Number(row.total_amount) / totalSpent) * 100 : 0,
+  }));
 }
 
 // ============================================================================
