@@ -1724,54 +1724,9 @@ describe("Transaction Integration Tests", () => {
 - Use `pool.query('SQL', [params])` for complex queries with JOINs
 - See `src/modules/Category/actions.ts` for reference patterns
 
-### Backend Actions
-
-- [ ] **Step 6.1**: Update imports in `src/modules/Report/actions.ts`
-- [ ] **Step 6.2**: Migrate `spendingTrend()` using Drizzle aggregations
-- [ ] **Step 6.3**: Migrate `categoryBreakdown()` using Drizzle aggregations and joins
-- [ ] **Step 6.4**: Migrate `netWorthTrend()` using Drizzle CTEs
-- [ ] **Step 6.5**: Migrate `moneyLeftToSpend()` using Drizzle joins
-
-**Key Pattern for Complex Aggregations with Raw SQL** (following Phase 1 patterns):
-
-```typescript
-export async function spendingTrend(
-  query: unknown,
-): Promise<SpendingTrendData[]> {
-  const pool = getPool();
-  const validatedQuery = SpendingTrendQuerySchema.parse(query);
-
-  const result = await pool.query(
-    `SELECT 
-      to_char(te.occurred_at, $1) as period,
-      COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as totalAmount,
-      COUNT(DISTINCT te.id)::int as transactionCount
-     FROM transaction_events te
-     LEFT JOIN postings p ON te.id = p.event_id
-     WHERE te.type = 'expense'
-       AND te.deleted_at IS NULL
-       AND te.occurred_at >= $2
-       AND te.occurred_at <= $3
-     GROUP BY period
-     ORDER BY period ASC`,
-    [
-      validatedQuery.granularity === "month" ? "YYYY-MM" : "YYYY-MM-DD",
-      validatedQuery.from,
-      validatedQuery.to,
-    ],
-  );
-
-  return result.rows.map((row) => ({
-    period: row.period,
-    totalAmount: Number(row.totalAmount),
-    transactionCount: row.transactionCount,
-  }));
-}
-```
-
 ### Tests
 
-- [ ] **Step 6.6**: Create `src/modules/Report/actions.integration.test.ts`
+- [x] **Step 6.1**: Create `src/modules/Report/actions.integration.test.ts` for doing Test-Driven Development (TDD)
 
 ```typescript
 import { describe, it, expect, afterAll } from "vitest";
@@ -1836,11 +1791,53 @@ describe("Report Integration Tests", () => {
 });
 ```
 
-### Verification
+### Backend Actions
 
-- [ ] **Step 6.7**: Run tests: `pnpm test src/modules/Report/actions.integration.test.ts`
+Run the integration tests every time a step is completed. Make sure the tests for the completed part (e.g. `spendingTrend()`) are passed.
 
----
+- [x] **Step 6.2**: Update imports in `src/modules/Report/actions.ts`
+- [x] **Step 6.3**: Migrate `spendingTrend()` using raw SQL aggregations
+- [x] **Step 6.4**: Migrate `categoryBreakdown()` using raw SQL aggregations and joins
+- [x] **Step 6.5**: Migrate `netWorthTrend()` using raw SQL CTEs
+- [x] **Step 6.6**: Migrate `moneyLeftToSpend()` using raw SQL joins
+- [x] **Step 6.7**: Run tests: `pnpm test src/modules/Report/actions.integration.test.ts` ✅ ALL 12 TESTS PASS!
+
+**Key Pattern for Complex Aggregations with Raw SQL** (following Phase 1 patterns):
+
+```typescript
+export async function spendingTrend(
+  query: unknown,
+): Promise<SpendingTrendData[]> {
+  const pool = getPool();
+  const validatedQuery = SpendingTrendQuerySchema.parse(query);
+
+  const result = await pool.query(
+    `SELECT 
+      to_char(te.occurred_at, $1) as period,
+      COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as totalAmount,
+      COUNT(DISTINCT te.id)::int as transactionCount
+     FROM transaction_events te
+     LEFT JOIN postings p ON te.id = p.event_id
+     WHERE te.type = 'expense'
+       AND te.deleted_at IS NULL
+       AND te.occurred_at >= $2
+       AND te.occurred_at <= $3
+     GROUP BY period
+     ORDER BY period ASC`,
+    [
+      validatedQuery.granularity === "month" ? "YYYY-MM" : "YYYY-MM-DD",
+      validatedQuery.from,
+      validatedQuery.to,
+    ],
+  );
+
+  return result.rows.map((row) => ({
+    period: row.period,
+    totalAmount: Number(row.totalAmount),
+    transactionCount: row.transactionCount,
+  }));
+}
+```
 
 ## Phase 7: Dashboard Module
 

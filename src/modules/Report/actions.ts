@@ -158,88 +158,83 @@ export async function categoryBreakdown(
  * @returns Array of net worth trend data points
  */
 export async function netWorthTrend(query: unknown): Promise<NetWorthData[]> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    const validatedQuery = NetWorthTrendQuerySchema.parse(query);
-    const fromStr = validatedQuery.from?.toISOString();
-    const toStr = validatedQuery.to?.toISOString();
-    const granularity = validatedQuery.granularity ?? "month";
+  const validatedQuery = NetWorthTrendQuerySchema.parse(query);
+  const from = validatedQuery.from;
+  const to = validatedQuery.to;
+  const granularity = validatedQuery.granularity ?? "month";
 
-    // For net worth trend, we need to track cumulative balances over time
-    // This is more complex as we need running totals for wallets and savings
-    const result = await db<
-      {
-        period: Date;
-        wallet_balance: string;
-        savings_balance: string;
-        total_net_worth: string;
-      }[]
-    >`
-      WITH periods AS (
-        SELECT DISTINCT DATE_TRUNC(${granularity}, te.occurred_at) as period
-        FROM transaction_events te
-        WHERE
-          te.deleted_at IS NULL
-          ${fromStr ? db`AND te.occurred_at >= ${fromStr}` : db``}
-          ${toStr ? db`AND te.occurred_at <= ${toStr}` : db``}
-        ORDER BY period ASC
-      ),
-      wallet_balances AS (
-        SELECT
-          wb.period,
-          COALESCE(SUM(p.amount_idr), 0)::numeric as wallet_balance
-        FROM periods wb
-        CROSS JOIN LATERAL (
-          SELECT COALESCE(SUM(p.amount_idr), 0)::numeric as amount_idr
-          FROM transaction_events te
-          JOIN postings p ON te.id = p.event_id
-          WHERE p.wallet_id IS NOT NULL
-            AND te.deleted_at IS NULL
-            AND period <= wb.period
-        ) p
-        GROUP BY wb.period
-      ),
-      savings_balances AS (
-        SELECT
-          sb.period,
-          COALESCE(SUM(p.amount_idr), 0)::numeric as savings_balance
-        FROM periods sb
-        CROSS JOIN LATERAL (
-          SELECT COALESCE(SUM(p.amount_idr), 0)::numeric as amount_idr
-          FROM transaction_events te
-          JOIN postings p ON te.id = p.event_id
-          WHERE p.savings_bucket_id IS NOT NULL
-            AND te.deleted_at IS NULL
-            AND period <= sb.period
-        ) p
-        GROUP BY sb.period
-      )
+  // Build date filter - pass Date objects directly like spendingTrend
+  const params: any[] = [granularity];
+  let paramIndex = 2;
+
+  let dateFilter = "";
+  if (from) {
+    dateFilter += ` AND te.occurred_at >= $${paramIndex}`;
+    params.push(from);
+    paramIndex++;
+  }
+
+  if (to) {
+    dateFilter += ` AND te.occurred_at <= $${paramIndex}`;
+    params.push(to);
+  }
+
+  const result = await pool.query(
+    `WITH periods AS (
+      SELECT DISTINCT DATE_TRUNC($1, te.occurred_at) as period
+      FROM transaction_events te
+      WHERE te.deleted_at IS NULL${dateFilter}
+      ORDER BY period ASC
+    ),
+    wallet_balances AS (
       SELECT
         wb.period,
-        wb.wallet_balance,
-        sb.savings_balance,
-        (wb.wallet_balance + sb.savings_balance)::numeric as total_net_worth
-      FROM wallet_balances wb
-      JOIN savings_balances sb ON wb.period = sb.period
-      ORDER BY wb.period ASC
-    `;
+        COALESCE(SUM(p.amount_idr), 0)::numeric as wallet_balance
+      FROM periods wb
+      CROSS JOIN LATERAL (
+        SELECT COALESCE(SUM(p.amount_idr), 0)::numeric as amount_idr
+        FROM transaction_events te
+        JOIN postings p ON te.id = p.event_id
+        WHERE p.wallet_id IS NOT NULL
+          AND te.deleted_at IS NULL
+          AND te.occurred_at <= wb.period
+      ) p
+      GROUP BY wb.period
+    ),
+    savings_balances AS (
+      SELECT
+        sb.period,
+        COALESCE(SUM(p.amount_idr), 0)::numeric as savings_balance
+      FROM periods sb
+      CROSS JOIN LATERAL (
+        SELECT COALESCE(SUM(p.amount_idr), 0)::numeric as amount_idr
+        FROM transaction_events te
+        JOIN postings p ON te.id = p.event_id
+        WHERE p.savings_bucket_id IS NOT NULL
+          AND te.deleted_at IS NULL
+          AND te.occurred_at <= sb.period
+      ) p
+      GROUP BY sb.period
+    )
+    SELECT
+      wb.period,
+      wb.wallet_balance,
+      sb.savings_balance,
+      (wb.wallet_balance + sb.savings_balance)::numeric as total_net_worth
+    FROM wallet_balances wb
+    JOIN savings_balances sb ON wb.period = sb.period
+    ORDER BY wb.period ASC`,
+    params,
+  );
 
-    return result.map((row) => ({
-      period: row.period.toISOString().split("T")[0],
-      walletBalance: Number(row.wallet_balance),
-      savingsBalance: Number(row.savings_balance),
-      totalNetWorth: Number(row.total_net_worth),
-    }));
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity(
-        "Invalid net worth trend query",
-        formatZodError(error),
-      );
-    }
-    throw error;
-  }
+  return result.rows.map((row) => ({
+    period: row.period.toISOString().split("T")[0],
+    walletBalance: Number(row.wallet_balance),
+    savingsBalance: Number(row.savings_balance),
+    totalNetWorth: Number(row.total_net_worth),
+  }));
 }
 
 // ============================================================================
@@ -258,98 +253,79 @@ export async function netWorthTrend(query: unknown): Promise<NetWorthData[]> {
 export async function moneyLeftToSpend(
   query: unknown,
 ): Promise<MoneyLeftToSpendData> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    const validatedQuery = MoneyLeftToSpendQuerySchema.parse(query);
+  const validatedQuery = MoneyLeftToSpendQuerySchema.parse(query);
 
-    // Parse month to get date range
-    const monthStart = new Date(`${validatedQuery.month}-01T00:00:00.000Z`);
-    const nextMonth = new Date(monthStart);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+  // Parse month to get date range
+  const monthStart = new Date(`${validatedQuery.month}-01T00:00:00.000Z`);
+  const nextMonth = new Date(monthStart);
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-    // Get total budgeted amount for the month
-    const budgetResult = await db<{ total_budget: string }[]>`
-      SELECT COALESCE(SUM(b.amount_idr), 0)::numeric as total_budget
-      FROM budgets b
-      WHERE b.month = ${validatedQuery.month}-01
-    `;
+  const monthStr = `${validatedQuery.month}-01`;
 
-    const totalBudget = Number(budgetResult[0]?.total_budget || 0);
+  // Get total budgeted amount for the month
+  const budgetResult = await pool.query(
+    `SELECT COALESCE(SUM(b.amount_idr), 0)::numeric as total_budget
+    FROM budgets b
+    WHERE b.month = $1`,
+    [monthStr],
+  );
 
-    // Get actual spending for budgeted categories in the month
-    const sql = `
-      SELECT COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total_spent
-      FROM transaction_events te
-      JOIN postings p ON te.id = p.event_id
-      JOIN budgets b ON te.category_id = b.category_id
-      WHERE te.type = 'expense'
-        AND te.deleted_at IS NULL
-        AND te.occurred_at >= $1
-        AND te.occurred_at < $2
-        AND b.month = $3
-    `;
+  const totalBudget = Number(budgetResult.rows[0]?.total_budget || 0);
 
-    // Convert Date objects to ISO strings for SQL query
-    const params = [
-      monthStart.toISOString(),
-      nextMonth.toISOString(),
-      `${validatedQuery.month}-01`,
-    ];
+  // Get actual spending for budgeted categories in the month
+  const spendingResult = await pool.query(
+    `SELECT COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total_spent
+    FROM transaction_events te
+    JOIN postings p ON te.id = p.event_id
+    JOIN budgets b ON te.category_id = b.category_id
+    WHERE te.type = 'expense'
+      AND te.deleted_at IS NULL
+      AND te.occurred_at >= $1
+      AND te.occurred_at < $2
+      AND b.month = $3`,
+    [monthStart, nextMonth, monthStr],
+  );
 
-    const spendingResult = await db.unsafe<{ total_spent: string }[]>(
-      sql,
-      params,
-    );
+  const totalSpent = Number(spendingResult.rows[0]?.total_spent || 0);
 
-    const totalSpent = Number(spendingResult[0]?.total_spent || 0);
+  // Calculate remaining budget
+  const remaining = totalBudget - totalSpent;
+  const percentUsed = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
-    // Calculate remaining budget
-    const remaining = totalBudget - totalSpent;
-    const percentUsed = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+  // Calculate days remaining in the month
+  const now = new Date();
+  const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    // Calculate days remaining in the month
-    const now = new Date();
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    let daysRemaining = 0;
-    if (
-      now.getFullYear() === monthStart.getFullYear() &&
-      now.getMonth() === monthStart.getMonth()
-    ) {
-      daysRemaining = currentMonthEnd.getDate() - now.getDate();
-    }
-
-    // Calculate average daily spending
-    const daysInMonth = currentMonthEnd.getDate();
-    const daysPassed = now.getDate();
-    const averageDailySpending = daysPassed > 0 ? totalSpent / daysPassed : 0;
-
-    // Project end-of-month spending
-    const projectedMonthEndSpending = averageDailySpending * daysInMonth;
-
-    // Calculate budget variance
-    const budgetVariance = totalBudget - projectedMonthEndSpending;
-
-    return {
-      month: validatedQuery.month,
-      totalBudget,
-      totalSpent,
-      remaining,
-      percentUsed: Math.round(percentUsed * 100) / 100,
-      daysRemaining,
-      averageDailySpending: Math.round(averageDailySpending),
-      projectedMonthEndSpending: Math.round(projectedMonthEndSpending),
-      budgetVariance: Math.round(budgetVariance),
-    };
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity(
-        "Invalid money left to spend query",
-        formatZodError(error),
-      );
-    }
-    throw error;
+  let daysRemaining = 0;
+  if (
+    now.getFullYear() === monthStart.getFullYear() &&
+    now.getMonth() === monthStart.getMonth()
+  ) {
+    daysRemaining = currentMonthEnd.getDate() - now.getDate();
   }
+
+  // Calculate average daily spending
+  const daysInMonth = currentMonthEnd.getDate();
+  const daysPassed = now.getDate();
+  const averageDailySpending = daysPassed > 0 ? totalSpent / daysPassed : 0;
+
+  // Project end-of-month spending
+  const projectedMonthEndSpending = averageDailySpending * daysInMonth;
+
+  // Calculate budget variance
+  const budgetVariance = totalBudget - projectedMonthEndSpending;
+
+  return {
+    month: validatedQuery.month,
+    totalBudget,
+    totalSpent,
+    remaining,
+    percentUsed: Math.round(percentUsed * 100) / 100,
+    daysRemaining,
+    averageDailySpending: Math.round(averageDailySpending),
+    projectedMonthEndSpending: Math.round(projectedMonthEndSpending),
+    budgetVariance: Math.round(budgetVariance),
+  };
 }
