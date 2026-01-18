@@ -1155,7 +1155,7 @@ describe("Savings Bucket Integration Tests", () => {
 - [x] **Step 4.2**: Migrate `listBudgets()`, `getBudgetById()`, `getBudgetsByMonth()` using Drizzle joins
 - [x] **Step 4.3**: Migrate `upsertBudgets()` using Drizzle transactions ✅
 - [x] **Step 4.4**: Migrate `createBudget()`, `updateBudget()`, `deleteBudget()`
-- [ ] **Step 4.5**: Migrate `getBudgetSummary()`, `copyBudgets()`
+- [x] **Step 4.5**: Migrate `getBudgetSummary()`, `copyBudgets()` ✅
 
 **Key Pattern for Upsert with Raw SQL Transaction** (following Phase 1 patterns):
 

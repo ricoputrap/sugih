@@ -407,20 +407,21 @@ export async function deleteBudget(id: string): Promise<void> {
  * Delete all budgets for a specific month
  */
 export async function deleteBudgetsByMonth(month: string): Promise<number> {
-  const db = getDb();
+  const pool = getPool();
 
   try {
     BudgetMonthSchema.parse(month);
 
-    const result = await db<{ count: number }[]>`
-      WITH deleted AS (
-        DELETE FROM budgets WHERE month = ${month}
+    const result = await pool.query(
+      `WITH deleted AS (
+        DELETE FROM budgets WHERE month = $1
         RETURNING id
       )
-      SELECT COUNT(*)::int as count FROM deleted
-    `;
+      SELECT COUNT(*)::int as count FROM deleted`,
+      [month],
+    );
 
-    return result[0]?.count || 0;
+    return result.rows[0]?.count || 0;
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity("Invalid month format", formatZodError(error));
@@ -433,7 +434,7 @@ export async function deleteBudgetsByMonth(month: string): Promise<number> {
  * Get budget summary for a month (budget vs actual spending)
  */
 export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
-  const db = getDb();
+  const pool = getPool();
 
   try {
     BudgetMonthSchema.parse(month);
@@ -448,25 +449,20 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
     const endDateISO = endDate.toISOString();
 
     // Get budgets for the month with category names
-    const budgets = await db<
-      {
-        category_id: string;
-        category_name: string;
-        budget_amount: number;
-      }[]
-    >`
-      SELECT
+    const budgetResult = await pool.query(
+      `SELECT
         b.category_id,
         c.name as category_name,
         b.amount_idr as budget_amount
       FROM budgets b
       LEFT JOIN categories c ON b.category_id = c.id
-      WHERE b.month = ${month}
-    `;
+      WHERE b.month = $1`,
+      [month],
+    );
 
     // Get actual spending by category for the month
-    const spendingSql = `
-      SELECT
+    const spendingResult = await pool.query(
+      `SELECT
         te.category_id,
         COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as spent_amount
       FROM transaction_events te
@@ -476,27 +472,26 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
         AND te.occurred_at >= $1
         AND te.occurred_at < $2
         AND te.category_id IS NOT NULL
-      GROUP BY te.category_id
-    `;
-    const spending = await db.unsafe<
-      {
-        category_id: string;
-        spent_amount: string;
-      }[]
-    >(spendingSql, [startDateISO, endDateISO]);
+      GROUP BY te.category_id`,
+      [startDateISO, endDateISO],
+    );
 
     // Create spending map
     const spendingByCategory = new Map(
-      spending.map((s) => [s.category_id, Number(s.spent_amount)]),
+      spendingResult.rows.map((s) => [
+        s.category_id as string,
+        Number(s.spent_amount),
+      ]),
     );
 
     // Calculate summary
     let totalBudget = 0;
     let totalSpent = 0;
 
-    const items = budgets.map((budget) => {
+    const items = budgetResult.rows.map((budget) => {
       const budgetAmount = Number(budget.budget_amount);
-      const spentAmount = spendingByCategory.get(budget.category_id) || 0;
+      const spentAmount =
+        spendingByCategory.get(budget.category_id as string) || 0;
       const remaining = budgetAmount - spentAmount;
       const percentUsed =
         budgetAmount > 0 ? (spentAmount / budgetAmount) * 100 : 0;
@@ -505,8 +500,8 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
       totalSpent += spentAmount;
 
       return {
-        categoryId: budget.category_id,
-        categoryName: budget.category_name || "Unknown",
+        categoryId: budget.category_id as string,
+        categoryName: (budget.category_name as string) || "Unknown",
         budgetAmount,
         spentAmount,
         remaining,
@@ -536,7 +531,7 @@ export async function copyBudgets(
   fromMonth: string,
   toMonth: string,
 ): Promise<BudgetWithCategory[]> {
-  const db = getDb();
+  const pool = getPool();
 
   try {
     BudgetMonthSchema.parse(fromMonth);
@@ -559,16 +554,21 @@ export async function copyBudgets(
       throw new Error("Destination month already has budgets");
     }
 
+    const client = await pool.connect();
     const now = new Date();
-    const newBudgets: BudgetWithCategory[] = [];
+    const newBudgets: Array<BudgetWithCategory & { category_name: string }> =
+      [];
 
-    await db.begin(async (tx) => {
+    try {
+      await client.query("BEGIN");
+
       for (const budget of sourceBudgets) {
         const newId = nanoid();
-        await tx`
-          INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
-          VALUES (${newId}, ${toMonth}, ${budget.category_id}, ${budget.amount_idr}, ${now}, ${now})
-        `;
+        await client.query(
+          `INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [newId, toMonth, budget.category_id, budget.amount_idr, now, now],
+        );
 
         newBudgets.push({
           id: newId,
@@ -580,9 +580,15 @@ export async function copyBudgets(
           category_name: budget.category_name,
         });
       }
-    });
 
-    return newBudgets;
+      await client.query("COMMIT");
+      return newBudgets;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity("Invalid month format", formatZodError(error));
