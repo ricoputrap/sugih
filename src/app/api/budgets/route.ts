@@ -5,7 +5,7 @@ import {
   getBudgetSummary,
 } from "@/modules/Budget/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
-import { formatPostgresError } from "@/db/client";
+import { formatPostgresError } from "@/db/drizzle-client";
 import { withRouteLogging } from "@/lib/logging";
 
 /**

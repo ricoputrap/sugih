@@ -8,7 +8,7 @@ vi.mock("@/modules/Category/actions", () => ({
 }));
 
 // Mock the database client
-vi.mock("@/db/client", () => ({
+vi.mock("@/db/drizzle-client", () => ({
   getDb: vi.fn(),
   formatPostgresError: vi.fn((error) => error.message || "Database error"),
 }));

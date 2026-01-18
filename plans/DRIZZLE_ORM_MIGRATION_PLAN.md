@@ -1914,11 +1914,11 @@ Test Results:
 
 ### Cleanup
 
-- [ ] **Step 8.1**: Remove the old `src/db/client.ts` file (or rename to `.legacy`)
-- [ ] **Step 8.2**: Update all API routes to use new Drizzle client
-- [ ] **Step 8.3**: Update `drizzle.config.ts` if needed
-- [ ] **Step 8.4**: Remove unused imports across the codebase
-- [ ] **Step 8.5**: Remove `postgres` package from `package.json`
+- [x] **Step 8.1**: Remove the old `src/db/client.ts` file (renamed to `.legacy`) ✅
+- [x] **Step 8.2**: Update all API routes to use new Drizzle client (24 routes updated) ✅
+- [x] **Step 8.3**: Update `drizzle.config.ts` if needed ✅ (already correct)
+- [x] **Step 8.4**: Remove unused imports across the codebase ✅ (all imports updated)
+- [x] **Step 8.5**: Remove `postgres` package from `package.json` ✅
 
 ### Verification
 

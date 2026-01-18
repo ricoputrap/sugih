@@ -14,7 +14,7 @@ import { NextRequest } from "next/server";
 import { exportSavingsBucketsAsCsv } from "@/modules/Export/actions";
 import { badRequest, serverError } from "@/lib/http";
 import { withRouteLogging } from "@/lib/logging";
-import { formatPostgresError } from "@/db/client";
+import { formatPostgresError } from "@/db/drizzle-client";
 
 /**
  * Handle GET request for savings buckets CSV export

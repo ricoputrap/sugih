@@ -13,7 +13,7 @@ import { NextRequest } from "next/server";
 import { exportCategoriesAsCsv } from "@/modules/Export/actions";
 import { badRequest, serverError } from "@/lib/http";
 import { withRouteLogging } from "@/lib/logging";
-import { formatPostgresError } from "@/db/client";
+import { formatPostgresError } from "@/db/drizzle-client";
 
 /**
  * Handle GET request for categories CSV export

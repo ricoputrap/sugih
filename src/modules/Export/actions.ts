@@ -10,7 +10,7 @@
  * - Individual table exports
  */
 
-import { all } from "@/db/client";
+import { all } from "@/db/drizzle-client";
 import {
   TransactionExportSchema,
   DatabaseBackupSchema,

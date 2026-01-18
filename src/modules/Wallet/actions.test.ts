@@ -8,7 +8,7 @@ import {
   deleteWallet,
   getWalletStats,
 } from "./actions";
-import { getDb } from "@/db/client";
+import { getDb } from "@/db/drizzle-client";
 import { nanoid } from "nanoid";
 
 // Helper function to create test wallet
@@ -174,9 +174,7 @@ describe("Wallet Actions with Balance Calculation", () => {
       testWalletIds.push(wallet1.id, wallet2.id, wallet3.id);
 
       const wallets = await listWallets();
-      const testWallets = wallets.filter((w) =>
-        testWalletIds.includes(w.id),
-      );
+      const testWallets = wallets.filter((w) => testWalletIds.includes(w.id));
 
       expect(testWallets[0].name).toBe("Alpha Wallet");
       expect(testWallets[1].name).toBe("Beta Wallet");

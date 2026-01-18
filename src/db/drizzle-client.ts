@@ -149,3 +149,62 @@ export async function getStats(): Promise<{
     };
   }
 }
+
+/**
+ * Format PostgreSQL error for better readability
+ *
+ * @param error - PostgreSQL error
+ * @returns {string} Formatted error message
+ */
+export function formatPostgresError(error: any): string {
+  if (!error) return "Unknown database error";
+
+  const message = error.message || "Unknown error";
+  const detail = error.detail;
+  const hint = error.hint;
+  const code = error.code;
+
+  let formatted = message;
+
+  if (code) {
+    formatted += ` (${code})`;
+  }
+
+  if (detail) {
+    formatted += `\n  Detail: ${detail}`;
+  }
+
+  if (hint) {
+    formatted += `\n  Hint: ${hint}`;
+  }
+
+  return formatted;
+}
+
+/**
+ * Execute a query and return all results
+ *
+ * @param sqlQuery - SQL query string
+ * @param params - Parameters to bind to the query (optional)
+ * @returns {Promise<Array<T>>} Array of result rows
+ * @throws {Error} If query execution fails
+ */
+export async function all<T = any>(
+  sqlQuery: string,
+  ...params: any[]
+): Promise<T[]> {
+  try {
+    const pool = getPool();
+    const result = await pool.query<T>(sqlQuery, params);
+    return result.rows;
+  } catch (error) {
+    console.error("Database query error (all):", {
+      sql: sqlQuery,
+      params,
+      error: error instanceof Error ? error.message : error,
+    });
+    throw new Error(
+      `Failed to execute query: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
+}

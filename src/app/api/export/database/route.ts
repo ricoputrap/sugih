@@ -20,7 +20,7 @@ import {
 } from "@/modules/Export/actions";
 import { ok, badRequest, serverError } from "@/lib/http";
 import { withRouteLogging } from "@/lib/logging";
-import { formatPostgresError } from "@/db/client";
+import { formatPostgresError } from "@/db/drizzle-client";
 
 const VALID_TABLES = [
   "wallets",

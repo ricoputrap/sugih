@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { createTransfer } from "@/modules/Transaction/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
-import { formatPostgresError } from "@/db/client";
+import { formatPostgresError } from "@/db/drizzle-client";
 import { withRouteLogging } from "@/lib/logging";
 
 /**

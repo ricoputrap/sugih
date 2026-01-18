@@ -1,4 +1,4 @@
-import { all } from "@/db/client";
+import { all } from "@/db/drizzle-client";
 import { ok, serverError } from "@/lib/http";
 import { withRouteLogging } from "@/lib/logging";
 

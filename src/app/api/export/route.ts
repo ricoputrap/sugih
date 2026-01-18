@@ -11,7 +11,7 @@ import { NextRequest } from "next/server";
 import { getExportStats } from "@/modules/Export/actions";
 import { ok, serverError } from "@/lib/http";
 import { withRouteLogging } from "@/lib/logging";
-import { formatPostgresError } from "@/db/client";
+import { formatPostgresError } from "@/db/drizzle-client";
 
 /**
  * Handle GET request for export options

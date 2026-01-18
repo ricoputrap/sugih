@@ -7,7 +7,7 @@ import {
   deleteSavingsBucket,
 } from "@/modules/SavingsBucket/actions";
 import { ok, badRequest, notFound, serverError, conflict } from "@/lib/http";
-import { formatPostgresError } from "@/db/client";
+import { formatPostgresError } from "@/db/drizzle-client";
 import { withRouteLogging } from "@/lib/logging";
 
 /**
