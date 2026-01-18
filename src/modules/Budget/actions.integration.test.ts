@@ -11,7 +11,6 @@ import {
   listBudgets,
   getBudgetById,
   getBudgetsByMonth,
-  upsertBudgets,
   createBudget,
   updateBudget,
   deleteBudget,
@@ -73,7 +72,8 @@ describe("Budget Integration Tests", () => {
   describe("Create Budget", () => {
     it("should create a budget for a category and month", async () => {
       const category = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 1000000,
       });
@@ -94,7 +94,8 @@ describe("Budget Integration Tests", () => {
 
     it("should reject budget for non-existent category", async () => {
       await expect(
-        createBudget(testMonth, {
+        createBudget({
+          month: testMonth,
           categoryId: "non-existent-id",
           amountIdr: 1000000,
         }),
@@ -103,16 +104,18 @@ describe("Budget Integration Tests", () => {
 
     it("should reject duplicate budget for same month and category", async () => {
       const category = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 1000000,
       });
       testBudgetIds.push(budget.id);
 
       await expect(
-        createBudget(testMonth, {
+        createBudget({
+          month: testMonth,
           categoryId: category.id,
-          amountIdr: 2000000,
+          amountIdr: 1000000,
         }),
       ).rejects.toThrow("already exists");
 
@@ -124,13 +127,15 @@ describe("Budget Integration Tests", () => {
     it("should allow same category in different months", async () => {
       const category = await createTestCategory();
 
-      const budget1 = await createBudget(testMonth, {
+      const budget1 = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 1000000,
       });
       testBudgetIds.push(budget1.id);
 
-      const budget2 = await createBudget(testMonth2, {
+      const budget2 = await createBudget({
+        month: testMonth2,
         categoryId: category.id,
         amountIdr: 2000000,
       });
@@ -149,7 +154,8 @@ describe("Budget Integration Tests", () => {
   describe("List Budgets", () => {
     it("should list budgets filtered by month", async () => {
       const category = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 1500000,
       });
@@ -173,7 +179,8 @@ describe("Budget Integration Tests", () => {
 
     it("should list all budgets when no month filter", async () => {
       const category = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 1000000,
       });
@@ -193,7 +200,8 @@ describe("Budget Integration Tests", () => {
   describe("Get Budget by ID", () => {
     it("should return budget when ID exists", async () => {
       const category = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 2000000,
       });
@@ -223,13 +231,15 @@ describe("Budget Integration Tests", () => {
       const cat1 = await createTestCategory();
       const cat2 = await createTestCategory();
 
-      const budget1 = await createBudget(testMonth, {
+      const budget1 = await createBudget({
+        month: testMonth,
         categoryId: cat1.id,
         amountIdr: 1000000,
       });
       testBudgetIds.push(budget1.id);
 
-      const budget2 = await createBudget(testMonth, {
+      const budget2 = await createBudget({
+        month: testMonth,
         categoryId: cat2.id,
         amountIdr: 2000000,
       });
@@ -253,13 +263,15 @@ describe("Budget Integration Tests", () => {
       const catZ = await createCategory({ name: `Zebra ${nanoid()}` });
       testCategoryIds.push(catA.id, catZ.id);
 
-      const budgetZ = await createBudget(testMonth, {
+      const budgetZ = await createBudget({
+        month: testMonth,
         categoryId: catZ.id,
         amountIdr: 1000000,
       });
       testBudgetIds.push(budgetZ.id);
 
-      const budgetA = await createBudget(testMonth, {
+      const budgetA = await createBudget({
+        month: testMonth,
         categoryId: catA.id,
         amountIdr: 2000000,
       });
@@ -280,7 +292,8 @@ describe("Budget Integration Tests", () => {
   describe("Update Budget", () => {
     it("should update budget amount", async () => {
       const category = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 1000000,
       });
@@ -304,7 +317,8 @@ describe("Budget Integration Tests", () => {
 
     it("should reject invalid amount", async () => {
       const category = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 1000000,
       });
@@ -323,89 +337,15 @@ describe("Budget Integration Tests", () => {
     });
   });
 
-  describe("Upsert Budgets", () => {
-    it("should create multiple budgets in one call", async () => {
-      const cat1 = await createTestCategory();
-      const cat2 = await createTestCategory();
-
-      const result = await upsertBudgets({
-        month: testMonth,
-        items: [
-          { categoryId: cat1.id, amountIdr: 1000000 },
-          { categoryId: cat2.id, amountIdr: 2000000 },
-        ],
-      });
-
-      result.forEach((b) => testBudgetIds.push(b.id));
-      expect(result).toHaveLength(2);
-      expect(result.find((b) => b.category_id === cat1.id)?.amount_idr).toBe(
-        1000000,
-      );
-      expect(result.find((b) => b.category_id === cat2.id)?.amount_idr).toBe(
-        2000000,
-      );
-
-      // Cleanup
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      testBudgetIds.length = 0;
-    });
-
-    it("should update existing budgets and add new ones", async () => {
-      const cat1 = await createTestCategory();
-      const cat2 = await createTestCategory();
-      const cat3 = await createTestCategory();
-
-      // Create initial budget
-      const initial = await upsertBudgets({
-        month: testMonth,
-        items: [{ categoryId: cat1.id, amountIdr: 1000000 }],
-      });
-      initial.forEach((b) => testBudgetIds.push(b.id));
-
-      // Upsert with update and new
-      const result = await upsertBudgets({
-        month: testMonth,
-        items: [
-          { categoryId: cat1.id, amountIdr: 3000000 },
-          { categoryId: cat3.id, amountIdr: 500000 },
-        ],
-      });
-      result.forEach((b) => testBudgetIds.push(b.id));
-
-      expect(result).toHaveLength(2);
-      expect(result.find((b) => b.category_id === cat1.id)?.amount_idr).toBe(
-        3000000,
-      );
-      expect(result.find((b) => b.category_id === cat3.id)?.amount_idr).toBe(
-        500000,
-      );
-
-      // Cleanup
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      testBudgetIds.length = 0;
-    });
-
-    it("should reject non-existent category", async () => {
-      await expect(
-        upsertBudgets({
-          month: testMonth,
-          items: [{ categoryId: "non-existent", amountIdr: 1000000 }],
-        }),
-      ).rejects.toThrow("not found or archived");
-    });
-  });
-
   describe("Delete Budget", () => {
     it("should permanently delete a budget", async () => {
       const category = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 1000000,
       });
+      testBudgetIds.push(budget.id);
       testBudgetIds.push(budget.id);
 
       await deleteBudget(budget.id);
@@ -425,7 +365,8 @@ describe("Budget Integration Tests", () => {
   describe("Get Budget Summary", () => {
     it("should return budget summary for a month", async () => {
       const category = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 1000000,
       });
@@ -448,7 +389,8 @@ describe("Budget Integration Tests", () => {
 
     it("should return zero spent for month with no transactions", async () => {
       const category = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 500000,
       });
@@ -477,7 +419,8 @@ describe("Budget Integration Tests", () => {
   describe("Copy Budgets", () => {
     it("should copy budgets from one month to another", async () => {
       const cat1 = await createTestCategory();
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: cat1.id,
         amountIdr: 1000000,
       });
@@ -505,13 +448,15 @@ describe("Budget Integration Tests", () => {
       const cat1 = await createTestCategory();
       const cat2 = await createTestCategory();
 
-      const budget1 = await createBudget(testMonth, {
+      const budget1 = await createBudget({
+        month: testMonth,
         categoryId: cat1.id,
         amountIdr: 1000000,
       });
       testBudgetIds.push(budget1.id);
 
-      const budget2 = await createBudget(testMonth, {
+      const budget2 = await createBudget({
+        month: testMonth,
         categoryId: cat2.id,
         amountIdr: 2000000,
       });
@@ -534,13 +479,15 @@ describe("Budget Integration Tests", () => {
     it("should reject copying to month with existing budgets", async () => {
       const category = await createTestCategory();
 
-      const budget = await createBudget(testMonth, {
+      const budget = await createBudget({
+        month: testMonth,
         categoryId: category.id,
         amountIdr: 1000000,
       });
       testBudgetIds.push(budget.id);
 
-      const destBudget = await createBudget(testMonth2, {
+      const destBudget = await createBudget({
+        month: testMonth2,
         categoryId: category.id,
         amountIdr: 500000,
       });

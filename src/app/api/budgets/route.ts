@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import {
   listBudgets,
-  upsertBudgets,
+  createBudget,
   getBudgetSummary,
 } from "@/modules/Budget/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
@@ -64,19 +64,14 @@ export const GET = withRouteLogging(handleGet, {
 
 /**
  * POST /api/budgets
- * Upsert budgets for a month
+ * Create a single budget
  *
  * Body:
  * {
  *   month: "YYYY-MM-01",
- *   items: [
- *     { categoryId: string, amountIdr: number },
- *     ...
- *   ]
+ *   categoryId: string,
+ *   amountIdr: number
  * }
- *
- * This will create or update budgets for the specified month.
- * Categories not included in items will have their budgets deleted.
  */
 async function handlePost(request: NextRequest) {
   try {
@@ -88,10 +83,10 @@ async function handlePost(request: NextRequest) {
       return badRequest("Invalid JSON body");
     }
 
-    const budgets = await upsertBudgets(body);
-    return ok(budgets);
+    const budget = await createBudget(body);
+    return ok(budget);
   } catch (error: any) {
-    console.error("Error upserting budgets:", error);
+    console.error("Error creating budget:", error);
 
     // Handle validation errors (already formatted as Response)
     if (error instanceof Response) {
@@ -110,11 +105,6 @@ async function handlePost(request: NextRequest) {
 
     // Handle archived category errors
     if (error.message?.includes("archived")) {
-      return badRequest(error.message);
-    }
-
-    // Handle duplicate category IDs
-    if (error.message?.includes("Duplicate category")) {
       return badRequest(error.message);
     }
 
@@ -145,22 +135,12 @@ async function handlePost(request: NextRequest) {
       return serverError("Database error");
     }
 
-    return serverError("Failed to upsert budgets");
+    return serverError("Failed to create budget");
   }
 }
 
 export const POST = withRouteLogging(handlePost, {
-  operation: "api.budgets.upsert",
-  logQuery: false,
-  logBodyMetadata: true,
-});
-
-/**
- * PUT /api/budgets
- * Upsert budgets for a month (same as POST but follows REST conventions)
- */
-export const PUT = withRouteLogging(handlePost, {
-  operation: "api.budgets.upsert",
+  operation: "api.budgets.create",
   logQuery: false,
   logBodyMetadata: true,
 });

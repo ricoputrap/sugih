@@ -43,9 +43,8 @@ export default function BudgetsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [selectedBudget, setSelectedBudget] = useState<BudgetWithCategory | null>(
-    null,
-  );
+  const [selectedBudget, setSelectedBudget] =
+    useState<BudgetWithCategory | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
 
@@ -149,18 +148,14 @@ export default function BudgetsPage() {
   }) => {
     try {
       const response = await fetch("/api/budgets", {
-        method: "PUT",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           month: values.month,
-          items: [
-            {
-              categoryId: values.categoryId,
-              amountIdr: values.amountIdr,
-            },
-          ],
+          categoryId: values.categoryId,
+          amountIdr: values.amountIdr,
         }),
       });
 

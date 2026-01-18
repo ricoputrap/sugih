@@ -285,18 +285,19 @@ export async function upsertBudgets(
 /**
  * Create a single budget item
  */
-export async function createBudget(
-  month: string,
-  item: BudgetItem,
-): Promise<BudgetWithCategory> {
+export async function createBudget(input: {
+  month: string;
+  categoryId: string;
+  amountIdr: number;
+}): Promise<BudgetWithCategory> {
   const db = getDb();
 
   try {
-    BudgetMonthSchema.parse(month);
+    BudgetMonthSchema.parse(input.month);
 
     // Verify category exists and is not archived
     const categoryResult = await db.execute(
-      sql`SELECT id, name FROM categories WHERE id = ${item.categoryId} AND archived = false`,
+      sql`SELECT id, name FROM categories WHERE id = ${input.categoryId} AND archived = false`,
     );
 
     if (categoryResult.rows.length === 0) {
@@ -305,7 +306,7 @@ export async function createBudget(
 
     // Check if budget already exists for this month/category
     const existingResult = await db.execute(
-      sql`SELECT id FROM budgets WHERE month = ${month} AND category_id = ${item.categoryId}`,
+      sql`SELECT id FROM budgets WHERE month = ${input.month} AND category_id = ${input.categoryId}`,
     );
 
     if (existingResult.rows.length > 0) {
@@ -316,14 +317,14 @@ export async function createBudget(
     const now = new Date();
 
     await db.execute(
-      sql`INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at) VALUES (${id}, ${month}, ${item.categoryId}, ${item.amountIdr}, ${now}, ${now})`,
+      sql`INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at) VALUES (${id}, ${input.month}, ${input.categoryId}, ${input.amountIdr}, ${now}, ${now})`,
     );
 
     return {
       id,
-      month,
-      category_id: item.categoryId,
-      amount_idr: item.amountIdr,
+      month: input.month,
+      category_id: input.categoryId,
+      amount_idr: input.amountIdr,
       created_at: now,
       updated_at: now,
       category_name: categoryResult.rows[0].name as string,
