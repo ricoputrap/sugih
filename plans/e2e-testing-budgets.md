@@ -61,86 +61,66 @@ pnpm playwright test tests/e2e/
 | `tests/e2e/fixtures/budgets.ts`         | ✅     | Budget fixtures             |
 | `tests/e2e/budgets/budget-copy.spec.ts` | ✅     | 6 copy feature tests        |
 
+```
+
 ### Test File Structure
 
 ```
+
 tests/
 └── e2e/
-    ├── setup/
-    │   └── test-db.ts          ✅ Database helpers
-    ├── fixtures/
-    │   └── budgets.ts          ✅ Budget fixtures
-    ├── budgets/
-    │   ├── budget-copy.spec.ts ✅ 6 tests (Copy feature)
-    │   ├── budget-list.spec.ts 🔄 Pending
-    │   ├── budget-create.spec.ts 🔄 Pending
-    │   ├── budget-edit.spec.ts 🔄 Pending
-    │   └── budget-delete.spec.ts 🔄 Pending
-    └── smoke.spec.ts           ✅ 3 tests (verify setup)
-```
+├── setup/
+│ └── test-db.ts ✅ Database helpers
+├── fixtures/
+│ └── budgets.ts ✅ Budget fixtures
+├── budgets/
+│ ├── budget-copy.spec.ts ✅ 6 tests (Copy feature)
+│ ├── budget-list.spec.ts ✅ 9 tests (basic list functionality)
+│ ├── budget-create.spec.ts ✅ 9 tests (create functionality)
+│ ├── budget-edit.spec.ts ✅ 8 tests (edit functionality)
+│ └── budget-delete.spec.ts ✅ 8 tests (delete functionality)
+└── smoke.spec.ts ✅ 3 tests (verify setup)
 
-### Git Ignore
+````
 
-Add these to `.gitignore`:
+    ## ✅ Phase 2: Core Tests (COMPLETED)
 
-```gitignore
-# Playwright
-test-results/
-playwright-report/
-```
+    ### Created Test Files
 
-## Phase 2: Test Scenarios (Next)
+    | File                             | Tests | Status    | Description                        |
+    | -------------------------------- | ----- | --------- | ---------------------------------- |
+    | `budget-list.spec.ts`            | 9     | ✅ Passed | List, table, summary, formatting   |
+    | `budget-create.spec.ts`          | 9     | ✅ Passed | Dialog, form, validation, API      |
+    | `budget-edit.spec.ts`            | 8     | ✅ Passed | Edit dialog, updates, validation   |
+    | `budget-delete.spec.ts`          | 8     | ✅ Passed | Delete dialog, confirmation        |
+    | `budget-copy.spec.ts`            | 6     | ✅ Passed | Copy from previous month feature   |
 
-### Priority 1: Core Features (Must Have)
+    ### Test Results Summary
 
-#### 1. Budget List & Month Selection
+    | Category      | Tests | Passing | Status |
+    | ------------- | ----- | ------- | ------ |
+    | Smoke Tests   | 3     | 3/3     | ✅     |
+    | Budget List   | 9     | 9/9     | ✅     |
+    | Budget Create | 9     | 9/9     | ✅     |
+    | Budget Edit   | 8     | 8/8     | ✅     |
+    | Budget Delete | 8     | 8/8     | ✅     |
+    | Budget Copy   | 6     | 6/6     | ✅     |
+    | **Total**     | **43**| **43/43** | **✅** |
 
-**File**: `tests/e2e/budgets/budget-list.spec.ts`
+    ### Key Features Tested
 
-**Scenarios**:
-
-- ✅ Display budgets for selected month
-- ✅ Switch between months
-- ✅ Show empty state when no budgets
-- ✅ Display budget summary (total, spent, remaining)
-- ✅ Show correct currency formatting (IDR)
-
-#### 2. Create Budget
-
-**File**: `tests/e2e/budgets/budget-create.spec.ts`
-
-**Scenarios**:
-
-- ✅ Open create dialog
-- ✅ Fill form and submit
-- ✅ Validate required fields
-- ✅ Validate amount must be positive
-- ✅ Prevent duplicate (same category + month)
-- ✅ New budget appears in list
-- ✅ Summary updates after creation
-
-#### 3. Edit Budget
-
-**File**: `tests/e2e/budgets/budget-edit.spec.ts`
-
-**Scenarios**:
-
-- ✅ Open edit dialog from table
-- ✅ Update amount
-- ✅ Validate positive amount
-- ✅ Changes reflect in list
-- ✅ Summary updates after edit
-
-#### 4. Delete Budget
-
-**File**: `tests/e2e/budgets/budget-delete.spec.ts`
-
-**Scenarios**:
-
-- ✅ Delete budget from table
-- ✅ Confirm deletion
-- ✅ Budget removed from list
-- ✅ Summary updates after deletion
+    ✅ Page structure and navigation
+    ✅ Budget table display
+    ✅ Currency formatting (IDR)
+    ✅ Summary cards (Total Budgeted, Spent, Remaining)
+    ✅ Create budget dialog
+    ✅ Edit budget dialog
+    ✅ Delete budget dialog
+    ✅ Copy from previous month
+    ✅ API integration (create, update, delete)
+    ✅ Validation (positive amounts, required fields)
+    ✅ Multiple budgets handling
+    ✅ Large amounts formatting
 
 #### 5. Copy from Previous Month
 
@@ -249,7 +229,7 @@ test.describe("Copy Budgets from Previous Month", () => {
     await expect(page.locator("dialog")).not.toBeVisible();
   });
 });
-```
+````
 
 ## Test Data Strategy
 
@@ -387,11 +367,11 @@ jobs:
 |             | - Configure playwright.config.ts | ✅            |                   |
 |             | - Setup test database helpers    | ✅            |                   |
 |             | - Add data-testid attributes     | ✅            |                   |
-| **Phase 2** | Core Tests                       | 🔄 Pending    | 4 hours           |
-|             | - Budget list & month selection  | 🔄            |                   |
-|             | - Create budget                  | 🔄            |                   |
-|             | - Edit budget                    | 🔄            |                   |
-|             | - Delete budget                  | 🔄            |                   |
+| **Phase 2** | Core Tests                       | ✅ Complete   | 4 hours           |
+|             | - Budget list & month selection  | ✅            |                   |
+|             | - Create budget                  | ✅            |                   |
+|             | - Edit budget                    | ✅            |                   |
+|             | - Delete budget                  | ✅            |                   |
 | **Phase 3** | Copy Feature Tests               | ✅ Complete   | 3 hours           |
 |             | - Copy to empty month            | ✅            |                   |
 |             | - Copy with existing budgets     | ✅            |                   |
@@ -399,24 +379,28 @@ jobs:
 | **Phase 4** | CI/CD Integration                | 🔄 Pending    | 1 hour            |
 |             | - Setup GitHub Actions           | 🔄            |                   |
 |             | - Configure test reporting       | 🔄            |                   |
-| **Total**   |                                  | **~10 hours** | **~5 hours done** |
+| **Total**   |                                  | **~10 hours** | **~9 hours done** |
 
 ### Test Results
 
-| Test Suite    | Tests | Status         |
-| ------------- | ----- | -------------- |
-| Smoke Tests   | 3/3   | ✅ Passing     |
-| Copy Feature  | 6/6   | ✅ Implemented |
-| Core Features | 0/4   | 🔄 Pending     |
+| Test Suite    | Tests  | Status          |
+| ------------- | ------ | --------------- |
+| Smoke Tests   | 3/3    | ✅ Pass         |
+| Budget List   | 9/9    | ✅ Pass         |
+| Budget Create | 9/9    | ✅ Pass         |
+| Budget Edit   | 8/8    | ✅ Pass         |
+| Budget Delete | 8/8    | ✅ Pass         |
+| Budget Copy   | 6/6    | ✅ Pass         |
+| **Total**     | **43** | **✅ All Pass** |
 
 ## ✅ Success Metrics
 
 - ✅ Playwright setup complete
-- ✅ 3 smoke tests passing
-- ✅ 6 copy feature tests implemented
-- 🔄 Zero flaky tests (in progress)
-- 🔄 100% pass rate in CI (in progress)
-- 🔄 Tests run in < 5 minutes (in progress)
+- ✅ 43 E2E tests implemented and passing
+- ✅ All core budget features tested
+- ✅ Copy from previous feature tested
+- 🔄 CI/CD integration (next phase)
+- 🔄 Test run optimization (next phase)
 
 ## Next Steps
 
@@ -424,10 +408,10 @@ jobs:
 2. ✅ Configure playwright.config.ts
 3. ✅ Add data-testid attributes to UI components
 4. ✅ Implement budget-copy.spec.ts
-5. 🔄 Implement budget-list.spec.ts
-6. 🔄 Implement budget-create.spec.ts
-7. 🔄 Implement budget-edit.spec.ts
-8. 🔄 Implement budget-delete.spec.ts
+5. ✅ Implement budget-list.spec.ts
+6. ✅ Implement budget-create.spec.ts
+7. ✅ Implement budget-edit.spec.ts
+8. ✅ Implement budget-delete.spec.ts
 9. 🔄 Setup CI/CD integration
 10. 🔄 Run tests regularly in development
 
@@ -440,6 +424,9 @@ pnpm playwright test tests/e2e/smoke.spec.ts
 # Run copy feature tests
 pnpm playwright test tests/e2e/budgets/budget-copy.spec.ts
 
+# Run all budget tests
+pnpm playwright test tests/e2e/budgets/
+
 # Run all E2E tests
 pnpm playwright test tests/e2e/
 
@@ -447,8 +434,26 @@ pnpm playwright test tests/e2e/
 pnpm playwright show-report
 ```
 
+## 🎉 E2E Testing Implementation Complete!
+
+All 43 E2E tests are implemented and passing. The Budgets module now has comprehensive end-to-end test coverage for:
+
+- ✅ Page loading and structure
+- ✅ Budget list and table display
+- ✅ Create/Edit/Delete budget workflows
+- ✅ Copy from previous month feature
+- ✅ Summary cards and calculations
+- ✅ Currency formatting
+- ✅ API integration
+
+**Ready for CI/CD integration!**
+
 ## Resources
 
 - [Playwright Documentation](https://playwright.dev)
 - [Playwright Best Practices](https://playwright.dev/docs/best-practices)
 - [Next.js + Playwright Guide](https://nextjs.org/docs/testing#playwright)
+
+```
+
+```

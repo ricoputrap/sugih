@@ -250,7 +250,7 @@ export function BudgetDialogForm({
                       disabled={categoriesLoading}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger data-testid="budget-form-category">
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                       </FormControl>
@@ -299,6 +299,7 @@ export function BudgetDialogForm({
                     <Input
                       type="number"
                       placeholder="0"
+                      data-testid="budget-form-amount"
                       {...field}
                       onChange={(e) =>
                         field.onChange(parseInt(e.target.value) || 0)
