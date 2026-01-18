@@ -5,25 +5,25 @@
  * Aggregates data from Report and Transaction modules for the dashboard UI.
  */
 
-import { getDb } from "@/db/client";
+import { getDb, getPool } from "@/db/drizzle-client";
+import { unprocessableEntity } from "@/lib/http";
 import { formatZodError } from "@/lib/zod";
 import {
-  spendingTrend,
   categoryBreakdown,
-  netWorthTrend,
   moneyLeftToSpend,
+  netWorthTrend,
+  spendingTrend,
 } from "@/modules/Report/actions";
 import { listTransactions } from "@/modules/Transaction/actions";
 import {
+  type CategoryBreakdownData,
+  type DashboardData,
   DashboardDateRangeSchema,
-  DashboardSummary,
-  SpendingTrendChartData,
-  NetWorthChartData,
-  CategoryBreakdownData,
-  RecentTransaction,
-  DashboardData,
+  type DashboardSummary,
+  type NetWorthChartData,
+  type RecentTransaction,
+  type SpendingTrendChartData,
 } from "./schema";
-import { unprocessableEntity } from "@/lib/http";
 
 // ============================================================================
 // DASHBOARD SUMMARY
@@ -352,21 +352,21 @@ export async function getDashboardData(
  * Get current net worth (wallet balance + savings balance)
  */
 async function getCurrentNetWorth(): Promise<number> {
-  const db = getDb();
+  const pool = getPool();
 
   try {
-    const result = await db<{ net_worth: string }[]>`
-      SELECT
-        (
+    const result = await pool.query(
+      `SELECT
+        COALESCE(
           COALESCE(SUM(CASE WHEN p.wallet_id IS NOT NULL THEN p.amount_idr ELSE 0 END), 0) +
           COALESCE(SUM(CASE WHEN p.savings_bucket_id IS NOT NULL THEN p.amount_idr ELSE 0 END), 0)
-        )::numeric as net_worth
+        , 0)::numeric as net_worth
       FROM postings p
       LEFT JOIN transaction_events te ON p.event_id = te.id
-      WHERE te.deleted_at IS NULL
-    `;
+      WHERE te.deleted_at IS NULL OR te.id IS NULL`,
+    );
 
-    return Number(result[0]?.net_worth || 0);
+    return Number(result.rows[0]?.net_worth || 0);
   } catch (error) {
     console.error("Error calculating current net worth:", error);
     return 0;
@@ -380,11 +380,11 @@ async function getTotalSpending(
   from: Date,
   to: Date,
 ): Promise<{ total: number; count: number }> {
-  const db = getDb();
+  const pool = getPool();
 
   try {
-    const sql = `
-      SELECT
+    const result = await pool.query(
+      `SELECT
         COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total,
         COUNT(DISTINCT te.id)::int as count
       FROM transaction_events te
@@ -392,19 +392,13 @@ async function getTotalSpending(
       WHERE te.type = 'expense'
         AND te.deleted_at IS NULL
         AND te.occurred_at >= $1
-        AND te.occurred_at <= $2
-    `;
-    // Convert Date objects to ISO strings for SQL query
-    const params = [from.toISOString(), to.toISOString()];
-
-    const result = await db.unsafe<{ total: string; count: string }[]>(
-      sql,
-      params,
+        AND te.occurred_at <= $2`,
+      [from, to],
     );
 
     return {
-      total: Number(result[0]?.total || 0),
-      count: Number(result[0]?.count || 0),
+      total: Number(result.rows[0]?.total || 0),
+      count: Number(result.rows[0]?.count || 0),
     };
   } catch (error) {
     console.error("Error calculating total spending:", error);
@@ -419,11 +413,11 @@ async function getTotalIncome(
   from: Date,
   to: Date,
 ): Promise<{ total: number; count: number }> {
-  const db = getDb();
+  const pool = getPool();
 
   try {
-    const sql = `
-      SELECT
+    const result = await pool.query(
+      `SELECT
         COALESCE(SUM(p.amount_idr), 0)::numeric as total,
         COUNT(DISTINCT te.id)::int as count
       FROM transaction_events te
@@ -431,19 +425,13 @@ async function getTotalIncome(
       WHERE te.type = 'income'
         AND te.deleted_at IS NULL
         AND te.occurred_at >= $1
-        AND te.occurred_at <= $2
-    `;
-    // Convert Date objects to ISO strings for SQL query
-    const params = [from.toISOString(), to.toISOString()];
-
-    const result = await db.unsafe<{ total: string; count: string }[]>(
-      sql,
-      params,
+        AND te.occurred_at <= $2`,
+      [from, to],
     );
 
     return {
-      total: Number(result[0]?.total || 0),
-      count: Number(result[0]?.count || 0),
+      total: Number(result.rows[0]?.total || 0),
+      count: Number(result.rows[0]?.count || 0),
     };
   } catch (error) {
     console.error("Error calculating total income:", error);
