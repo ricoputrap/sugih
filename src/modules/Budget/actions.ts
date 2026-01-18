@@ -16,7 +16,7 @@ import {
   BudgetWithCategory,
   Budget,
 } from "./schema";
-import { getDb } from "@/db/client";
+import { getDb, getPool, sql } from "@/db/drizzle-client";
 import { formatZodError } from "@/lib/zod";
 import { unprocessableEntity } from "@/lib/http";
 
@@ -47,30 +47,27 @@ export async function listBudgets(
   try {
     const validatedQuery = BudgetQuerySchema.parse(query);
 
-    let budgets: BudgetWithCategory[];
+    let result;
 
     if (validatedQuery.month) {
-      budgets = await db<BudgetWithCategory[]>`
-        SELECT
-          b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at,
-          c.name as category_name
-        FROM budgets b
-        LEFT JOIN categories c ON b.category_id = c.id
-        WHERE b.month = ${validatedQuery.month}
-        ORDER BY c.name ASC
-      `;
+      result = await db.execute(
+        sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.month = ${validatedQuery.month} ORDER BY c.name ASC`,
+      );
     } else {
-      budgets = await db<BudgetWithCategory[]>`
-        SELECT
-          b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at,
-          c.name as category_name
-        FROM budgets b
-        LEFT JOIN categories c ON b.category_id = c.id
-        ORDER BY b.month DESC, c.name ASC
-      `;
+      result = await db.execute(
+        sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id ORDER BY b.month DESC, c.name ASC`,
+      );
     }
 
-    return Array.from(budgets);
+    return result.rows.map((row) => ({
+      id: row.id as string,
+      month: row.month as string,
+      category_id: row.category_id as string,
+      amount_idr: row.amount_idr as number,
+      created_at: row.created_at as Date | null,
+      updated_at: row.updated_at as Date | null,
+      category_name: row.category_name as string,
+    }));
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity("Invalid budget query", formatZodError(error));
@@ -90,16 +87,22 @@ export async function getBudgetById(
   try {
     BudgetIdSchema.parse({ id });
 
-    const budgets = await db<BudgetWithCategory[]>`
-      SELECT
-        b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at,
-        c.name as category_name
-      FROM budgets b
-      LEFT JOIN categories c ON b.category_id = c.id
-      WHERE b.id = ${id}
-    `;
+    const result = await db.execute(
+      sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.id = ${id}`,
+    );
 
-    return budgets[0] || null;
+    const row = result.rows[0];
+    if (!row) return null;
+
+    return {
+      id: row.id as string,
+      month: row.month as string,
+      category_id: row.category_id as string,
+      amount_idr: row.amount_idr as number,
+      created_at: row.created_at as Date | null,
+      updated_at: row.updated_at as Date | null,
+      category_name: row.category_name as string,
+    };
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity("Invalid budget ID", formatZodError(error));
@@ -119,17 +122,19 @@ export async function getBudgetsByMonth(
   try {
     BudgetMonthSchema.parse(month);
 
-    const budgets = await db<BudgetWithCategory[]>`
-      SELECT
-        b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at,
-        c.name as category_name
-      FROM budgets b
-      LEFT JOIN categories c ON b.category_id = c.id
-      WHERE b.month = ${month}
-      ORDER BY c.name ASC
-    `;
+    const result = await db.execute(
+      sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.month = ${month} ORDER BY c.name ASC`,
+    );
 
-    return Array.from(budgets);
+    return result.rows.map((row) => ({
+      id: row.id as string,
+      month: row.month as string,
+      category_id: row.category_id as string,
+      amount_idr: row.amount_idr as number,
+      created_at: row.created_at as Date | null,
+      updated_at: row.updated_at as Date | null,
+      category_name: row.category_name as string,
+    }));
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity("Invalid month format", formatZodError(error));
