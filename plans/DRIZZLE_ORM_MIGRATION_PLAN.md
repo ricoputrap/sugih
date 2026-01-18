@@ -1398,7 +1398,7 @@ describe("Budget Integration Tests", () => {
 - [x] **Step 5.2**: Update imports in `src/modules/Transaction/actions.ts`
 - [x] **Step 5.3**: Migrate `listTransactions()` (complex joins with Drizzle)
 - [x] **Step 5.4**: Migrate `getTransactionById()`
-- [ ] **Step 5.5**: Migrate transaction creation functions using Drizzle transactions
+- [x] **Step 5.5**: Migrate transaction creation functions using Drizzle transactions
 - [ ] **Step 5.6**: Migrate `deleteTransaction()`, `restoreTransaction()`, `permanentlyDeleteTransaction()`
 - [ ] **Step 5.7**: Migrate `getTransactionStats()`
 

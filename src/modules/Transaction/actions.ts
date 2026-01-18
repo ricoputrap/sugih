@@ -862,35 +862,26 @@ export async function createSavingsWithdrawal(
  * Soft delete a transaction
  */
 export async function deleteTransaction(id: string): Promise<void> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    TransactionIdSchema.parse({ id });
+  TransactionIdSchema.parse({ id });
 
-    const existing = await getTransactionById(id);
-    if (!existing) {
-      throw new Error("Transaction not found");
-    }
-
-    if (existing.deleted_at) {
-      throw new Error("Transaction is already deleted");
-    }
-
-    const now = new Date();
-    await db`
-      UPDATE transaction_events
-      SET deleted_at = ${now}, updated_at = ${now}
-      WHERE id = ${id}
-    `;
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity(
-        "Invalid transaction ID",
-        formatZodError(error),
-      );
-    }
-    throw error;
+  const existing = await getTransactionById(id);
+  if (!existing) {
+    throw new Error("Transaction not found");
   }
+
+  if (existing.deleted_at) {
+    throw new Error("Transaction is already deleted");
+  }
+
+  const now = new Date();
+  await pool.query(
+    `UPDATE transaction_events
+    SET deleted_at = $1, updated_at = $2
+    WHERE id = $3`,
+    [now, now, id],
+  );
 }
 
 /**
@@ -899,73 +890,64 @@ export async function deleteTransaction(id: string): Promise<void> {
 export async function restoreTransaction(
   id: string,
 ): Promise<TransactionWithPostings> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    TransactionIdSchema.parse({ id });
+  TransactionIdSchema.parse({ id });
 
-    const existing = await getTransactionById(id);
-    if (!existing) {
-      throw new Error("Transaction not found");
-    }
-
-    if (!existing.deleted_at) {
-      throw new Error("Transaction is not deleted");
-    }
-
-    const now = new Date();
-    await db`
-      UPDATE transaction_events
-      SET deleted_at = ${null}, updated_at = ${now}
-      WHERE id = ${id}
-    `;
-
-    const result = await getTransactionById(id);
-    if (!result) {
-      throw new Error("Failed to retrieve restored transaction");
-    }
-
-    return result;
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity(
-        "Invalid transaction ID",
-        formatZodError(error),
-      );
-    }
-    throw error;
+  const existing = await getTransactionById(id);
+  if (!existing) {
+    throw new Error("Transaction not found");
   }
+
+  if (!existing.deleted_at) {
+    throw new Error("Transaction is not deleted");
+  }
+
+  const now = new Date();
+  await pool.query(
+    `UPDATE transaction_events
+    SET deleted_at = NULL, updated_at = $1
+    WHERE id = $2`,
+    [now, id],
+  );
+
+  const result = await getTransactionById(id);
+  if (!result) {
+    throw new Error("Failed to retrieve restored transaction");
+  }
+
+  return result;
 }
 
 /**
  * Permanently delete a transaction and its postings
  */
 export async function permanentlyDeleteTransaction(id: string): Promise<void> {
-  const db = getDb();
+  const pool = getPool();
 
+  TransactionIdSchema.parse({ id });
+
+  const existing = await getTransactionById(id);
+  if (!existing) {
+    throw new Error("Transaction not found");
+  }
+
+  const client = await pool.connect();
   try {
-    TransactionIdSchema.parse({ id });
+    await client.query("BEGIN");
 
-    const existing = await getTransactionById(id);
-    if (!existing) {
-      throw new Error("Transaction not found");
-    }
+    // Delete postings first (foreign key constraint)
+    await client.query(`DELETE FROM postings WHERE event_id = $1`, [id]);
 
-    await db.begin(async (tx) => {
-      // Delete postings first (foreign key constraint)
-      await tx`DELETE FROM postings WHERE event_id = ${id}`;
+    // Delete transaction event
+    await client.query(`DELETE FROM transaction_events WHERE id = $1`, [id]);
 
-      // Delete transaction event
-      await tx`DELETE FROM transaction_events WHERE id = ${id}`;
-    });
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity(
-        "Invalid transaction ID",
-        formatZodError(error),
-      );
-    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
     throw error;
+  } finally {
+    client.release();
   }
 }
 
