@@ -314,6 +314,7 @@ export default function BudgetsPage() {
               variant="outline"
               onClick={handleCopyFromPrevious}
               disabled={isLoading}
+              data-testid="copy-from-previous"
             >
               <Copy className="mr-2 h-4 w-4" />
               Copy from Previous
@@ -338,7 +339,10 @@ export default function BudgetsPage() {
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <Select value={selectedMonth} onValueChange={handleMonthChange}>
-                <SelectTrigger className="w-full max-w-md">
+                <SelectTrigger
+                  className="w-full max-w-md"
+                  data-testid="month-select"
+                >
                   <SelectValue placeholder="Select a month" />
                 </SelectTrigger>
                 <SelectContent>
