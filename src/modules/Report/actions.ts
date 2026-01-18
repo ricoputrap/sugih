@@ -11,19 +11,19 @@
  * - moneyLeftToSpend: Calculate remaining budget for a month
  */
 
-import { getDb } from "@/db/client";
+import { getDb, getPool, sql } from "@/db/drizzle-client";
+import { unprocessableEntity } from "@/lib/http";
 import { formatZodError } from "@/lib/zod";
 import {
-  SpendingTrendQuerySchema,
+  type CategoryBreakdownData,
   CategoryBreakdownQuerySchema,
-  NetWorthTrendQuerySchema,
+  type MoneyLeftToSpendData,
   MoneyLeftToSpendQuerySchema,
-  SpendingTrendData,
-  CategoryBreakdownData,
-  NetWorthData,
-  MoneyLeftToSpendData,
+  type NetWorthData,
+  NetWorthTrendQuerySchema,
+  type SpendingTrendData,
+  SpendingTrendQuerySchema,
 } from "./schema";
-import { unprocessableEntity } from "@/lib/http";
 
 // ============================================================================
 // SPENDING TREND
@@ -41,50 +41,36 @@ import { unprocessableEntity } from "@/lib/http";
 export async function spendingTrend(
   query: unknown,
 ): Promise<SpendingTrendData[]> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    const validatedQuery = SpendingTrendQuerySchema.parse(query);
-    const fromStr = validatedQuery.from?.toISOString();
-    const toStr = validatedQuery.to?.toISOString();
-    const granularity = validatedQuery.granularity ?? "month";
+  const validatedQuery = SpendingTrendQuerySchema.parse(query);
+  const from = validatedQuery.from;
+  const to = validatedQuery.to;
+  const granularity = validatedQuery.granularity ?? "month";
 
-    const result = await db<
-      {
-        period: Date;
-        total_amount: string;
-        transaction_count: string;
-      }[]
-    >`
-      SELECT
-        DATE_TRUNC(${granularity}, te.occurred_at) as period,
-        COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total_amount,
-        COUNT(DISTINCT te.id)::int as transaction_count
-      FROM transaction_events te
-      JOIN postings p ON te.id = p.event_id
-      WHERE
-        te.type = 'expense'
-        AND te.deleted_at IS NULL
-        ${fromStr ? db`AND te.occurred_at >= ${fromStr}` : db``}
-        ${toStr ? db`AND te.occurred_at <= ${toStr}` : db``}
-      GROUP BY period
-      ORDER BY period ASC
-    `;
+  const granularityFormat = granularity === "month" ? "YYYY-MM" : "YYYY-MM-DD";
 
-    return result.map((row) => ({
-      period: row.period.toISOString().split("T")[0],
-      totalAmount: Number(row.total_amount),
-      transactionCount: Number(row.transaction_count),
-    }));
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity(
-        "Invalid spending trend query",
-        formatZodError(error),
-      );
-    }
-    throw error;
-  }
+  const result = await pool.query(
+    `SELECT
+      to_char(te.occurred_at, $1) as period,
+      COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total_amount,
+      COUNT(DISTINCT te.id)::int as transaction_count
+    FROM transaction_events te
+    JOIN postings p ON te.id = p.event_id
+    WHERE te.type = $2
+      AND te.deleted_at IS NULL
+      AND te.occurred_at >= $3
+      AND te.occurred_at <= $4
+    GROUP BY period
+    ORDER BY period ASC`,
+    [granularityFormat, "expense", from, to],
+  );
+
+  return result.rows.map((row) => ({
+    period: row.period,
+    totalAmount: Number(row.total_amount),
+    transactionCount: row.transaction_count,
+  }));
 }
 
 // ============================================================================
