@@ -103,15 +103,17 @@ When copying budgets from Month A to Month B:
 
 ## Implementation Plan
 
-### Step 1: Fix `copyBudgets` Function
+### ✅ Step 1: Fix `copyBudgets` Function
 
 **File**: `src/modules/Budget/actions.ts`
 
+**Status**: ✅ Complete
+
 **Changes**:
 
-1. **Remove the restrictive check** (lines 548-551)
+1. **Remove the restrictive check** (lines 548-551) ✅
 
-2. **Implement selective copy logic**:
+2. **Implement selective copy logic** ✅
 
 ```typescript
 export async function copyBudgets(
@@ -219,9 +221,11 @@ export async function copyBudgets(
 - Returns early if nothing to copy
 - No UPDATE operations - only INSERT for missing categories
 
-### Step 2: Create API Endpoint
+### ✅ Step 2: Create API Endpoint
 
 **File**: `src/app/api/budgets/copy/route.ts` (new file)
+
+**Status**: ✅ Complete
 
 ```typescript
 import { NextRequest } from "next/server";
@@ -321,7 +325,7 @@ export const POST = withRouteLogging(handlePost, {
 });
 ```
 
-### Step 3: Create Copy Result Modal Component
+### 🔄 Step 3: Create Copy Result Modal Component
 
 **File**: `src/modules/Budget/components/CopyResultModal.tsx` (new file)
 
@@ -429,7 +433,7 @@ export function CopyResultModal({
 }
 ```
 
-### Step 4: Update Frontend
+### 🔄 Step 4: Update Frontend
 
 **File**: `src/app/budgets/page.tsx`
 
@@ -524,7 +528,7 @@ const handleCopyFromPrevious = async () => {
 import { CopyResultModal } from "@/modules/Budget/components/CopyResultModal";
 ```
 
-### Step 5: Add Tests
+### 🔄 Step 5: Add Tests
 
 **File**: `src/app/api/budgets/copy/route.test.ts` (new file)
 
@@ -544,23 +548,29 @@ Test cases:
 
 ### Create:
 
-1. `src/app/api/budgets/copy/route.ts` - New endpoint for copying budgets
-2. `src/app/api/budgets/copy/route.test.ts` - Tests for copy endpoint
-3. `src/modules/Budget/components/CopyResultModal.tsx` - Modal for showing copy results
+| File                                                | Status      |
+| --------------------------------------------------- | ----------- |
+| `src/app/api/budgets/copy/route.ts`                 | ✅ Complete |
+| `src/app/api/budgets/copy/route.test.ts`            | 🔄 Pending  |
+| `src/modules/Budget/components/CopyResultModal.tsx` | 🔄 Pending  |
 
 ### Modify:
 
-1. `src/modules/Budget/actions.ts` - Fix `copyBudgets` function to selectively copy
-2. `src/app/budgets/page.tsx` - Update `handleCopyFromPrevious` and add modal
+| File                                             | Status      |
+| ------------------------------------------------ | ----------- |
+| `src/modules/Budget/actions.ts`                  | ✅ Complete |
+| `src/modules/Budget/actions.integration.test.ts` | ✅ Complete |
+| `src/app/budgets/page.tsx`                       | 🔄 Pending  |
 
 ## Estimated Effort
 
-- Step 1 (Fix copyBudgets): 25 minutes
-- Step 2 (Create API endpoint): 15 minutes
-- Step 3 (Create modal component): 20 minutes
-- Step 4 (Update frontend): 15 minutes
-- Step 5 (Add tests): 25 minutes
+- Step 1 (Fix copyBudgets): 25 minutes ✅
+- Step 2 (Create API endpoint): 15 minutes ✅
+- Step 3 (Create modal component): 20 minutes 🔄
+- Step 4 (Update frontend): 15 minutes 🔄
+- Step 5 (Add tests): 25 minutes 🔄
 - **Total: ~100 minutes (1.5-2 hours)**
+- **Completed: ~60 minutes**
 
 ## Benefits of This Approach
 
