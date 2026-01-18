@@ -426,19 +426,20 @@ describe("Budget Integration Tests", () => {
       });
       testBudgetIds.push(budget.id);
 
-      const copied = await copyBudgets(testMonth, testMonth2);
+      const result = await copyBudgets(testMonth, testMonth2);
 
-      expect(copied).toHaveLength(1);
-      expect(copied[0].month).toBe(testMonth2);
-      expect(copied[0].category_id).toBe(cat1.id);
-      expect(Number(copied[0].amount_idr)).toBe(1000000);
-      expect(copied[0].id).not.toBe(budget.id);
+      expect(result.created).toHaveLength(1);
+      expect(result.skipped).toHaveLength(0);
+      expect(result.created[0].month).toBe(testMonth2);
+      expect(result.created[0].category_id).toBe(cat1.id);
+      expect(Number(result.created[0].amount_idr)).toBe(1000000);
+      expect(result.created[0].id).not.toBe(budget.id);
 
       // Cleanup source and destination budgets
       for (const id of testBudgetIds) {
         await cleanupTestBudget(id);
       }
-      for (const b of copied) {
+      for (const b of result.created) {
         await cleanupTestBudget(b.id);
       }
       testBudgetIds.length = 0;
@@ -462,21 +463,22 @@ describe("Budget Integration Tests", () => {
       });
       testBudgetIds.push(budget2.id);
 
-      const copied = await copyBudgets(testMonth, testMonth2);
+      const result = await copyBudgets(testMonth, testMonth2);
 
-      expect(copied).toHaveLength(2);
+      expect(result.created).toHaveLength(2);
+      expect(result.skipped).toHaveLength(0);
 
       // Cleanup all budgets
       for (const id of testBudgetIds) {
         await cleanupTestBudget(id);
       }
-      for (const b of copied) {
+      for (const b of result.created) {
         await cleanupTestBudget(b.id);
       }
       testBudgetIds.length = 0;
     });
 
-    it("should reject copying to month with existing budgets", async () => {
+    it("should skip copying to month with existing budgets", async () => {
       const category = await createTestCategory();
 
       const budget = await createBudget({
@@ -493,13 +495,71 @@ describe("Budget Integration Tests", () => {
       });
       testBudgetIds.push(destBudget.id);
 
-      await expect(copyBudgets(testMonth, testMonth2)).rejects.toThrow(
-        "already has budgets",
-      );
+      // Should succeed but skip the existing budget
+      const result = await copyBudgets(testMonth, testMonth2);
+      expect(result.created).toHaveLength(0);
+      expect(result.skipped).toHaveLength(1);
+      expect(result.skipped[0].categoryId).toBe(category.id);
 
       // Cleanup
       for (const id of testBudgetIds) {
         await cleanupTestBudget(id);
+      }
+      testBudgetIds.length = 0;
+    });
+
+    it("should copy only missing budgets when some exist", async () => {
+      const cat1 = await createTestCategory();
+      const cat2 = await createTestCategory();
+      const cat3 = await createTestCategory();
+
+      // Create budgets in source month (cat1, cat2, cat3)
+      const budget1 = await createBudget({
+        month: testMonth,
+        categoryId: cat1.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(budget1.id);
+
+      const budget2 = await createBudget({
+        month: testMonth,
+        categoryId: cat2.id,
+        amountIdr: 2000000,
+      });
+      testBudgetIds.push(budget2.id);
+
+      const budget3 = await createBudget({
+        month: testMonth,
+        categoryId: cat3.id,
+        amountIdr: 3000000,
+      });
+      testBudgetIds.push(budget3.id);
+
+      // Create existing budget in destination (cat2 only)
+      const destBudget = await createBudget({
+        month: testMonth2,
+        categoryId: cat2.id,
+        amountIdr: 500000,
+      });
+      testBudgetIds.push(destBudget.id);
+
+      // Should copy cat1 and cat3, skip cat2
+      const result = await copyBudgets(testMonth, testMonth2);
+      expect(result.created).toHaveLength(2);
+      expect(result.skipped).toHaveLength(1);
+      expect(result.skipped[0].categoryId).toBe(cat2.id);
+
+      const createdCategoryIds = result.created.map((b) => b.category_id);
+      expect(createdCategoryIds).toContain(cat1.id);
+      expect(createdCategoryIds).toContain(cat3.id);
+      expect(createdCategoryIds).not.toContain(cat2.id);
+
+      // Cleanup all budgets
+      for (const id of testBudgetIds) {
+        await cleanupTestBudget(id);
+      }
+      for (const b of result.created) {
+        await cleanupTestBudget(b.id);
       }
       testBudgetIds.length = 0;
     });

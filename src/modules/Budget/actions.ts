@@ -526,7 +526,10 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
 export async function copyBudgets(
   fromMonth: string,
   toMonth: string,
-): Promise<BudgetWithCategory[]> {
+): Promise<{
+  created: Array<BudgetWithCategory & { category_name: string }>;
+  skipped: Array<{ categoryId: string; categoryName: string }>;
+}> {
   const pool = getPool();
 
   try {
@@ -544,21 +547,44 @@ export async function copyBudgets(
       throw new Error("No budgets found for source month");
     }
 
-    // Check if destination month already has budgets
+    // Get existing budgets in destination month
     const existingBudgets = await getBudgetsByMonth(toMonth);
-    if (existingBudgets.length > 0) {
-      throw new Error("Destination month already has budgets");
+    const existingCategoryIds = new Set(
+      existingBudgets.map((b) => b.category_id),
+    );
+
+    // Filter source budgets to only include categories NOT in destination
+    const budgetsToCopy = sourceBudgets.filter(
+      (b) => !existingCategoryIds.has(b.category_id),
+    );
+
+    // Track skipped budgets
+    const skippedBudgets = sourceBudgets
+      .filter((b) => existingCategoryIds.has(b.category_id))
+      .map((b) => ({
+        categoryId: b.category_id,
+        categoryName: b.category_name ?? "",
+      }));
+
+    // If all budgets already exist, return early
+    if (budgetsToCopy.length === 0) {
+      return {
+        created: [],
+        skipped: skippedBudgets,
+      };
     }
 
     const client = await pool.connect();
     const now = new Date();
-    const newBudgets: Array<BudgetWithCategory & { category_name: string }> =
-      [];
+    const createdBudgets: Array<
+      BudgetWithCategory & { category_name: string }
+    > = [];
 
     try {
       await client.query("BEGIN");
 
-      for (const budget of sourceBudgets) {
+      // Insert only the budgets that don't exist in destination
+      for (const budget of budgetsToCopy) {
         const newId = nanoid();
         await client.query(
           `INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
@@ -566,7 +592,7 @@ export async function copyBudgets(
           [newId, toMonth, budget.category_id, budget.amount_idr, now, now],
         );
 
-        newBudgets.push({
+        createdBudgets.push({
           id: newId,
           month: toMonth,
           category_id: budget.category_id,
@@ -578,7 +604,10 @@ export async function copyBudgets(
       }
 
       await client.query("COMMIT");
-      return newBudgets;
+      return {
+        created: createdBudgets,
+        skipped: skippedBudgets,
+      };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
