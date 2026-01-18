@@ -1395,12 +1395,12 @@ describe("Budget Integration Tests", () => {
 
 ### Backend Actions
 
-- [ ] **Step 5.1**: Update imports in `src/modules/Transaction/actions.ts`
-- [ ] **Step 5.2**: Migrate `listTransactions()` (complex joins with Drizzle)
-- [ ] **Step 5.3**: Migrate `getTransactionById()`
-- [ ] **Step 5.4**: Migrate transaction creation functions using Drizzle transactions
-- [ ] **Step 5.5**: Migrate `deleteTransaction()`, `restoreTransaction()`, `permanentlyDeleteTransaction()`
-- [ ] **Step 5.6**: Migrate `getTransactionStats()`
+- [ ] **Step 5.2**: Update imports in `src/modules/Transaction/actions.ts`
+- [ ] **Step 5.3**: Migrate `listTransactions()` (complex joins with Drizzle)
+- [ ] **Step 5.4**: Migrate `getTransactionById()`
+- [ ] **Step 5.5**: Migrate transaction creation functions using Drizzle transactions
+- [ ] **Step 5.6**: Migrate `deleteTransaction()`, `restoreTransaction()`, `permanentlyDeleteTransaction()`
+- [ ] **Step 5.7**: Migrate `getTransactionStats()`
 
 **Key Pattern for Transaction Creation with Raw SQL** (following Phase 1 patterns):
 
@@ -1504,9 +1504,9 @@ export async function createExpense(
 
 **Why Drizzle**: Type-safe transaction with automatic type inference for inserted/returning values.
 
-### Tests
+### Tests (TDD - Write First)
 
-- [ ] **Step 5.7**: Create `src/modules/Transaction/actions.integration.test.ts`
+- [ ] **Step 5.1**: Create `src/modules/Transaction/actions.integration.test.ts`
 
 ```typescript
 import { describe, it, expect, beforeEach, afterEach, afterAll } from "vitest";
@@ -1710,7 +1710,7 @@ describe("Transaction Integration Tests", () => {
 
 ### Verification
 
-- [ ] **Step 5.8**: Run tests: `pnpm test src/modules/Transaction/actions.integration.test.ts`
+- [ ] **Step 5.8**: Run tests: `pnpm test src/modules/Transaction/actions.integration.test.ts` (should fail - implementing TDD red-green cycle)
 
 ---
 
