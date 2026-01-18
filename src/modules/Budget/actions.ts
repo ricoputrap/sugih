@@ -14,7 +14,6 @@ import {
   BudgetMonthSchema,
   BudgetItem,
   BudgetWithCategory,
-  Budget,
 } from "./schema";
 import { getDb, getPool, sql } from "@/db/drizzle-client";
 import { formatZodError } from "@/lib/zod";
@@ -290,15 +289,14 @@ export async function createBudget(
   month: string,
   item: BudgetItem,
 ): Promise<BudgetWithCategory> {
-  const pool = getPool();
+  const db = getDb();
 
   try {
     BudgetMonthSchema.parse(month);
 
     // Verify category exists and is not archived
-    const categoryResult = await pool.query(
-      `SELECT id, name FROM categories WHERE id = $1 AND archived = false`,
-      [item.categoryId],
+    const categoryResult = await db.execute(
+      sql`SELECT id, name FROM categories WHERE id = ${item.categoryId} AND archived = false`,
     );
 
     if (categoryResult.rows.length === 0) {
@@ -306,9 +304,8 @@ export async function createBudget(
     }
 
     // Check if budget already exists for this month/category
-    const existingResult = await pool.query(
-      `SELECT id FROM budgets WHERE month = $1 AND category_id = $2`,
-      [month, item.categoryId],
+    const existingResult = await db.execute(
+      sql`SELECT id FROM budgets WHERE month = ${month} AND category_id = ${item.categoryId}`,
     );
 
     if (existingResult.rows.length > 0) {
@@ -318,10 +315,8 @@ export async function createBudget(
     const id = nanoid();
     const now = new Date();
 
-    await pool.query(
-      `INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [id, month, item.categoryId, item.amountIdr, now, now],
+    await db.execute(
+      sql`INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at) VALUES (${id}, ${month}, ${item.categoryId}, ${item.amountIdr}, ${now}, ${now})`,
     );
 
     return {
@@ -577,7 +572,7 @@ export async function copyBudgets(
           amount_idr: budget.amount_idr,
           created_at: now,
           updated_at: now,
-          category_name: budget.category_name,
+          category_name: budget.category_name ?? "",
         });
       }
 
