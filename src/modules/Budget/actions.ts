@@ -290,38 +290,39 @@ export async function createBudget(
   month: string,
   item: BudgetItem,
 ): Promise<BudgetWithCategory> {
-  const db = getDb();
+  const pool = getPool();
 
   try {
     BudgetMonthSchema.parse(month);
 
     // Verify category exists and is not archived
-    const categories = await db<{ id: string; name: string }[]>`
-      SELECT id, name FROM categories
-      WHERE id = ${item.categoryId} AND archived = false
-    `;
+    const categoryResult = await pool.query(
+      `SELECT id, name FROM categories WHERE id = $1 AND archived = false`,
+      [item.categoryId],
+    );
 
-    if (categories.length === 0) {
+    if (categoryResult.rows.length === 0) {
       throw new Error("Category not found or archived");
     }
 
     // Check if budget already exists for this month/category
-    const existing = await db<Budget[]>`
-      SELECT id FROM budgets
-      WHERE month = ${month} AND category_id = ${item.categoryId}
-    `;
+    const existingResult = await pool.query(
+      `SELECT id FROM budgets WHERE month = $1 AND category_id = $2`,
+      [month, item.categoryId],
+    );
 
-    if (existing.length > 0) {
+    if (existingResult.rows.length > 0) {
       throw new Error("Budget already exists for this month and category");
     }
 
     const id = nanoid();
     const now = new Date();
 
-    await db`
-      INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
-      VALUES (${id}, ${month}, ${item.categoryId}, ${item.amountIdr}, ${now}, ${now})
-    `;
+    await pool.query(
+      `INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, month, item.categoryId, item.amountIdr, now, now],
+    );
 
     return {
       id,
@@ -330,7 +331,7 @@ export async function createBudget(
       amount_idr: item.amountIdr,
       created_at: now,
       updated_at: now,
-      category_name: categories[0].name,
+      category_name: categoryResult.rows[0].name as string,
     };
   } catch (error: any) {
     if (error.name === "ZodError") {
@@ -362,11 +363,9 @@ export async function updateBudget(
     }
 
     const now = new Date();
-    await db`
-      UPDATE budgets
-      SET amount_idr = ${amountIdr}, updated_at = ${now}
-      WHERE id = ${id}
-    `;
+    await db.execute(
+      sql`UPDATE budgets SET amount_idr = ${amountIdr}, updated_at = ${now} WHERE id = ${id}`,
+    );
 
     return {
       ...existing,
@@ -395,7 +394,7 @@ export async function deleteBudget(id: string): Promise<void> {
       throw new Error("Budget not found");
     }
 
-    await db`DELETE FROM budgets WHERE id = ${id}`;
+    await db.execute(sql`DELETE FROM budgets WHERE id = ${id}`);
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity("Invalid budget ID", formatZodError(error));
