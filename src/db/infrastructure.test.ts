@@ -14,13 +14,9 @@ describe("PostgreSQL Infrastructure Validation", () => {
       const envContent = readFileSync(envPath, "utf-8");
 
       // Check for required PostgreSQL environment variables
+      // Drizzle ORM uses DATABASE_URL exclusively
       expect(envContent).toContain("DATABASE_URL");
       expect(envContent).toContain("postgresql://");
-      expect(envContent).toContain("PGHOST");
-      expect(envContent).toContain("PGPORT");
-      expect(envContent).toContain("PGUSER");
-      expect(envContent).toContain("PGPASSWORD");
-      expect(envContent).toContain("PGDATABASE");
 
       // Validate DATABASE_URL format
       expect(envContent).toMatch(
@@ -33,7 +29,6 @@ describe("PostgreSQL Infrastructure Validation", () => {
 
       expect(envContent).toContain("NODE_ENV=development");
       expect(envContent).toContain("PORT=3000");
-      expect(envContent).toContain("NEXT_PUBLIC_APP_URL=http://localhost:3000");
     });
   });
 
@@ -93,11 +88,13 @@ describe("PostgreSQL Infrastructure Validation", () => {
       const packageContent = readFileSync(packagePath, "utf-8");
       const packageJson = JSON.parse(packageContent);
 
-      expect(packageJson.dependencies).toHaveProperty("postgres");
+      expect(packageJson.dependencies).toHaveProperty("drizzle-orm");
+      expect(packageJson.dependencies).toHaveProperty("pg");
       expect(packageJson.dependencies).toHaveProperty("@types/pg");
 
       // Verify version compatibility
-      expect(packageJson.dependencies.postgres).toBeTruthy();
+      expect(packageJson.dependencies["drizzle-orm"]).toBeTruthy();
+      expect(packageJson.dependencies.pg).toBeTruthy();
       expect(packageJson.dependencies["@types/pg"]).toBeTruthy();
     });
   });

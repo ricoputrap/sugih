@@ -8,7 +8,7 @@ import {
   deleteWallet,
   getWalletStats,
 } from "./actions";
-import { getDb } from "@/db/drizzle-client";
+import { getPool } from "@/db/drizzle-client";
 import { nanoid } from "nanoid";
 
 // Helper function to create test wallet
@@ -26,46 +26,50 @@ async function createTestPosting(
   amountIdr: number,
   type: "income" | "expense" = "income",
 ) {
-  const db = getDb();
+  const pool = getPool();
   const eventId = nanoid();
 
   // Create transaction event
-  await db`
-    INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
-    VALUES (${eventId}, NOW(), ${type}, NOW(), NOW())
-  `;
+  await pool.query(
+    `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
+     VALUES ($1, NOW(), $2, NOW(), NOW())`,
+    [eventId, type],
+  );
 
   // Create posting
   const postingId = nanoid();
-  await db`
-    INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
-    VALUES (${postingId}, ${eventId}, ${walletId}, ${amountIdr}, NOW())
-  `;
+  await pool.query(
+    `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
+     VALUES ($1, $2, $3, $4, NOW())`,
+    [postingId, eventId, walletId, amountIdr],
+  );
 
   return { eventId, postingId };
 }
 
 // Helper function to clean up test data
 async function cleanupTestWallet(walletId: string) {
-  const db = getDb();
+  const pool = getPool();
 
   try {
     // Delete postings first
-    await db`DELETE FROM postings WHERE wallet_id = ${walletId}`;
+    await pool.query(`DELETE FROM postings WHERE wallet_id = $1`, [walletId]);
 
     // Get event IDs that might be orphaned
-    const events = await db<{ id: string }[]>`
-      SELECT id FROM transaction_events
-      WHERE id NOT IN (SELECT DISTINCT event_id FROM postings)
-    `;
+    const events = await pool.query<{ id: string }>(
+      `SELECT id FROM transaction_events
+       WHERE id NOT IN (SELECT DISTINCT event_id FROM postings)`,
+    );
 
     // Delete orphaned events
-    for (const event of events) {
-      await db`DELETE FROM transaction_events WHERE id = ${event.id}`;
+    for (const event of events.rows) {
+      await pool.query(`DELETE FROM transaction_events WHERE id = $1`, [
+        event.id,
+      ]);
     }
 
     // Finally delete wallet
-    await db`DELETE FROM wallets WHERE id = ${walletId}`;
+    await pool.query(`DELETE FROM wallets WHERE id = $1`, [walletId]);
   } catch (error) {
     console.error("Cleanup error:", error);
   }
@@ -141,17 +145,18 @@ describe("Wallet Actions with Balance Calculation", () => {
     it("should exclude deleted transactions from balance calculation", async () => {
       const wallet = await createTestWallet();
       testWalletIds.push(wallet.id);
-      const db = getDb();
+      const pool = getPool();
 
       // Create income posting
       const { eventId } = await createTestPosting(wallet.id, 1000000, "income");
 
       // Soft delete the transaction event
-      await db`
-        UPDATE transaction_events
-        SET deleted_at = NOW()
-        WHERE id = ${eventId}
-      `;
+      await pool.query(
+        `UPDATE transaction_events
+         SET deleted_at = NOW()
+         WHERE id = $1`,
+        [eventId],
+      );
 
       const wallets = await listWallets();
       const testWallet = wallets.find((w) => w.id === wallet.id);
@@ -226,16 +231,17 @@ describe("Wallet Actions with Balance Calculation", () => {
     it("should exclude deleted transactions from balance", async () => {
       const wallet = await createTestWallet();
       testWalletIds.push(wallet.id);
-      const db = getDb();
+      const pool = getPool();
 
       const { eventId } = await createTestPosting(wallet.id, 1000000, "income");
 
       // Delete the transaction
-      await db`
-        UPDATE transaction_events
-        SET deleted_at = NOW()
-        WHERE id = ${eventId}
-      `;
+      await pool.query(
+        `UPDATE transaction_events
+         SET deleted_at = NOW()
+         WHERE id = $1`,
+        [eventId],
+      );
 
       const retrieved = await getWalletById(wallet.id);
 

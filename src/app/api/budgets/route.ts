@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import {
   listBudgets,
-  createBudget,
+  upsertBudgets,
   getBudgetSummary,
 } from "@/modules/Budget/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
@@ -83,8 +83,8 @@ async function handlePost(request: NextRequest) {
       return badRequest("Invalid JSON body");
     }
 
-    const budget = await createBudget(body);
-    return ok(budget);
+    const budgets = await upsertBudgets(body);
+    return ok(budgets);
   } catch (error: any) {
     console.error("Error creating budget:", error);
 
@@ -105,6 +105,11 @@ async function handlePost(request: NextRequest) {
 
     // Handle archived category errors
     if (error.message?.includes("archived")) {
+      return badRequest(error.message);
+    }
+
+    // Handle duplicate category IDs in budget items
+    if (error.message?.includes("Duplicate category IDs in budget items")) {
       return badRequest(error.message);
     }
 
@@ -135,7 +140,7 @@ async function handlePost(request: NextRequest) {
       return serverError("Database error");
     }
 
-    return serverError("Failed to create budget");
+    return serverError("Failed to upsert budgets");
   }
 }
 

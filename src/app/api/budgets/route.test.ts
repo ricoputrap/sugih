@@ -4,8 +4,13 @@ import { NextRequest } from "next/server";
 // Mock the budget actions
 vi.mock("@/modules/Budget/actions", () => ({
   listBudgets: vi.fn(),
-  upsertBudgets: vi.fn(),
+  createBudget: vi.fn(),
+  getBudgetById: vi.fn(),
   getBudgetSummary: vi.fn(),
+  updateBudget: vi.fn(),
+  deleteBudget: vi.fn(),
+  copyBudgets: vi.fn(),
+  upsertBudgets: vi.fn(),
 }));
 
 // Mock the database client
@@ -481,7 +486,8 @@ describe("Budgets API Routes", () => {
       const pgError = {
         code: "23503",
         message: "foreign key violation",
-        detail: "Key (category_id)=(invalid) is not present in table categories",
+        detail:
+          "Key (category_id)=(invalid) is not present in table categories",
       };
 
       vi.mocked(upsertBudgets).mockRejectedValue(pgError);
