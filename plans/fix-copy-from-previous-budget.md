@@ -532,9 +532,11 @@ const handleCopyFromPrevious = async () => {
 import { CopyResultModal } from "@/modules/Budget/components/CopyResultModal";
 ```
 
-### 🔄 Step 5: Add Tests
+### ✅ Step 5: Add Tests
 
 **File**: `src/app/api/budgets/copy/route.test.ts` (new file)
+
+**Status**: ✅ Complete
 
 Test cases:
 
@@ -565,6 +567,7 @@ Test cases:
 | `src/modules/Budget/actions.ts`                  | ✅ Complete |
 | `src/modules/Budget/actions.integration.test.ts` | ✅ Complete |
 | `src/app/budgets/page.tsx`                       | ✅ Complete |
+| `src/app/api/budgets/copy/route.test.ts`         | ✅ Complete |
 
 ## Estimated Effort
 
@@ -572,9 +575,9 @@ Test cases:
 - Step 2 (Create API endpoint): 15 minutes ✅
 - Step 3 (Create modal component): 20 minutes ✅
 - Step 4 (Update frontend): 15 minutes ✅
-- Step 5 (Add tests): 25 minutes 🔄
+- Step 5 (Add tests): 25 minutes ✅
 - **Total: ~100 minutes (1.5-2 hours)**
-- **Completed: ~80 minutes**
+- **Completed: ~100 minutes (All steps done! 🎉)**
 
 ## Benefits of This Approach
 
