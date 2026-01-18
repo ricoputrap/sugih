@@ -332,78 +332,87 @@ export async function getTransactionById(id: string): Promise<
  * Create an expense transaction
  */
 export async function createExpense(
-  input: typeof ExpenseCreateSchema,
+  input: unknown,
 ): Promise<TransactionWithPostings> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    const validatedInput = ExpenseCreateSchema.parse(input);
+  const validatedInput = ExpenseCreateSchema.parse(input);
 
-    // Check for idempotency
-    if (validatedInput.idempotencyKey) {
-      const existing = await db<TransactionEvent[]>`
-        SELECT id FROM transaction_events
-        WHERE idempotency_key = ${validatedInput.idempotencyKey}
-      `;
-      if (existing.length > 0) {
-        const existingTransaction = await getTransactionById(existing[0].id);
-        if (existingTransaction) {
-          return existingTransaction;
-        }
+  // Check for idempotency
+  if (validatedInput.idempotencyKey) {
+    const existing = await pool.query(
+      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+      [validatedInput.idempotencyKey],
+    );
+    if (existing.rows.length > 0) {
+      const existingTransaction = await getTransactionById(
+        existing.rows[0].id as string,
+      );
+      if (existingTransaction) {
+        return existingTransaction;
       }
     }
+  }
 
-    // Verify wallet exists
-    const wallets = await db<{ id: string }[]>`
-      SELECT id FROM wallets WHERE id = ${validatedInput.walletId} AND archived = false
-    `;
-    if (wallets.length === 0) {
-      throw new Error("Wallet not found or archived");
-    }
+  // Verify wallet exists
+  const wallets = await pool.query(
+    `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+    [validatedInput.walletId],
+  );
+  if (wallets.rows.length === 0) {
+    throw new Error("Wallet not found or archived");
+  }
 
-    // Verify category exists
-    const categories = await db<{ id: string }[]>`
-      SELECT id FROM categories WHERE id = ${validatedInput.categoryId} AND archived = false
-    `;
-    if (categories.length === 0) {
-      throw new Error("Category not found or archived");
-    }
+  // Verify category exists
+  const categories = await pool.query(
+    `SELECT id FROM categories WHERE id = $1`,
+    [validatedInput.categoryId],
+  );
+  if (categories.rows.length === 0) {
+    throw new Error("Category not found");
+  }
 
-    const eventId = nanoid();
-    const postingId = nanoid();
-    const now = new Date();
+  const eventId = nanoid();
+  const postingId = nanoid();
+  const now = new Date();
 
-    await db.begin(async (tx) => {
-      // Create transaction event
-      await tx`
-        INSERT INTO transaction_events (
-          id, occurred_at, type, note, category_id,
-          created_at, updated_at, idempotency_key
-        )
-        VALUES (
-          ${eventId},
-          ${validatedInput.occurredAt},
-          ${"expense"},
-          ${validatedInput.note || null},
-          ${validatedInput.categoryId},
-          ${now},
-          ${now},
-          ${validatedInput.idempotencyKey || null}
-        )
-      `;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-      // Create posting (negative amount for expense)
-      await tx`
-        INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
-        VALUES (
-          ${postingId},
-          ${eventId},
-          ${validatedInput.walletId},
-          ${-validatedInput.amountIdr},
-          ${now}
-        )
-      `;
-    });
+    // Create transaction event
+    await client.query(
+      `INSERT INTO transaction_events (
+        id, occurred_at, type, note, category_id,
+        created_at, updated_at, idempotency_key
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        eventId,
+        validatedInput.occurredAt,
+        "expense",
+        validatedInput.note || null,
+        validatedInput.categoryId,
+        now,
+        now,
+        validatedInput.idempotencyKey || null,
+      ],
+    );
+
+    // Create posting (negative amount for expense)
+    await client.query(
+      `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
+      VALUES ($1, $2, $3, $4, $5)`,
+      [
+        postingId,
+        eventId,
+        validatedInput.walletId,
+        -validatedInput.amountIdr,
+        now,
+      ],
+    );
+
+    await client.query("COMMIT");
 
     const result = await getTransactionById(eventId);
     if (!result) {
@@ -411,11 +420,11 @@ export async function createExpense(
     }
 
     return result;
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity("Invalid expense data", formatZodError(error));
-    }
+  } catch (error) {
+    await client.query("ROLLBACK");
     throw error;
+  } finally {
+    client.release();
   }
 }
 
@@ -425,68 +434,76 @@ export async function createExpense(
 export async function createIncome(
   input: unknown,
 ): Promise<TransactionWithPostings> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    const validatedInput = IncomeCreateSchema.parse(input);
+  const validatedInput = IncomeCreateSchema.parse(input);
 
-    // Check for idempotency
-    if (validatedInput.idempotencyKey) {
-      const existing = await db<TransactionEvent[]>`
-        SELECT id FROM transaction_events
-        WHERE idempotency_key = ${validatedInput.idempotencyKey}
-      `;
-      if (existing.length > 0) {
-        const existingTransaction = await getTransactionById(existing[0].id);
-        if (existingTransaction) {
-          return existingTransaction;
-        }
+  // Check for idempotency
+  if (validatedInput.idempotencyKey) {
+    const existing = await pool.query(
+      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+      [validatedInput.idempotencyKey],
+    );
+    if (existing.rows.length > 0) {
+      const existingTransaction = await getTransactionById(
+        existing.rows[0].id as string,
+      );
+      if (existingTransaction) {
+        return existingTransaction;
       }
     }
+  }
 
-    // Verify wallet exists
-    const wallets = await db<{ id: string }[]>`
-      SELECT id FROM wallets WHERE id = ${validatedInput.walletId} AND archived = false
-    `;
-    if (wallets.length === 0) {
-      throw new Error("Wallet not found or archived");
-    }
+  // Verify wallet exists
+  const wallets = await pool.query(
+    `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+    [validatedInput.walletId],
+  );
+  if (wallets.rows.length === 0) {
+    throw new Error("Wallet not found or archived");
+  }
 
-    const eventId = nanoid();
-    const postingId = nanoid();
-    const now = new Date();
+  const eventId = nanoid();
+  const postingId = nanoid();
+  const now = new Date();
 
-    await db.begin(async (tx) => {
-      // Create transaction event
-      await tx`
-        INSERT INTO transaction_events (
-          id, occurred_at, type, note, payee,
-          created_at, updated_at, idempotency_key
-        )
-        VALUES (
-          ${eventId},
-          ${validatedInput.occurredAt},
-          ${"income"},
-          ${validatedInput.note || null},
-          ${validatedInput.payee || null},
-          ${now},
-          ${now},
-          ${validatedInput.idempotencyKey || null}
-        )
-      `;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-      // Create posting (positive amount for income)
-      await tx`
-        INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
-        VALUES (
-          ${postingId},
-          ${eventId},
-          ${validatedInput.walletId},
-          ${validatedInput.amountIdr},
-          ${now}
-        )
-      `;
-    });
+    // Create transaction event
+    await client.query(
+      `INSERT INTO transaction_events (
+        id, occurred_at, type, note, payee,
+        created_at, updated_at, idempotency_key
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        eventId,
+        validatedInput.occurredAt,
+        "income",
+        validatedInput.note || null,
+        validatedInput.payee || null,
+        now,
+        now,
+        validatedInput.idempotencyKey || null,
+      ],
+    );
+
+    // Create posting (positive amount for income)
+    await client.query(
+      `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
+      VALUES ($1, $2, $3, $4, $5)`,
+      [
+        postingId,
+        eventId,
+        validatedInput.walletId,
+        validatedInput.amountIdr,
+        now,
+      ],
+    );
+
+    await client.query("COMMIT");
 
     const result = await getTransactionById(eventId);
     if (!result) {
@@ -494,11 +511,11 @@ export async function createIncome(
     }
 
     return result;
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity("Invalid income data", formatZodError(error));
-    }
+  } catch (error) {
+    await client.query("ROLLBACK");
     throw error;
+  } finally {
+    client.release();
   }
 }
 
@@ -508,88 +525,98 @@ export async function createIncome(
 export async function createTransfer(
   input: unknown,
 ): Promise<TransactionWithPostings> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    const validatedInput = TransferCreateSchema.parse(input);
+  const validatedInput = TransferCreateSchema.parse(input);
 
-    // Check for idempotency
-    if (validatedInput.idempotencyKey) {
-      const existing = await db<TransactionEvent[]>`
-        SELECT id FROM transaction_events
-        WHERE idempotency_key = ${validatedInput.idempotencyKey}
-      `;
-      if (existing.length > 0) {
-        const existingTransaction = await getTransactionById(existing[0].id);
-        if (existingTransaction) {
-          return existingTransaction;
-        }
+  // Check for idempotency
+  if (validatedInput.idempotencyKey) {
+    const existing = await pool.query(
+      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+      [validatedInput.idempotencyKey],
+    );
+    if (existing.rows.length > 0) {
+      const existingTransaction = await getTransactionById(
+        existing.rows[0].id as string,
+      );
+      if (existingTransaction) {
+        return existingTransaction;
       }
     }
+  }
 
-    // Verify from wallet exists
-    const fromWallets = await db<{ id: string }[]>`
-      SELECT id FROM wallets WHERE id = ${validatedInput.fromWalletId} AND archived = false
-    `;
-    if (fromWallets.length === 0) {
-      throw new Error("Source wallet not found or archived");
-    }
+  // Verify from wallet exists
+  const fromWallets = await pool.query(
+    `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+    [validatedInput.fromWalletId],
+  );
+  if (fromWallets.rows.length === 0) {
+    throw new Error("Source wallet not found or archived");
+  }
 
-    // Verify to wallet exists
-    const toWallets = await db<{ id: string }[]>`
-      SELECT id FROM wallets WHERE id = ${validatedInput.toWalletId} AND archived = false
-    `;
-    if (toWallets.length === 0) {
-      throw new Error("Destination wallet not found or archived");
-    }
+  // Verify to wallet exists
+  const toWallets = await pool.query(
+    `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+    [validatedInput.toWalletId],
+  );
+  if (toWallets.rows.length === 0) {
+    throw new Error("Destination wallet not found or archived");
+  }
 
-    const eventId = nanoid();
-    const fromPostingId = nanoid();
-    const toPostingId = nanoid();
-    const now = new Date();
+  const eventId = nanoid();
+  const fromPostingId = nanoid();
+  const toPostingId = nanoid();
+  const now = new Date();
 
-    await db.begin(async (tx) => {
-      // Create transaction event
-      await tx`
-        INSERT INTO transaction_events (
-          id, occurred_at, type, note,
-          created_at, updated_at, idempotency_key
-        )
-        VALUES (
-          ${eventId},
-          ${validatedInput.occurredAt},
-          ${"transfer"},
-          ${validatedInput.note || null},
-          ${now},
-          ${now},
-          ${validatedInput.idempotencyKey || null}
-        )
-      `;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-      // Create posting for source wallet (negative)
-      await tx`
-        INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
-        VALUES (
-          ${fromPostingId},
-          ${eventId},
-          ${validatedInput.fromWalletId},
-          ${-validatedInput.amountIdr},
-          ${now}
-        )
-      `;
+    // Create transaction event
+    await client.query(
+      `INSERT INTO transaction_events (
+        id, occurred_at, type, note,
+        created_at, updated_at, idempotency_key
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        eventId,
+        validatedInput.occurredAt,
+        "transfer",
+        validatedInput.note || null,
+        now,
+        now,
+        validatedInput.idempotencyKey || null,
+      ],
+    );
 
-      // Create posting for destination wallet (positive)
-      await tx`
-        INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
-        VALUES (
-          ${toPostingId},
-          ${eventId},
-          ${validatedInput.toWalletId},
-          ${validatedInput.amountIdr},
-          ${now}
-        )
-      `;
-    });
+    // Create posting for source wallet (negative)
+    await client.query(
+      `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
+      VALUES ($1, $2, $3, $4, $5)`,
+      [
+        fromPostingId,
+        eventId,
+        validatedInput.fromWalletId,
+        -validatedInput.amountIdr,
+        now,
+      ],
+    );
+
+    // Create posting for destination wallet (positive)
+    await client.query(
+      `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
+      VALUES ($1, $2, $3, $4, $5)`,
+      [
+        toPostingId,
+        eventId,
+        validatedInput.toWalletId,
+        validatedInput.amountIdr,
+        now,
+      ],
+    );
+
+    await client.query("COMMIT");
 
     const result = await getTransactionById(eventId);
     if (!result) {
@@ -597,11 +624,11 @@ export async function createTransfer(
     }
 
     return result;
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity("Invalid transfer data", formatZodError(error));
-    }
+  } catch (error) {
+    await client.query("ROLLBACK");
     throw error;
+  } finally {
+    client.release();
   }
 }
 
@@ -611,88 +638,98 @@ export async function createTransfer(
 export async function createSavingsContribution(
   input: unknown,
 ): Promise<TransactionWithPostings> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    const validatedInput = SavingsContributeSchema.parse(input);
+  const validatedInput = SavingsContributeSchema.parse(input);
 
-    // Check for idempotency
-    if (validatedInput.idempotencyKey) {
-      const existing = await db<TransactionEvent[]>`
-        SELECT id FROM transaction_events
-        WHERE idempotency_key = ${validatedInput.idempotencyKey}
-      `;
-      if (existing.length > 0) {
-        const existingTransaction = await getTransactionById(existing[0].id);
-        if (existingTransaction) {
-          return existingTransaction;
-        }
+  // Check for idempotency
+  if (validatedInput.idempotencyKey) {
+    const existing = await pool.query(
+      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+      [validatedInput.idempotencyKey],
+    );
+    if (existing.rows.length > 0) {
+      const existingTransaction = await getTransactionById(
+        existing.rows[0].id as string,
+      );
+      if (existingTransaction) {
+        return existingTransaction;
       }
     }
+  }
 
-    // Verify wallet exists
-    const wallets = await db<{ id: string }[]>`
-      SELECT id FROM wallets WHERE id = ${validatedInput.walletId} AND archived = false
-    `;
-    if (wallets.length === 0) {
-      throw new Error("Wallet not found or archived");
-    }
+  // Verify wallet exists
+  const wallets = await pool.query(
+    `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+    [validatedInput.walletId],
+  );
+  if (wallets.rows.length === 0) {
+    throw new Error("Wallet not found or archived");
+  }
 
-    // Verify savings bucket exists
-    const buckets = await db<{ id: string }[]>`
-      SELECT id FROM savings_buckets WHERE id = ${validatedInput.bucketId} AND archived = false
-    `;
-    if (buckets.length === 0) {
-      throw new Error("Savings bucket not found or archived");
-    }
+  // Verify savings bucket exists
+  const buckets = await pool.query(
+    `SELECT id FROM savings_buckets WHERE id = $1`,
+    [validatedInput.bucketId],
+  );
+  if (buckets.rows.length === 0) {
+    throw new Error("Savings bucket not found");
+  }
 
-    const eventId = nanoid();
-    const walletPostingId = nanoid();
-    const bucketPostingId = nanoid();
-    const now = new Date();
+  const eventId = nanoid();
+  const walletPostingId = nanoid();
+  const bucketPostingId = nanoid();
+  const now = new Date();
 
-    await db.begin(async (tx) => {
-      // Create transaction event
-      await tx`
-        INSERT INTO transaction_events (
-          id, occurred_at, type, note,
-          created_at, updated_at, idempotency_key
-        )
-        VALUES (
-          ${eventId},
-          ${validatedInput.occurredAt},
-          ${"savings_contribution"},
-          ${validatedInput.note || null},
-          ${now},
-          ${now},
-          ${validatedInput.idempotencyKey || null}
-        )
-      `;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-      // Create posting for wallet (negative - money leaving wallet)
-      await tx`
-        INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
-        VALUES (
-          ${walletPostingId},
-          ${eventId},
-          ${validatedInput.walletId},
-          ${-validatedInput.amountIdr},
-          ${now}
-        )
-      `;
+    // Create transaction event
+    await client.query(
+      `INSERT INTO transaction_events (
+        id, occurred_at, type, note,
+        created_at, updated_at, idempotency_key
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        eventId,
+        validatedInput.occurredAt,
+        "savings_contribution",
+        validatedInput.note || null,
+        now,
+        now,
+        validatedInput.idempotencyKey || null,
+      ],
+    );
 
-      // Create posting for savings bucket (positive - money entering bucket)
-      await tx`
-        INSERT INTO postings (id, event_id, savings_bucket_id, amount_idr, created_at)
-        VALUES (
-          ${bucketPostingId},
-          ${eventId},
-          ${validatedInput.bucketId},
-          ${validatedInput.amountIdr},
-          ${now}
-        )
-      `;
-    });
+    // Create posting for wallet (negative - money leaving wallet)
+    await client.query(
+      `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
+      VALUES ($1, $2, $3, $4, $5)`,
+      [
+        walletPostingId,
+        eventId,
+        validatedInput.walletId,
+        -validatedInput.amountIdr,
+        now,
+      ],
+    );
+
+    // Create posting for savings bucket (positive - money entering bucket)
+    await client.query(
+      `INSERT INTO postings (id, event_id, savings_bucket_id, amount_idr, created_at)
+      VALUES ($1, $2, $3, $4, $5)`,
+      [
+        bucketPostingId,
+        eventId,
+        validatedInput.bucketId,
+        validatedInput.amountIdr,
+        now,
+      ],
+    );
+
+    await client.query("COMMIT");
 
     const result = await getTransactionById(eventId);
     if (!result) {
@@ -700,14 +737,11 @@ export async function createSavingsContribution(
     }
 
     return result;
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity(
-        "Invalid savings contribution data",
-        formatZodError(error),
-      );
-    }
+  } catch (error) {
+    await client.query("ROLLBACK");
     throw error;
+  } finally {
+    client.release();
   }
 }
 
@@ -717,88 +751,98 @@ export async function createSavingsContribution(
 export async function createSavingsWithdrawal(
   input: unknown,
 ): Promise<TransactionWithPostings> {
-  const db = getDb();
+  const pool = getPool();
 
-  try {
-    const validatedInput = SavingsWithdrawSchema.parse(input);
+  const validatedInput = SavingsWithdrawSchema.parse(input);
 
-    // Check for idempotency
-    if (validatedInput.idempotencyKey) {
-      const existing = await db<TransactionEvent[]>`
-        SELECT id FROM transaction_events
-        WHERE idempotency_key = ${validatedInput.idempotencyKey}
-      `;
-      if (existing.length > 0) {
-        const existingTransaction = await getTransactionById(existing[0].id);
-        if (existingTransaction) {
-          return existingTransaction;
-        }
+  // Check for idempotency
+  if (validatedInput.idempotencyKey) {
+    const existing = await pool.query(
+      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+      [validatedInput.idempotencyKey],
+    );
+    if (existing.rows.length > 0) {
+      const existingTransaction = await getTransactionById(
+        existing.rows[0].id as string,
+      );
+      if (existingTransaction) {
+        return existingTransaction;
       }
     }
+  }
 
-    // Verify wallet exists
-    const wallets = await db<{ id: string }[]>`
-      SELECT id FROM wallets WHERE id = ${validatedInput.walletId} AND archived = false
-    `;
-    if (wallets.length === 0) {
-      throw new Error("Wallet not found or archived");
-    }
+  // Verify wallet exists
+  const wallets = await pool.query(
+    `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+    [validatedInput.walletId],
+  );
+  if (wallets.rows.length === 0) {
+    throw new Error("Wallet not found or archived");
+  }
 
-    // Verify savings bucket exists
-    const buckets = await db<{ id: string }[]>`
-      SELECT id FROM savings_buckets WHERE id = ${validatedInput.bucketId} AND archived = false
-    `;
-    if (buckets.length === 0) {
-      throw new Error("Savings bucket not found or archived");
-    }
+  // Verify savings bucket exists
+  const buckets = await pool.query(
+    `SELECT id FROM savings_buckets WHERE id = $1`,
+    [validatedInput.bucketId],
+  );
+  if (buckets.rows.length === 0) {
+    throw new Error("Savings bucket not found");
+  }
 
-    const eventId = nanoid();
-    const bucketPostingId = nanoid();
-    const walletPostingId = nanoid();
-    const now = new Date();
+  const eventId = nanoid();
+  const bucketPostingId = nanoid();
+  const walletPostingId = nanoid();
+  const now = new Date();
 
-    await db.begin(async (tx) => {
-      // Create transaction event
-      await tx`
-        INSERT INTO transaction_events (
-          id, occurred_at, type, note,
-          created_at, updated_at, idempotency_key
-        )
-        VALUES (
-          ${eventId},
-          ${validatedInput.occurredAt},
-          ${"savings_withdrawal"},
-          ${validatedInput.note || null},
-          ${now},
-          ${now},
-          ${validatedInput.idempotencyKey || null}
-        )
-      `;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-      // Create posting for savings bucket (negative - money leaving bucket)
-      await tx`
-        INSERT INTO postings (id, event_id, savings_bucket_id, amount_idr, created_at)
-        VALUES (
-          ${bucketPostingId},
-          ${eventId},
-          ${validatedInput.bucketId},
-          ${-validatedInput.amountIdr},
-          ${now}
-        )
-      `;
+    // Create transaction event
+    await client.query(
+      `INSERT INTO transaction_events (
+        id, occurred_at, type, note,
+        created_at, updated_at, idempotency_key
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        eventId,
+        validatedInput.occurredAt,
+        "savings_withdrawal",
+        validatedInput.note || null,
+        now,
+        now,
+        validatedInput.idempotencyKey || null,
+      ],
+    );
 
-      // Create posting for wallet (positive - money entering wallet)
-      await tx`
-        INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
-        VALUES (
-          ${walletPostingId},
-          ${eventId},
-          ${validatedInput.walletId},
-          ${validatedInput.amountIdr},
-          ${now}
-        )
-      `;
-    });
+    // Create posting for savings bucket (negative - money leaving bucket)
+    await client.query(
+      `INSERT INTO postings (id, event_id, savings_bucket_id, amount_idr, created_at)
+      VALUES ($1, $2, $3, $4, $5)`,
+      [
+        bucketPostingId,
+        eventId,
+        validatedInput.bucketId,
+        -validatedInput.amountIdr,
+        now,
+      ],
+    );
+
+    // Create posting for wallet (positive - money entering wallet)
+    await client.query(
+      `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
+      VALUES ($1, $2, $3, $4, $5)`,
+      [
+        walletPostingId,
+        eventId,
+        validatedInput.walletId,
+        validatedInput.amountIdr,
+        now,
+      ],
+    );
+
+    await client.query("COMMIT");
 
     const result = await getTransactionById(eventId);
     if (!result) {
@@ -806,14 +850,11 @@ export async function createSavingsWithdrawal(
     }
 
     return result;
-  } catch (error: any) {
-    if (error.name === "ZodError") {
-      throw unprocessableEntity(
-        "Invalid savings withdrawal data",
-        formatZodError(error),
-      );
-    }
+  } catch (error) {
+    await client.query("ROLLBACK");
     throw error;
+  } finally {
+    client.release();
   }
 }
 
