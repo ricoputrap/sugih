@@ -1246,7 +1246,7 @@ export async function upsertBudgets(input: unknown): Promise<{
 
 ### Tests
 
-- [ ] **Step 4.6**: Create `src/modules/Budget/actions.integration.test.ts`
+- [x] **Step 4.6**: Create `src/modules/Budget/actions.integration.test.ts`
 
 ```typescript
 import { describe, it, expect, beforeEach, afterEach, afterAll } from "vitest";
@@ -1379,7 +1379,7 @@ describe("Budget Integration Tests", () => {
 
 ### Verification
 
-- [ ] **Step 4.7**: Run tests: `pnpm test src/modules/Budget/actions.integration.test.ts`
+- [x] **Step 4.7**: Run tests: `pnpm test src/modules/Budget/actions.integration.test.ts` ✅
 
 ---
 
