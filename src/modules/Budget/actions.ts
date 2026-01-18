@@ -151,19 +151,21 @@ export async function getBudgetsByMonth(
 export async function upsertBudgets(
   input: unknown,
 ): Promise<BudgetWithCategory[]> {
-  const db = getDb();
+  const pool = getPool();
 
   try {
     const validatedInput = BudgetUpsertSchema.parse(input);
 
     // Verify all categories exist and are not archived
     const categoryIds = validatedInput.items.map((item) => item.categoryId);
-    const categories = await db<{ id: string; name: string }[]>`
-      SELECT id, name FROM categories
-      WHERE id = ANY(${categoryIds}) AND archived = false
-    `;
+    const categoryCheck = await pool.query(
+      `SELECT id, name FROM categories WHERE id = ANY($1::text[]) AND archived = false`,
+      [categoryIds],
+    );
 
-    const foundCategoryIds = new Set(categories.map((c) => c.id));
+    const foundCategoryIds = new Set(
+      categoryCheck.rows.map((c) => c.id as string),
+    );
     const missingCategories = categoryIds.filter(
       (id) => !foundCategoryIds.has(id),
     );
@@ -180,17 +182,24 @@ export async function upsertBudgets(
       throw new Error("Duplicate category IDs in budget items");
     }
 
+    const client = await pool.connect();
+    const results: Array<BudgetWithCategory & { category_name: string }> = [];
     const now = new Date();
-    const results: BudgetWithCategory[] = [];
 
-    await db.begin(async (tx) => {
+    try {
+      await client.query("BEGIN");
+
       // Get existing budgets for this month
-      const existingBudgets = await tx<Budget[]>`
-        SELECT id, category_id FROM budgets WHERE month = ${validatedInput.month}
-      `;
+      const existingResult = await client.query(
+        `SELECT id, category_id FROM budgets WHERE month = $1`,
+        [validatedInput.month],
+      );
 
       const existingByCategoryId = new Map(
-        existingBudgets.map((b) => [b.category_id, b.id]),
+        existingResult.rows.map((b) => [
+          b.category_id as string,
+          b.id as string,
+        ]),
       );
 
       // Process each budget item
@@ -199,13 +208,14 @@ export async function upsertBudgets(
 
         if (existingId) {
           // Update existing budget
-          await tx`
-            UPDATE budgets
-            SET amount_idr = ${item.amountIdr}, updated_at = ${now}
-            WHERE id = ${existingId}
-          `;
+          await client.query(
+            `UPDATE budgets SET amount_idr = $1, updated_at = $2 WHERE id = $3`,
+            [item.amountIdr, now, existingId],
+          );
 
-          const category = categories.find((c) => c.id === item.categoryId);
+          const category = categoryCheck.rows.find(
+            (c) => c.id === item.categoryId,
+          );
           results.push({
             id: existingId,
             month: validatedInput.month,
@@ -213,17 +223,27 @@ export async function upsertBudgets(
             amount_idr: item.amountIdr,
             created_at: now,
             updated_at: now,
-            category_name: category?.name,
+            category_name: category?.name as string,
           });
         } else {
           // Create new budget
           const newId = nanoid();
-          await tx`
-            INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
-            VALUES (${newId}, ${validatedInput.month}, ${item.categoryId}, ${item.amountIdr}, ${now}, ${now})
-          `;
+          await client.query(
+            `INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              newId,
+              validatedInput.month,
+              item.categoryId,
+              item.amountIdr,
+              now,
+              now,
+            ],
+          );
 
-          const category = categories.find((c) => c.id === item.categoryId);
+          const category = categoryCheck.rows.find(
+            (c) => c.id === item.categoryId,
+          );
           results.push({
             id: newId,
             month: validatedInput.month,
@@ -231,7 +251,7 @@ export async function upsertBudgets(
             amount_idr: item.amountIdr,
             created_at: now,
             updated_at: now,
-            category_name: category?.name,
+            category_name: category?.name as string,
           });
         }
 
@@ -242,11 +262,19 @@ export async function upsertBudgets(
       // Delete budgets for categories not in the input
       const idsToDelete = Array.from(existingByCategoryId.values());
       if (idsToDelete.length > 0) {
-        await tx`DELETE FROM budgets WHERE id = ANY(${idsToDelete})`;
+        await client.query(`DELETE FROM budgets WHERE id = ANY($1::text[])`, [
+          idsToDelete,
+        ]);
       }
-    });
 
-    return results;
+      await client.query("COMMIT");
+      return results;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     if (error.name === "ZodError") {
       throw unprocessableEntity("Invalid budget data", formatZodError(error));
