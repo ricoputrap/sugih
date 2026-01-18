@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { BudgetTable } from "@/modules/Budget/components/BudgetTable";
 import { BudgetDialogForm } from "@/modules/Budget/components/BudgetDialogForm";
+import { CopyResultModal } from "@/modules/Budget/components/CopyResultModal";
 import { BudgetWithCategory } from "@/modules/Budget/schema";
 import { toast } from "sonner";
 
@@ -47,6 +48,11 @@ export default function BudgetsPage() {
     useState<BudgetWithCategory | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [copyResultModalOpen, setCopyResultModalOpen] = useState(false);
+  const [copyResult, setCopyResult] = useState<{
+    created: BudgetWithCategory[];
+    skipped: Array<{ categoryId: string; categoryName: string }>;
+  } | null>(null);
 
   // Generate month options (current month + 11 previous + 6 next)
   const generateMonthOptions = () => {
@@ -227,46 +233,45 @@ export default function BudgetsPage() {
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const previousMonth = `${year}-${month}-01`;
 
-      // Fetch budgets from previous month
-      const response = await fetch(`/api/budgets?month=${previousMonth}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch previous month's budgets");
-      }
-
-      const previousBudgets = await response.json();
-
-      if (previousBudgets.length === 0) {
-        toast.info("No budgets found for the previous month");
-        return;
-      }
-
-      // Create upsert payload
-      const items = previousBudgets.map((budget: BudgetWithCategory) => ({
-        categoryId: budget.category_id,
-        amountIdr: budget.amount_idr,
-      }));
-
-      // Upsert budgets for current month
-      const upsertResponse = await fetch("/api/budgets", {
-        method: "PUT",
+      // Call copy endpoint
+      const response = await fetch("/api/budgets/copy", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          month: selectedMonth,
-          items,
+          fromMonth: previousMonth,
+          toMonth: selectedMonth,
         }),
       });
 
-      if (!upsertResponse.ok) {
-        const error = await upsertResponse.json();
-        throw new Error(error.error || "Failed to copy budgets");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || "Failed to copy budgets");
       }
 
+      const result = await response.json();
+
+      // Refresh budgets list
       await fetchBudgets();
-      toast.success(
-        `Copied ${previousBudgets.length} budgets from previous month`,
-      );
+
+      // Show appropriate feedback
+      if (result.created.length === 0 && result.skipped.length > 0) {
+        // All budgets already exist
+        toast.info("All budgets from previous month already exist");
+      } else if (result.skipped.length === 0) {
+        // All budgets were created (simple case)
+        toast.success(
+          `Copied ${result.created.length} budget${result.created.length !== 1 ? "s" : ""} from previous month`,
+        );
+      } else {
+        // Mixed case: some created, some skipped - show modal
+        toast.success(
+          `Copied ${result.created.length} budget${result.created.length !== 1 ? "s" : ""} from previous month`,
+        );
+        setCopyResult(result);
+        setCopyResultModalOpen(true);
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to copy budgets");
     }
@@ -473,6 +478,16 @@ export default function BudgetsPage() {
           onSubmit={handleUpdateBudget}
           isLoading={isLoading}
           mode="edit"
+        />
+      )}
+
+      {/* Copy Result Modal */}
+      {copyResult && (
+        <CopyResultModal
+          open={copyResultModalOpen}
+          onOpenChange={setCopyResultModalOpen}
+          created={copyResult.created}
+          skipped={copyResult.skipped}
         />
       )}
     </div>
