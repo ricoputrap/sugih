@@ -965,36 +965,37 @@ export async function getTransactionStats(
   totalSavingsWithdrawals: number;
   transactionCount: number;
 }> {
-  const db = getDb();
+  const pool = getPool();
 
-  const whereConditions = ["deleted_at IS NULL"];
+  const whereConditions = ["te.deleted_at IS NULL"];
+  const params: any[] = [];
+  let paramIndex = 1;
 
   if (from) {
-    whereConditions.push(`occurred_at >= '${from.toISOString()}'`);
+    whereConditions.push(`te.occurred_at >= $${paramIndex}`);
+    params.push(from);
+    paramIndex++;
   }
 
   if (to) {
-    whereConditions.push(`occurred_at <= '${to.toISOString()}'`);
+    whereConditions.push(`te.occurred_at <= $${paramIndex}`);
+    params.push(to);
+    paramIndex++;
   }
 
   const whereClause = whereConditions.join(" AND ");
 
-  const stats = await db<
-    {
-      type: string;
-      count: number;
-      total: number;
-    }[]
-  >`
-    SELECT
+  const statsResult = await pool.query(
+    `SELECT
       te.type,
       COUNT(*)::int as count,
       COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total
     FROM transaction_events te
-    LEFT JOIN postings p ON te.id = p.event_id AND p.amount_idr > 0
-    WHERE ${db.unsafe(whereClause)}
-    GROUP BY te.type
-  `;
+    LEFT JOIN postings p ON te.id = p.event_id
+    WHERE ${whereClause}
+    GROUP BY te.type`,
+    params,
+  );
 
   const result = {
     totalIncome: 0,
@@ -1005,24 +1006,28 @@ export async function getTransactionStats(
     transactionCount: 0,
   };
 
-  for (const stat of stats) {
-    result.transactionCount += stat.count;
+  for (const row of statsResult.rows) {
+    const type = row.type as string;
+    const count = row.count as number;
+    const total = Number(row.total);
 
-    switch (stat.type) {
+    result.transactionCount += count;
+
+    switch (type) {
       case "income":
-        result.totalIncome = Number(stat.total);
+        result.totalIncome = total;
         break;
       case "expense":
-        result.totalExpense = Number(stat.total);
+        result.totalExpense = total;
         break;
       case "transfer":
-        result.totalTransfers = Number(stat.total);
+        result.totalTransfers = total;
         break;
       case "savings_contribution":
-        result.totalSavingsContributions = Number(stat.total);
+        result.totalSavingsContributions = total;
         break;
       case "savings_withdrawal":
-        result.totalSavingsWithdrawals = Number(stat.total);
+        result.totalSavingsWithdrawals = total;
         break;
     }
   }

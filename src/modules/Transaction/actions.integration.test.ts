@@ -355,9 +355,11 @@ describe("Transaction Integration Tests", () => {
 
   describe("Get Transaction Stats", () => {
     it("should return transaction statistics", async () => {
+      const now = new Date();
+
       // Create expense
       const expense1 = await createExpense({
-        occurredAt: new Date(),
+        occurredAt: now,
         walletId: testWalletId,
         categoryId: testCategoryId,
         amountIdr: 100000,
@@ -366,21 +368,30 @@ describe("Transaction Integration Tests", () => {
 
       // Create income
       const income1 = await createIncome({
-        occurredAt: new Date(),
+        occurredAt: now,
         walletId: testWalletId,
         amountIdr: 500000,
       });
       testTransactionIds.push(income1.id);
 
-      const stats = await getTransactionStats();
+      // Use a narrow time window around the transaction creation time
+      const startTime = new Date(now.getTime() - 60000); // 1 minute before
+      const endTime = new Date(now.getTime() + 60000); // 1 minute after
+
+      const stats = await getTransactionStats(startTime, endTime);
 
       expect(stats.totalIncome).toBe(500000);
       expect(stats.totalExpense).toBe(100000);
       expect(stats.transactionCount).toBe(2);
     });
 
-    it("should return zero stats when no transactions", async () => {
-      const stats = await getTransactionStats();
+    it("should return zero stats when no transactions in date range", async () => {
+      const futureDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+      const furtherFutureDate = new Date(
+        futureDate.getTime() + 24 * 60 * 60 * 1000,
+      );
+
+      const stats = await getTransactionStats(futureDate, furtherFutureDate);
 
       expect(stats.totalIncome).toBe(0);
       expect(stats.totalExpense).toBe(0);

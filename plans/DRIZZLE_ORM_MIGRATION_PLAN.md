@@ -1399,8 +1399,8 @@ describe("Budget Integration Tests", () => {
 - [x] **Step 5.3**: Migrate `listTransactions()` (complex joins with Drizzle)
 - [x] **Step 5.4**: Migrate `getTransactionById()`
 - [x] **Step 5.5**: Migrate transaction creation functions using Drizzle transactions
-- [ ] **Step 5.6**: Migrate `deleteTransaction()`, `restoreTransaction()`, `permanentlyDeleteTransaction()`
-- [ ] **Step 5.7**: Migrate `getTransactionStats()`
+- [x] **Step 5.6**: Migrate `deleteTransaction()`, `restoreTransaction()`, `permanentlyDeleteTransaction()`
+- [x] **Step 5.7**: Migrate `getTransactionStats()`
 
 **Key Pattern for Transaction Creation with Raw SQL** (following Phase 1 patterns):
 
@@ -1710,7 +1710,7 @@ describe("Transaction Integration Tests", () => {
 
 ### Verification
 
-- [ ] **Step 5.8**: Run tests: `pnpm test src/modules/Transaction/actions.integration.test.ts` (should fail - implementing TDD red-green cycle)
+- [x] **Step 5.8**: Run tests: `pnpm test src/modules/Transaction/actions.integration.test.ts`
 
 ---
 
