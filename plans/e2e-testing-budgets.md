@@ -51,7 +51,17 @@ pnpm playwright test tests/e2e/budgets/budget-copy.spec.ts
 pnpm playwright test tests/e2e/
 ```
 
-## Test File Structure
+## ✅ Phase 1: Test Files Created
+
+| File                                    | Status | Description                 |
+| --------------------------------------- | ------ | --------------------------- |
+| `playwright.config.ts`                  | ✅     | Core configuration          |
+| `tests/e2e/smoke.spec.ts`               | ✅     | 3 smoke tests (all passing) |
+| `tests/e2e/setup/test-db.ts`            | ✅     | Test data helpers           |
+| `tests/e2e/fixtures/budgets.ts`         | ✅     | Budget fixtures             |
+| `tests/e2e/budgets/budget-copy.spec.ts` | ✅     | 6 copy feature tests        |
+
+### Test File Structure
 
 ```
 tests/
@@ -61,12 +71,22 @@ tests/
     ├── fixtures/
     │   └── budgets.ts          ✅ Budget fixtures
     ├── budgets/
-    │   ├── budget-copy.spec.ts ✅ Copy tests (6 cases)
+    │   ├── budget-copy.spec.ts ✅ 6 tests (Copy feature)
     │   ├── budget-list.spec.ts 🔄 Pending
     │   ├── budget-create.spec.ts 🔄 Pending
     │   ├── budget-edit.spec.ts 🔄 Pending
     │   └── budget-delete.spec.ts 🔄 Pending
-    └── smoke.spec.ts           ✅ Smoke tests
+    └── smoke.spec.ts           ✅ 3 tests (verify setup)
+```
+
+### Git Ignore
+
+Add these to `.gitignore`:
+
+```gitignore
+# Playwright
+test-results/
+playwright-report/
 ```
 
 ## Phase 2: Test Scenarios (Next)
@@ -358,45 +378,74 @@ jobs:
           path: playwright-report/
 ```
 
-## Implementation Timeline
+## ✅ Implementation Timeline
 
-| Phase       | Tasks                            | Duration      |
-| ----------- | -------------------------------- | ------------- |
-| **Phase 1** | Setup & Configuration            | 2 hours       |
-|             | - Install Playwright             |               |
-|             | - Configure playwright.config.ts |               |
-|             | - Setup test database helpers    |               |
-| **Phase 2** | Core Tests                       | 4 hours       |
-|             | - Budget list & month selection  |               |
-|             | - Create budget                  |               |
-|             | - Edit budget                    |               |
-|             | - Delete budget                  |               |
-| **Phase 3** | Copy Feature Tests               | 3 hours       |
-|             | - Copy to empty month            |               |
-|             | - Copy with existing budgets     |               |
-|             | - Modal interactions             |               |
-| **Phase 4** | CI/CD Integration                | 1 hour        |
-|             | - Setup GitHub Actions           |               |
-|             | - Configure test reporting       |               |
-| **Total**   |                                  | **~10 hours** |
+| Phase       | Tasks                            | Status        | Duration          |
+| ----------- | -------------------------------- | ------------- | ----------------- |
+| **Phase 1** | Setup & Configuration            | ✅ Complete   | 2 hours           |
+|             | - Install Playwright             | ✅            |                   |
+|             | - Configure playwright.config.ts | ✅            |                   |
+|             | - Setup test database helpers    | ✅            |                   |
+|             | - Add data-testid attributes     | ✅            |                   |
+| **Phase 2** | Core Tests                       | 🔄 Pending    | 4 hours           |
+|             | - Budget list & month selection  | 🔄            |                   |
+|             | - Create budget                  | 🔄            |                   |
+|             | - Edit budget                    | 🔄            |                   |
+|             | - Delete budget                  | 🔄            |                   |
+| **Phase 3** | Copy Feature Tests               | ✅ Complete   | 3 hours           |
+|             | - Copy to empty month            | ✅            |                   |
+|             | - Copy with existing budgets     | ✅            |                   |
+|             | - Modal interactions             | ✅            |                   |
+| **Phase 4** | CI/CD Integration                | 🔄 Pending    | 1 hour            |
+|             | - Setup GitHub Actions           | 🔄            |                   |
+|             | - Configure test reporting       | 🔄            |                   |
+| **Total**   |                                  | **~10 hours** | **~5 hours done** |
 
-## Success Metrics
+### Test Results
 
-- ✅ All critical user flows covered
-- ✅ Tests run in < 5 minutes
-- ✅ Zero flaky tests
-- ✅ 100% pass rate in CI
-- ✅ Clear error messages on failure
+| Test Suite    | Tests | Status         |
+| ------------- | ----- | -------------- |
+| Smoke Tests   | 3/3   | ✅ Passing     |
+| Copy Feature  | 6/6   | ✅ Implemented |
+| Core Features | 0/4   | 🔄 Pending     |
+
+## ✅ Success Metrics
+
+- ✅ Playwright setup complete
+- ✅ 3 smoke tests passing
+- ✅ 6 copy feature tests implemented
+- 🔄 Zero flaky tests (in progress)
+- 🔄 100% pass rate in CI (in progress)
+- 🔄 Tests run in < 5 minutes (in progress)
 
 ## Next Steps
 
 1. ✅ Install Playwright
 2. ✅ Configure playwright.config.ts
 3. ✅ Add data-testid attributes to UI components
-4. ✅ Implement budget-copy.spec.ts (highest priority)
-5. ✅ Implement other core test files
-6. ✅ Setup CI/CD integration
-7. ✅ Run tests regularly in development
+4. ✅ Implement budget-copy.spec.ts
+5. 🔄 Implement budget-list.spec.ts
+6. 🔄 Implement budget-create.spec.ts
+7. 🔄 Implement budget-edit.spec.ts
+8. 🔄 Implement budget-delete.spec.ts
+9. 🔄 Setup CI/CD integration
+10. 🔄 Run tests regularly in development
+
+## Quick Commands
+
+```bash
+# Run smoke tests (verify setup)
+pnpm playwright test tests/e2e/smoke.spec.ts
+
+# Run copy feature tests
+pnpm playwright test tests/e2e/budgets/budget-copy.spec.ts
+
+# Run all E2E tests
+pnpm playwright test tests/e2e/
+
+# Open test report
+pnpm playwright show-report
+```
 
 ## Resources
 
