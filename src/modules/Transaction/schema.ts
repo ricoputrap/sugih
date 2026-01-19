@@ -198,6 +198,13 @@ export const TransactionIdSchema = z.object({
     .max(50, "Transaction ID too long"),
 });
 
+export const BulkDeleteTransactionsSchema = z.object({
+  ids: z
+    .array(z.string().min(1).max(50, "Transaction ID too long"))
+    .min(1, "At least one transaction ID is required")
+    .max(100, "Maximum 100 transactions can be deleted at once"),
+});
+
 // Type exports for TypeScript
 export type TransactionEvent = typeof transactionEvents.$inferSelect;
 export type NewTransactionEvent = typeof transactionEvents.$inferInsert;
@@ -213,3 +220,6 @@ export type TransactionListQueryInput = z.infer<
   typeof TransactionListQuerySchema
 >;
 export type TransactionIdInput = z.infer<typeof TransactionIdSchema>;
+export type BulkDeleteTransactionsInput = z.infer<
+  typeof BulkDeleteTransactionsSchema
+>;
