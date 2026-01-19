@@ -8,9 +8,11 @@
 
 import { nanoid } from "nanoid";
 import { getDb, getPool } from "@/db/drizzle-client";
+import { inArray } from "drizzle-orm";
 import { unprocessableEntity } from "@/lib/http";
 import { formatZodError } from "@/lib/zod";
 import {
+  BulkDeleteTransactionsSchema,
   ExpenseCreateSchema,
   IncomeCreateSchema,
   type Posting,
@@ -21,6 +23,7 @@ import {
   type TransactionListQueryInput,
   TransactionListQuerySchema,
   TransferCreateSchema,
+  transactionEvents,
 } from "./schema";
 
 // Extended transaction type with postings
@@ -882,6 +885,71 @@ export async function deleteTransaction(id: string): Promise<void> {
     WHERE id = $3`,
     [now, now, id],
   );
+}
+
+export async function bulkDeleteTransactions(
+  ids: string[],
+): Promise<{ deletedCount: number; failedIds: string[] }> {
+  const pool = getPool();
+
+  // Validate input
+  const validatedInput = BulkDeleteTransactionsSchema.parse({ ids });
+
+  const db = getDb();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Check which transactions exist and are not already deleted
+    const checkQuery = `
+      SELECT id, deleted_at
+      FROM transaction_events
+      WHERE id = ANY($1)
+    `;
+    const checkResult = await client.query(checkQuery, [validatedInput.ids]);
+    const transactions = checkResult.rows;
+
+    // Identify failed IDs
+    const foundIds = new Set(transactions.map((t) => t.id));
+    const notFoundIds = validatedInput.ids.filter((id) => !foundIds.has(id));
+    const alreadyDeletedIds = transactions
+      .filter((t) => t.deleted_at)
+      .map((t) => t.id);
+
+    const failedIds = [...notFoundIds, ...alreadyDeletedIds];
+    const deletableIds = transactions
+      .filter((t) => !t.deleted_at)
+      .map((t) => t.id);
+
+    // Perform soft delete for valid, non-deleted transactions
+    let deletedCount = 0;
+    if (deletableIds.length > 0) {
+      const now = new Date();
+
+      // Use Drizzle ORM for type-safe bulk update
+      await db
+        .update(transactionEvents)
+        .set({
+          deleted_at: now,
+          updated_at: now,
+        })
+        .where(inArray(transactionEvents.id, deletableIds));
+
+      deletedCount = deletableIds.length;
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      deletedCount,
+      failedIds,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**

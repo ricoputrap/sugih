@@ -14,6 +14,7 @@ import {
   createSavingsContribution,
   createSavingsWithdrawal,
   createTransfer,
+  bulkDeleteTransactions,
   deleteTransaction,
   getTransactionById,
   getTransactionStats,
@@ -350,6 +351,299 @@ describe("Transaction Integration Tests", () => {
       const restored = await restoreTransaction(expense.id);
 
       expect(restored.deleted_at).toBeNull();
+    });
+  });
+
+  describe("bulkDeleteTransactions", () => {
+    it("should bulk delete multiple valid transactions", async () => {
+      // Create 3 expense transactions
+      const expense1 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 25000,
+      });
+      testTransactionIds.push(expense1.id);
+
+      const expense2 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 35000,
+      });
+      testTransactionIds.push(expense2.id);
+
+      const expense3 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 45000,
+      });
+      testTransactionIds.push(expense3.id);
+
+      // Bulk delete all three
+      const result = await bulkDeleteTransactions([
+        expense1.id,
+        expense2.id,
+        expense3.id,
+      ]);
+
+      expect(result.deletedCount).toBe(3);
+      expect(result.failedIds).toEqual([]);
+
+      // Verify all are deleted
+      const retrieved1 = await getTransactionById(expense1.id);
+      const retrieved2 = await getTransactionById(expense2.id);
+      const retrieved3 = await getTransactionById(expense3.id);
+
+      expect(retrieved1?.deleted_at).toBeDefined();
+      expect(retrieved2?.deleted_at).toBeDefined();
+      expect(retrieved3?.deleted_at).toBeDefined();
+    });
+
+    it("should handle bulk delete with some non-existent IDs", async () => {
+      // Create 2 expense transactions
+      const expense1 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 25000,
+      });
+      testTransactionIds.push(expense1.id);
+
+      const expense2 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 35000,
+      });
+      testTransactionIds.push(expense2.id);
+
+      // Bulk delete with one valid ID and one non-existent ID
+      const fakeId = "non_existent_id_" + nanoid();
+      const result = await bulkDeleteTransactions([expense1.id, fakeId]);
+
+      expect(result.deletedCount).toBe(1);
+      expect(result.failedIds).toContain(fakeId);
+      expect(result.failedIds).not.toContain(expense1.id);
+
+      // Verify only expense1 is deleted
+      const retrieved1 = await getTransactionById(expense1.id);
+      const retrieved2 = await getTransactionById(expense2.id);
+
+      expect(retrieved1?.deleted_at).toBeDefined();
+      expect(retrieved2?.deleted_at).toBeNull();
+    });
+
+    it("should handle bulk delete with already deleted transactions", async () => {
+      // Create 2 expense transactions
+      const expense1 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 25000,
+      });
+      testTransactionIds.push(expense1.id);
+
+      const expense2 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 35000,
+      });
+      testTransactionIds.push(expense2.id);
+
+      // Delete expense1 first
+      await deleteTransaction(expense1.id);
+
+      // Bulk delete both (one already deleted, one not)
+      const result = await bulkDeleteTransactions([expense1.id, expense2.id]);
+
+      expect(result.deletedCount).toBe(1);
+      expect(result.failedIds).toContain(expense1.id);
+      expect(result.failedIds).not.toContain(expense2.id);
+
+      // Verify states
+      const retrieved1 = await getTransactionById(expense1.id);
+      const retrieved2 = await getTransactionById(expense2.id);
+
+      expect(retrieved1?.deleted_at).toBeDefined();
+      expect(retrieved2?.deleted_at).toBeDefined();
+    });
+
+    it("should handle bulk delete with mixed valid, invalid, and already deleted", async () => {
+      // Create 3 expense transactions
+      const expense1 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 25000,
+      });
+      testTransactionIds.push(expense1.id);
+
+      const expense2 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 35000,
+      });
+      testTransactionIds.push(expense2.id);
+
+      const expense3 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 45000,
+      });
+      testTransactionIds.push(expense3.id);
+
+      // Delete expense1 first
+      await deleteTransaction(expense1.id);
+
+      const fakeId = "non_existent_id_" + nanoid();
+      const anotherFakeId = "another_fake_" + nanoid();
+
+      // Bulk delete with mixed scenario
+      const result = await bulkDeleteTransactions([
+        expense1.id, // Already deleted
+        expense2.id, // Valid
+        fakeId, // Non-existent
+        expense3.id, // Valid
+        anotherFakeId, // Non-existent
+      ]);
+
+      // Only expense2 and expense3 should be deleted
+      expect(result.deletedCount).toBe(2);
+      expect(result.failedIds).toContain(expense1.id);
+      expect(result.failedIds).toContain(fakeId);
+      expect(result.failedIds).toContain(anotherFakeId);
+      expect(result.failedIds).not.toContain(expense2.id);
+      expect(result.failedIds).not.toContain(expense3.id);
+
+      // Verify final states
+      const retrieved1 = await getTransactionById(expense1.id);
+      const retrieved2 = await getTransactionById(expense2.id);
+      const retrieved3 = await getTransactionById(expense3.id);
+
+      expect(retrieved1?.deleted_at).toBeDefined();
+      expect(retrieved2?.deleted_at).toBeDefined();
+      expect(retrieved3?.deleted_at).toBeDefined();
+    });
+
+    it("should reject empty array", async () => {
+      await expect(bulkDeleteTransactions([])).rejects.toThrow(
+        "At least one transaction ID is required",
+      );
+    });
+
+    it("should reject all transactions already deleted", async () => {
+      // Create 2 expense transactions
+      const expense1 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 25000,
+      });
+      testTransactionIds.push(expense1.id);
+
+      const expense2 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 35000,
+      });
+      testTransactionIds.push(expense2.id);
+
+      // Delete both first
+      await deleteTransaction(expense1.id);
+      await deleteTransaction(expense2.id);
+
+      // Try to bulk delete already deleted transactions
+      const result = await bulkDeleteTransactions([expense1.id, expense2.id]);
+
+      expect(result.deletedCount).toBe(0);
+      expect(result.failedIds).toContain(expense1.id);
+      expect(result.failedIds).toContain(expense2.id);
+    });
+
+    it("should handle bulk delete with exactly 100 transactions", async () => {
+      const ids: string[] = [];
+      const numTransactions = 100;
+
+      // Create 100 expense transactions
+      for (let i = 0; i < numTransactions; i++) {
+        const expense = await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testCategoryId,
+          amountIdr: 1000 + i,
+        });
+        ids.push(expense.id);
+        testTransactionIds.push(expense.id);
+      }
+
+      // Bulk delete all 100
+      const result = await bulkDeleteTransactions(ids);
+
+      expect(result.deletedCount).toBe(100);
+      expect(result.failedIds).toEqual([]);
+
+      // Verify first and last are deleted
+      const first = await getTransactionById(ids[0]);
+      const last = await getTransactionById(ids[99]);
+
+      expect(first?.deleted_at).toBeDefined();
+      expect(last?.deleted_at).toBeDefined();
+    });
+
+    it("should use database transaction for atomicity", async () => {
+      // Create 3 expense transactions
+      const expense1 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 25000,
+      });
+      testTransactionIds.push(expense1.id);
+
+      const expense2 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 35000,
+      });
+      testTransactionIds.push(expense2.id);
+
+      const expense3 = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testCategoryId,
+        amountIdr: 45000,
+      });
+      testTransactionIds.push(expense3.id);
+
+      // Delete expense2 first
+      await deleteTransaction(expense2.id);
+
+      // Bulk delete all three (should only delete 1 and 3)
+      const result = await bulkDeleteTransactions([
+        expense1.id,
+        expense2.id, // Already deleted
+        expense3.id,
+      ]);
+
+      // Verify atomicity - either all valid ones deleted or none
+      expect(result.deletedCount).toBe(2);
+      expect(result.failedIds).toContain(expense2.id);
+
+      const retrieved1 = await getTransactionById(expense1.id);
+      const retrieved2 = await getTransactionById(expense2.id);
+      const retrieved3 = await getTransactionById(expense3.id);
+
+      // All should have consistent state
+      expect(retrieved1?.deleted_at).toBeDefined();
+      expect(retrieved2?.deleted_at).toBeDefined();
+      expect(retrieved3?.deleted_at).toBeDefined();
     });
   });
 
