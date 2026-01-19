@@ -375,8 +375,8 @@ describe("Transaction Integration Tests", () => {
       testTransactionIds.push(income1.id);
 
       // Use a narrow time window around the transaction creation time
-      const startTime = new Date(now.getTime() - 60000); // 1 minute before
-      const endTime = new Date(now.getTime() + 60000); // 1 minute after
+      const startTime = new Date(now.getTime() - 10000); // 10 seconds before
+      const endTime = new Date(now.getTime() + 10000); // 10 seconds after
 
       const stats = await getTransactionStats(startTime, endTime);
 
