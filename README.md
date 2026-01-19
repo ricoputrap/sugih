@@ -28,7 +28,7 @@ A comprehensive personal finance management application built with Next.js, Post
 - PostgreSQL 16+ installed locally or via Docker
 - Node.js 18+ and pnpm
 
-### Option 1: Using Docker (Recommended)
+### Using Docker
 
 1. Clone the repository:
 
@@ -49,52 +49,9 @@ docker-compose up -d
      - Email: admin@email.com
      - Password: admin
 
-### Option 2: Local PostgreSQL Installation
+### Database Setup with Drizzle ORM
 
-1. Install PostgreSQL 16+ on your system
-2. Create a database:
-
-```bash
-createdb sugih_dev
-```
-
-3. Create a user (optional):
-
-```bash
-psql -d sugih_dev -c "CREATE USER sugih_user WITH PASSWORD 'sugih_password';"
-psql -d sugih_dev -c "GRANT ALL PRIVILEGES ON DATABASE sugih_dev TO sugih_user;"
-```
-
-### Environment Configuration
-
-1. Copy the environment template:
-
-```bash
-cp .env.example .env
-```
-
-2. Update `.env` with your database credentials:
-
-```env
-# Database Configuration
-DATABASE_URL=postgresql://sugih_user:sugih_password@localhost:5432/sugih_dev
-
-# PostgreSQL Connection Settings
-PGHOST=localhost
-PGPORT=5432
-PGUSER=sugih_user
-PGPASSWORD=sugih_password
-PGDATABASE=sugih_dev
-
-# Development Settings
-NODE_ENV=development
-PORT=3000
-
-# Application Settings
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-### Database Migration
+This project uses Drizzle ORM for type-safe database operations with raw SQL support for complex queries.
 
 1. Install dependencies:
 
@@ -102,7 +59,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 pnpm install
 ```
 
-2. Generate and run migrations:
+2. Generate Drizzle migrations from schema:
 
 ```bash
 # Generate migration files from Drizzle schema
@@ -112,12 +69,37 @@ pnpm db:generate
 pnpm db:migrate
 ```
 
-3. Verify the migration:
+3. Verify the setup:
 
 ```bash
-# Check database schema
+# Open Drizzle Studio for visual database management
 pnpm db:studio
 ```
+
+### Drizzle Client
+
+The application uses a dual-client pattern:
+
+- **Drizzle Client** (`getDb()`): For type-safe ORM queries using Drizzle
+- **Pool Client** (`getPool()`): For raw SQL queries when needed
+
+```typescript
+// Import from the centralized database client
+import { getDb, getPool, closeDb } from "@/db/drizzle-client";
+
+// Drizzle ORM query example
+const wallets = await getDb()
+  .select()
+  .from(walletsTable)
+  .where(eq(walletsTable.archived, false));
+
+// Raw SQL query example (for complex operations)
+const result = await getPool().query(
+  `SELECT * FROM transaction_events WHERE deleted_at IS NULL`,
+);
+```
+
+For more details, see `src/db/drizzle-client.ts`.
 
 ## Development
 
@@ -138,8 +120,6 @@ pnpm test
 # Run tests in watch mode
 pnpm test --watch
 
-# Run integration tests specifically
-pnpm test tests/integration
 ```
 
 ### Database Management
@@ -153,6 +133,9 @@ pnpm db:push
 
 # Open Drizzle Studio for visual database management
 pnpm db:studio
+
+# Check database health
+pnpm db:health
 ```
 
 ### Code Quality
@@ -268,33 +251,55 @@ pnpm format
 - `updated_at` (timestamp) - Last update timestamp
 - Unique index on (month, category_id)
 
-## PostgreSQL Migration Guide
+## Drizzle ORM Setup Guide
 
-### From SQLite to PostgreSQL
+### Architecture
 
-This application has been migrated from SQLite to PostgreSQL. Key changes include:
+This application uses Drizzle ORM with a hybrid approach:
 
-1. **Data Types**:
-   - `text` → `varchar(n)` for fields with known maximum lengths
-   - `integer` timestamps → `timestamp with timezone`
-   - Added proper UUID handling
+1. **Drizzle ORM**: For type-safe schema definition and CRUD operations
+2. **Raw SQL**: For complex queries requiring PostgreSQL-specific features
 
-2. **Constraints**:
-   - Enhanced foreign key constraints
-   - Unique constraints on business logic fields
-   - Check constraints for enum values
+### Raw SQL Pattern
 
-3. **Features**:
-   - Connection pooling for better performance
-   - Better transaction support
-   - Advanced indexing for query optimization
+For complex queries, use raw SQL with parameterized statements:
 
-### Testing the Migration
+```typescript
+const result = await getPool().query(
+  `SELECT te.type, COUNT(*)::int as count, COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total
+   FROM transaction_events te
+   LEFT JOIN postings p ON te.id = p.event_id
+   WHERE te.deleted_at IS NULL
+   GROUP BY te.type`,
+);
+```
 
-Run the comprehensive integration tests to verify the migration:
+### Migration Management
 
 ```bash
-pnpm test tests/integration/database.test.ts
+# Generate migrations from schema changes
+pnpm db:generate
+
+# Apply pending migrations
+pnpm db:migrate
+
+# Push schema (dev only - creates migration automatically)
+pnpm db:push
+
+# Open visual editor
+pnpm db:studio
+```
+
+### Testing the Database Layer
+
+Run the integration tests to verify database operations:
+
+```bash
+# Run all tests
+pnpm test
+
+# Run database-specific tests
+pnpm test src/db/
 ```
 
 These tests validate:
@@ -317,9 +322,8 @@ src/
 │       ├── transactions/  # Transaction endpoints
 │       └── budgets/       # Budget endpoints
 ├── db/                    # Database layer
-│   ├── client.ts         # PostgreSQL client
+│   ├── drizzle-client.ts # Drizzle ORM + Pool client
 │   ├── config.ts         # Database configuration
-│   ├── helpers.ts        # Query helpers
 │   └── migrate.ts        # Migration runner
 ├── modules/              # Business logic modules
 │   ├── Wallet/           # Wallet module
@@ -330,7 +334,9 @@ src/
 │   ├── SavingsBucket/    # Savings bucket module
 │   ├── Transaction/      # Transaction module
 │   └── Budget/           # Budget module
+├── drizzle/              # Drizzle migrations
 └── lib/                  # Shared utilities
+
 tests/
 ├── integration/          # Integration tests
 │   └── database.test.ts # End-to-end database tests
@@ -373,43 +379,6 @@ Monthly budget planning:
 
 ## Troubleshooting
 
-### Database Connection Issues
-
-1. Verify PostgreSQL is running:
-
-```bash
-pg_isready -h localhost -p 5432
-```
-
-2. Check credentials in `.env`
-3. Ensure database exists:
-
-```bash
-psql -l
-```
-
-4. Check Docker container status:
-
-```bash
-docker-compose ps
-```
-
-### Migration Issues
-
-1. Reset database (development only):
-
-```bash
-dropdb sugih_dev
-createdb sugih_dev
-pnpm db:migrate
-```
-
-2. Generate fresh migration:
-
-```bash
-pnpm db:generate
-```
-
 ### Test Failures
 
 1. Ensure PostgreSQL is running
@@ -418,6 +387,12 @@ pnpm db:generate
 
 ```bash
 pnpm test --reporter=verbose
+```
+
+4. Verify database client is properly initialized:
+
+```bash
+pnpm test src/db/infrastructure.test.ts
 ```
 
 ## Contributing
