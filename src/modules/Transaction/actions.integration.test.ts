@@ -355,11 +355,12 @@ describe("Transaction Integration Tests", () => {
 
   describe("Get Transaction Stats", () => {
     it("should return transaction statistics", async () => {
-      const now = new Date();
+      // Use a unique future date to avoid conflicts with other test data
+      const uniqueDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000); // 180 days in future
 
       // Create expense
       const expense1 = await createExpense({
-        occurredAt: now,
+        occurredAt: uniqueDate,
         walletId: testWalletId,
         categoryId: testCategoryId,
         amountIdr: 100000,
@@ -368,15 +369,15 @@ describe("Transaction Integration Tests", () => {
 
       // Create income
       const income1 = await createIncome({
-        occurredAt: now,
+        occurredAt: uniqueDate,
         walletId: testWalletId,
         amountIdr: 500000,
       });
       testTransactionIds.push(income1.id);
 
-      // Use a narrow time window around the transaction creation time
-      const startTime = new Date(now.getTime() - 10000); // 10 seconds before
-      const endTime = new Date(now.getTime() + 10000); // 10 seconds after
+      // Use a narrow time window around the unique date
+      const startTime = new Date(uniqueDate.getTime() - 10000); // 10 seconds before
+      const endTime = new Date(uniqueDate.getTime() + 10000); // 10 seconds after
 
       const stats = await getTransactionStats(startTime, endTime);
 

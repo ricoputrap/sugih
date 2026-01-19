@@ -25,11 +25,10 @@ describe("Savings Bucket Integration Tests", () => {
   async function cleanupTestBucket(id: string) {
     const pool = getPool();
     try {
-      // Clean up transactions first if any
-      await pool.query(
-        `DELETE FROM transactions WHERE savings_bucket_id = $1`,
-        [id],
-      );
+      // Clean up postings first if any
+      await pool.query(`DELETE FROM postings WHERE savings_bucket_id = $1`, [
+        id,
+      ]);
       // Clean up savings bucket
       await pool.query(`DELETE FROM savings_buckets WHERE id = $1`, [id]);
     } catch (error) {
