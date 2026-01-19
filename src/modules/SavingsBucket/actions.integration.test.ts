@@ -17,8 +17,7 @@ import {
   deleteSavingsBucket,
   getSavingsBucketStats,
 } from "./actions";
-import { getDb, getPool, closeDb } from "@/db/drizzle-client";
-import { sql } from "drizzle-orm";
+import { getPool, closeDb } from "@/db/drizzle-client";
 
 describe("Savings Bucket Integration Tests", () => {
   const testBucketIds: string[] = [];
