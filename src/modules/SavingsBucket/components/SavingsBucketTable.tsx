@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   MoreHorizontal,
   Archive,
@@ -34,6 +35,9 @@ interface SavingsBucketTableProps {
   onArchive?: (id: string) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onEdit?: (bucket: SavingsBucket) => void;
+  onBulkDelete?: (ids: string[]) => Promise<void>;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
   isLoading?: boolean;
 }
 
@@ -42,9 +46,49 @@ export function SavingsBucketTable({
   onArchive,
   onDelete,
   onEdit,
+  onBulkDelete,
+  selectedIds: externalSelectedIds,
+  onSelectionChange,
   isLoading = false,
 }: SavingsBucketTableProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [internalSelectedIds, setInternalSelectedIds] = useState<string[]>([]);
+
+  // Use external selection state if provided, otherwise use internal
+  const selectedIds = externalSelectedIds || internalSelectedIds;
+  const setSelectedIds = (ids: string[]) => {
+    if (onSelectionChange) {
+      onSelectionChange(ids);
+    } else {
+      setInternalSelectedIds(ids);
+    }
+  };
+
+  // Handle select all checkbox
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds([...buckets.map((b) => b.id)]);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // Handle individual checkbox
+  const handleSelectOne = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds([...selectedIds, id]);
+    } else {
+      setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id));
+    }
+  };
+
+  // Check if all rows are selected
+  const areAllSelected =
+    buckets.length > 0 && selectedIds.length === buckets.length;
+
+  // Check if some rows are selected
+  const areSomeSelected =
+    selectedIds.length > 0 && selectedIds.length < buckets.length;
 
   const handleArchive = async (id: string, name: string) => {
     if (!onArchive) return;
@@ -145,6 +189,13 @@ export function SavingsBucketTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[50px]">
+              <Checkbox
+                checked={areSomeSelected ? "indeterminate" : areAllSelected}
+                onCheckedChange={handleSelectAll}
+                aria-label="Select all savings buckets"
+              />
+            </TableHead>
             <TableHead className="w-[200px]">Name</TableHead>
             <TableHead className="w-[300px]">Description</TableHead>
             <TableHead className="w-[100px]">Status</TableHead>
@@ -156,15 +207,29 @@ export function SavingsBucketTable({
           {buckets.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={5}
+                colSpan={6}
                 className="text-center text-muted-foreground py-8"
               >
-                No savings buckets found. Create your first bucket to get started.
+                No savings buckets found. Create your first bucket to get
+                started.
               </TableCell>
             </TableRow>
           ) : (
             buckets.map((bucket) => (
-              <TableRow key={bucket.id}>
+              <TableRow
+                key={bucket.id}
+                data-selected={selectedIds.includes(bucket.id)}
+                className={selectedIds.includes(bucket.id) ? "bg-muted/50" : ""}
+              >
+                <TableCell>
+                  <Checkbox
+                    checked={selectedIds.includes(bucket.id)}
+                    onCheckedChange={(checked) =>
+                      handleSelectOne(bucket.id, checked as boolean)
+                    }
+                    aria-label={`Select ${bucket.name}`}
+                  />
+                </TableCell>
                 <TableCell className="font-medium">{bucket.name}</TableCell>
                 <TableCell className="text-muted-foreground">
                   {bucket.description || "—"}
@@ -235,9 +300,7 @@ export function SavingsBucketTable({
                       <DropdownMenuSeparator />
                       {onDelete && (
                         <DropdownMenuItem
-                          onClick={() =>
-                            handleDelete(bucket.id, bucket.name)
-                          }
+                          onClick={() => handleDelete(bucket.id, bucket.name)}
                           className="text-red-600"
                           disabled={
                             actionLoading === bucket.id || !bucket.archived

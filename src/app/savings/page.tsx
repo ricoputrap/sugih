@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,6 +10,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { SavingsBucketTable } from "@/modules/SavingsBucket/components/SavingsBucketTable";
 import { SavingsBucketDialogForm } from "@/modules/SavingsBucket/components/SavingsBucketDialogForm";
 import { SavingsBucket } from "@/modules/SavingsBucket/schema";
@@ -23,6 +33,9 @@ export default function SavingsPage() {
     null,
   );
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedBucketIds, setSelectedBucketIds] = useState<string[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch savings buckets
   const fetchBuckets = async () => {
@@ -80,13 +93,16 @@ export default function SavingsPage() {
     if (!selectedBucket) return;
 
     try {
-      const response = await fetch(`/api/savings-buckets/${selectedBucket.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/savings-buckets/${selectedBucket.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(values),
         },
-        body: JSON.stringify(values),
-      });
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -128,6 +144,50 @@ export default function SavingsPage() {
     await fetchBuckets();
   };
 
+  // Handle bulk delete
+  const handleBulkDelete = async (ids: string[]) => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch("/api/savings-buckets", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        // Handle partial failure
+        if (errorData.error?.issues?.details?.failedIds) {
+          const { deletedCount, failedIds } = errorData.error.issues.details;
+          toast.error(
+            `${deletedCount} bucket(s) deleted, but ${failedIds.length} failed. Failed IDs: ${failedIds.join(", ")}`,
+          );
+          setSelectedBucketIds(failedIds); // Keep failed IDs selected
+        } else {
+          throw new Error(
+            errorData.error?.message || "Failed to delete savings buckets",
+          );
+        }
+      } else {
+        const data = await response.json();
+        toast.success(
+          `${data.deletedCount} savings bucket(s) deleted successfully`,
+        );
+        setSelectedBucketIds([]); // Clear selection on success
+      }
+
+      await fetchBuckets();
+      setIsDeleteDialogOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete savings buckets");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Open edit dialog
   const handleEditClick = (bucket: SavingsBucket) => {
     setSelectedBucket(bucket);
@@ -147,10 +207,22 @@ export default function SavingsPage() {
             Manage your savings goals and allocate funds for specific purposes
           </p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Bucket
-        </Button>
+        <div className="flex gap-2">
+          {selectedBucketIds.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Selected ({selectedBucketIds.length})
+            </Button>
+          )}
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Bucket
+          </Button>
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -175,9 +247,7 @@ export default function SavingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {archivedBuckets.length}
-            </div>
+            <div className="text-2xl font-bold">{archivedBuckets.length}</div>
             <p className="text-xs text-muted-foreground">Hidden from forms</p>
           </CardContent>
         </Card>
@@ -197,10 +267,39 @@ export default function SavingsPage() {
             onArchive={handleArchiveBucket}
             onDelete={handleDeleteBucket}
             onEdit={handleEditClick}
+            onBulkDelete={handleBulkDelete}
+            selectedIds={selectedBucketIds}
+            onSelectionChange={setSelectedBucketIds}
             isLoading={isLoading}
           />
         </CardContent>
       </Card>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete savings buckets?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move {selectedBucketIds.length} savings bucket(s) to
+              trash (soft delete). You can restore them later if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleBulkDelete(selectedBucketIds)}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Create Dialog */}
       <SavingsBucketDialogForm
