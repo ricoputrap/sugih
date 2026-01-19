@@ -6,6 +6,7 @@ import {
   createTransfer,
   createSavingsContribution,
   createSavingsWithdrawal,
+  bulkDeleteTransactions,
 } from "@/modules/Transaction/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
 import { formatPostgresError } from "@/db/drizzle-client";
@@ -184,5 +185,86 @@ export async function POST(request: NextRequest) {
     }
 
     return serverError("Failed to create transaction");
+  }
+}
+
+/**
+ * DELETE /api/transactions
+ * Bulk delete multiple transactions
+ *
+ * Body:
+ * - ids: array of transaction IDs to delete (max 100)
+ *
+ * Returns:
+ * - Success: { message, deletedCount }
+ * - Partial failure: { error: { code, message, details: { deletedCount, failedIds } } }
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    // Parse request body
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return badRequest("Invalid JSON body");
+    }
+
+    const { ids } = body;
+
+    if (!ids) {
+      return badRequest("Missing required field: ids");
+    }
+
+    if (!Array.isArray(ids)) {
+      return badRequest("Field 'ids' must be an array");
+    }
+
+    // Call the bulk delete action
+    const result = await bulkDeleteTransactions(ids);
+
+    // If there are failed IDs, return partial failure
+    if (result.failedIds.length > 0) {
+      // Some transactions could not be deleted (either not found or already deleted)
+      return badRequest("Some transactions could not be deleted", {
+        code: "VALIDATION_ERROR",
+        message: "Some transactions could not be deleted",
+        details: {
+          deletedCount: result.deletedCount,
+          failedIds: result.failedIds,
+        },
+      });
+    }
+
+    // All transactions deleted successfully
+    return ok({
+      message: "Transactions deleted successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error: any) {
+    console.error("Error bulk deleting transactions:", error);
+
+    // Handle validation errors (already formatted as Response)
+    if (error instanceof Response) {
+      return error;
+    }
+
+    // Handle Zod validation errors
+    if (error.status === 422) {
+      return error;
+    }
+
+    // Handle not found errors
+    if (error.message?.includes("not found")) {
+      return notFound(error.message);
+    }
+
+    // Handle PostgreSQL-specific errors
+    if (error.code) {
+      const formattedError = formatPostgresError(error);
+      console.error("PostgreSQL error:", formattedError);
+      return serverError("Database error");
+    }
+
+    return serverError("Failed to delete transactions");
   }
 }

@@ -9,6 +9,7 @@ vi.mock("@/modules/Transaction/actions", () => ({
   createTransfer: vi.fn(),
   createSavingsContribution: vi.fn(),
   createSavingsWithdrawal: vi.fn(),
+  bulkDeleteTransactions: vi.fn(),
 }));
 
 // Mock the database client
@@ -78,7 +79,7 @@ vi.mock("@/lib/http", () => ({
   ),
 }));
 
-import { GET, POST } from "./route";
+import { GET, POST, DELETE } from "./route";
 
 import {
   listTransactions,
@@ -87,7 +88,11 @@ import {
   createTransfer,
   createSavingsContribution,
   createSavingsWithdrawal,
+  bulkDeleteTransactions,
 } from "@/modules/Transaction/actions";
+
+// Import mocked functions for testing
+import { formatPostgresError } from "@/db/drizzle-client";
 
 // Helper to create mock NextRequest
 function createMockRequest(
@@ -103,7 +108,12 @@ function createMockRequest(
   };
 
   if (body !== undefined) {
-    init.body = JSON.stringify(body);
+    // If body is already a string, use it directly (for invalid JSON tests)
+    if (typeof body === "string") {
+      init.body = body;
+    } else {
+      init.body = JSON.stringify(body);
+    }
   }
 
   return new NextRequest(url, init);
@@ -887,7 +897,9 @@ describe("Transactions API Routes", () => {
         const { status, data } = await parseResponse(response);
 
         expect(status).toBe(400);
-        expect(data.error.message).toBe("Invalid data: Amount must be positive");
+        expect(data.error.message).toBe(
+          "Invalid data: Amount must be positive",
+        );
       });
 
       it("should return 500 for unexpected errors", async () => {
@@ -1015,6 +1027,279 @@ describe("Transactions API Routes", () => {
 
         expect(status).toBe(200);
       });
+    });
+  });
+
+  describe("DELETE /api/transactions", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("should bulk delete transactions successfully", async () => {
+      const mockResult = {
+        deletedCount: 3,
+        failedIds: [],
+      };
+
+      vi.mocked(bulkDeleteTransactions).mockResolvedValue(mockResult);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          ids: ["txn1", "txn2", "txn3"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.message).toBe("Transactions deleted successfully");
+      expect(data.deletedCount).toBe(3);
+      expect(vi.mocked(bulkDeleteTransactions)).toHaveBeenCalledWith([
+        "txn1",
+        "txn2",
+        "txn3",
+      ]);
+    });
+
+    it("should return partial failure with failedIds", async () => {
+      const mockResult = {
+        deletedCount: 2,
+        failedIds: ["txn3"],
+      };
+
+      vi.mocked(bulkDeleteTransactions).mockResolvedValue(mockResult);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          ids: ["txn1", "txn2", "txn3"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Some transactions could not be deleted");
+      expect(data.error.issues.code).toBe("VALIDATION_ERROR");
+      expect(data.error.issues.details.deletedCount).toBe(2);
+      expect(data.error.issues.details.failedIds).toEqual(["txn3"]);
+    });
+
+    it("should reject request with missing ids field", async () => {
+      vi.mocked(bulkDeleteTransactions).mockResolvedValue({
+        deletedCount: 0,
+        failedIds: [],
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          // ids field is missing
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Missing required field: ids");
+    });
+
+    it("should reject request with non-array ids", async () => {
+      vi.mocked(bulkDeleteTransactions).mockResolvedValue({
+        deletedCount: 0,
+        failedIds: [],
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          ids: "not-an-array",
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Field 'ids' must be an array");
+    });
+
+    it("should reject request with invalid JSON", async () => {
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        "invalid-json",
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Invalid JSON body");
+    });
+
+    it("should handle validation errors from bulkDeleteTransactions", async () => {
+      const validationError = new Error(
+        "At least one transaction ID is required",
+      );
+      validationError.status = 422;
+      vi.mocked(bulkDeleteTransactions).mockRejectedValue(validationError);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          ids: [],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status } = await parseResponse(response);
+
+      expect(status).toBe(422);
+    });
+
+    it("should handle not found errors from bulkDeleteTransactions", async () => {
+      vi.mocked(bulkDeleteTransactions).mockRejectedValue(
+        new Error("Transaction not found"),
+      );
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          ids: ["nonexistent"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status } = await parseResponse(response);
+
+      expect(status).toBe(404);
+    });
+
+    it("should handle PostgreSQL errors from bulkDeleteTransactions", async () => {
+      const pgError = new Error("Connection failed");
+      pgError.code = "ECONNREFUSED";
+      vi.mocked(bulkDeleteTransactions).mockRejectedValue(pgError);
+
+      vi.mocked(formatPostgresError).mockReturnValue("Connection failed");
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          ids: ["txn1", "txn2"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(500);
+      expect(data.error.message).toBe("Database error");
+      expect(vi.mocked(formatPostgresError)).toHaveBeenCalledWith(pgError);
+    });
+
+    it("should handle unexpected errors from bulkDeleteTransactions", async () => {
+      vi.mocked(bulkDeleteTransactions).mockRejectedValue(
+        new Error("Unexpected error"),
+      );
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          ids: ["txn1"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(500);
+      expect(data.error.message).toBe("Failed to delete transactions");
+    });
+
+    it("should handle single transaction delete", async () => {
+      const mockResult = {
+        deletedCount: 1,
+        failedIds: [],
+      };
+
+      vi.mocked(bulkDeleteTransactions).mockResolvedValue(mockResult);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          ids: ["single-txn-id"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.message).toBe("Transactions deleted successfully");
+      expect(data.deletedCount).toBe(1);
+    });
+
+    it("should handle maximum 100 transactions", async () => {
+      const ids = Array.from({ length: 100 }, (_, i) => `txn_${i}`);
+      const mockResult = {
+        deletedCount: 100,
+        failedIds: [],
+      };
+
+      vi.mocked(bulkDeleteTransactions).mockResolvedValue(mockResult);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          ids,
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.deletedCount).toBe(100);
+      expect(vi.mocked(bulkDeleteTransactions)).toHaveBeenCalledWith(ids);
+    });
+
+    it("should handle all transactions failed to delete", async () => {
+      const mockResult = {
+        deletedCount: 0,
+        failedIds: ["txn1", "txn2", "txn3"],
+      };
+
+      vi.mocked(bulkDeleteTransactions).mockResolvedValue(mockResult);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/transactions",
+        {
+          ids: ["txn1", "txn2", "txn3"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.issues.details.deletedCount).toBe(0);
+      expect(data.error.issues.details.failedIds).toHaveLength(3);
     });
   });
 });

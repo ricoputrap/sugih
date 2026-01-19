@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Filter } from "lucide-react";
+import { Plus, Filter, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,6 +37,11 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<
+    string[]
+  >([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [wallets, setWallets] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [savingsBuckets, setSavingsBuckets] = useState<any[]>([]);
@@ -136,6 +151,55 @@ export default function TransactionsPage() {
     }
   };
 
+  // Handle bulk delete
+  const handleBulkDelete = async (ids: string[]) => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/transactions`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Check if this is a partial failure
+        if (response.status === 400 && data.error?.details?.failedIds) {
+          const { deletedCount, failedIds } = data.error.details;
+          toast.success(
+            `Successfully deleted ${deletedCount} transaction${deletedCount !== 1 ? "s" : ""}`,
+          );
+
+          if (failedIds.length > 0) {
+            toast.error(
+              `Failed to delete ${failedIds.length} transaction${failedIds.length !== 1 ? "s" : ""} (not found or already deleted)`,
+            );
+          }
+        } else {
+          throw new Error(
+            data.error?.message || "Failed to delete transactions",
+          );
+        }
+      } else {
+        toast.success(
+          `Successfully deleted ${data.deletedCount} transaction${data.deletedCount !== 1 ? "s" : ""}`,
+        );
+      }
+
+      // Clear selection and refresh
+      setSelectedTransactionIds([]);
+      fetchTransactions();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete transactions");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
   // Calculate statistics
   // NOTE: `display_amount_idr` may come back as a string (JSON) depending on the API.
   // Always coerce to number before aggregating to avoid string concatenation.
@@ -169,10 +233,22 @@ export default function TransactionsPage() {
             Manage your financial transactions
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Transaction
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedTransactionIds.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Selected ({selectedTransactionIds.length})
+            </Button>
+          )}
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Transaction
+          </Button>
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -355,6 +431,9 @@ export default function TransactionsPage() {
             transactions={transactions}
             isLoading={isLoading}
             onDelete={handleDelete}
+            onBulkDelete={handleBulkDelete}
+            selectedIds={selectedTransactionIds}
+            onSelectionChange={setSelectedTransactionIds}
           />
         </CardContent>
       </Card>
@@ -371,6 +450,33 @@ export default function TransactionsPage() {
         categories={categories}
         savingsBuckets={savingsBuckets}
       />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete transactions?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move {selectedTransactionIds.length} transaction
+              {selectedTransactionIds.length !== 1 ? "s" : ""} to trash (soft
+              delete). You can restore them later if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleBulkDelete(selectedTransactionIds)}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

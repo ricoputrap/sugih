@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Posting {
   id: string;
@@ -32,7 +33,12 @@ interface Posting {
 interface Transaction {
   id: string;
   occurred_at: string | Date;
-  type: "expense" | "income" | "transfer" | "savings_contribution" | "savings_withdrawal";
+  type:
+    | "expense"
+    | "income"
+    | "transfer"
+    | "savings_contribution"
+    | "savings_withdrawal";
   note: string | null;
   payee: string | null;
   category_id: string | null;
@@ -50,6 +56,9 @@ interface TransactionTableProps {
   transactions: Transaction[];
   isLoading?: boolean;
   onDelete?: (id: string) => void;
+  onBulkDelete?: (ids: string[]) => void;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 const typeColors: Record<Transaction["type"], string> = {
@@ -72,7 +81,22 @@ export function TransactionTable({
   transactions,
   isLoading,
   onDelete,
+  onBulkDelete,
+  selectedIds: externalSelectedIds,
+  onSelectionChange,
 }: TransactionTableProps) {
+  const [internalSelectedIds, setInternalSelectedIds] = useState<string[]>([]);
+
+  // Use external selection state if provided, otherwise use internal
+  const selectedIds = externalSelectedIds || internalSelectedIds;
+  const setSelectedIds = (ids: string[]) => {
+    if (onSelectionChange) {
+      onSelectionChange(ids);
+    } else {
+      setInternalSelectedIds(ids);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -89,14 +113,50 @@ export function TransactionTable({
   const sortedTransactions = useMemo(() => {
     return [...transactions].sort(
       (a, b) =>
-        new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()
+        new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
     );
   }, [transactions]);
+
+  // Handle select all checkbox
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds([...transactions.map((t) => t.id)]);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // Handle individual checkbox
+  const handleSelectOne = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds([...selectedIds, id]);
+    } else {
+      setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id));
+    }
+  };
+
+  // Check if all rows are selected
+  const areAllSelected =
+    transactions.length > 0 && selectedIds.length === transactions.length;
+
+  // Check if some rows are selected
+  const areSomeSelected =
+    selectedIds.length > 0 && selectedIds.length < transactions.length;
+
+  // Handle bulk delete
+  const handleBulkDelete = () => {
+    if (selectedIds.length > 0 && onBulkDelete) {
+      onBulkDelete(selectedIds);
+      setSelectedIds([]);
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-sm text-muted-foreground">Loading transactions...</div>
+        <div className="text-sm text-muted-foreground">
+          Loading transactions...
+        </div>
       </div>
     );
   }
@@ -117,6 +177,13 @@ export function TransactionTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[50px]">
+              <Checkbox
+                checked={areSomeSelected ? "indeterminate" : areAllSelected}
+                onCheckedChange={handleSelectAll}
+                aria-label="Select all transactions"
+              />
+            </TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Account</TableHead>
@@ -128,7 +195,22 @@ export function TransactionTable({
         </TableHeader>
         <TableBody>
           {sortedTransactions.map((transaction) => (
-            <TableRow key={transaction.id}>
+            <TableRow
+              key={transaction.id}
+              data-selected={selectedIds.includes(transaction.id)}
+              className={
+                selectedIds.includes(transaction.id) ? "bg-muted/50" : ""
+              }
+            >
+              <TableCell>
+                <Checkbox
+                  checked={selectedIds.includes(transaction.id)}
+                  onCheckedChange={(checked) =>
+                    handleSelectOne(transaction.id, checked as boolean)
+                  }
+                  aria-label={`Select transaction ${transaction.id}`}
+                />
+              </TableCell>
               <TableCell className="font-medium">
                 {formatDate(transaction.occurred_at)}
               </TableCell>
@@ -149,8 +231,8 @@ export function TransactionTable({
                     transaction.type === "expense"
                       ? "text-red-600 dark:text-red-400"
                       : transaction.type === "income"
-                      ? "text-green-600 dark:text-green-400"
-                      : ""
+                        ? "text-green-600 dark:text-green-400"
+                        : ""
                   }
                 >
                   {transaction.type === "expense" && "-"}
