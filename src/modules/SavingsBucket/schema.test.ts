@@ -4,6 +4,7 @@ import {
   SavingsBucketCreateSchema,
   SavingsBucketUpdateSchema,
   SavingsBucketIdSchema,
+  BulkDeleteSavingsBucketsSchema,
 } from "./schema";
 
 // Test data
@@ -250,6 +251,102 @@ describe("SavingsBucket PostgreSQL Schema Validation", () => {
       it("should reject overly long id", () => {
         const result = SavingsBucketIdSchema.safeParse({
           id: "a".repeat(51),
+        });
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe("BulkDeleteSavingsBucketsSchema", () => {
+      it("should be defined", () => {
+        expect(BulkDeleteSavingsBucketsSchema).toBeDefined();
+      });
+
+      it("should validate correct bulk delete data", () => {
+        const result = BulkDeleteSavingsBucketsSchema.safeParse({
+          ids: [
+            "cPRN4GwjAn0EhLig1KJla",
+            "abc123def456ghi789jkl",
+            "bucket_1234567890",
+          ],
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject empty ids array", () => {
+        const result = BulkDeleteSavingsBucketsSchema.safeParse({
+          ids: [],
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toBe(
+            "At least one savings bucket ID is required",
+          );
+        }
+      });
+
+      it("should reject single empty string id", () => {
+        const result = BulkDeleteSavingsBucketsSchema.safeParse({
+          ids: [""],
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject ids array with empty string", () => {
+        const result = BulkDeleteSavingsBucketsSchema.safeParse({
+          ids: ["cPRN4GwjAn0EhLig1KJla", "", "abc123"],
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should accept up to 100 ids", () => {
+        const result = BulkDeleteSavingsBucketsSchema.safeParse({
+          ids: Array.from(
+            { length: 100 },
+            (_, i) => `bucket_${i.toString().padStart(10, "0")}`,
+          ),
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject more than 100 ids", () => {
+        const result = BulkDeleteSavingsBucketsSchema.safeParse({
+          ids: Array.from(
+            { length: 101 },
+            (_, i) => `bucket_${i.toString().padStart(10, "0")}`,
+          ),
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toBe(
+            "Maximum 100 savings buckets can be deleted at once",
+          );
+        }
+      });
+
+      it("should accept minimal single id", () => {
+        const result = BulkDeleteSavingsBucketsSchema.safeParse({
+          ids: ["1"],
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept maximum length ids", () => {
+        const result = BulkDeleteSavingsBucketsSchema.safeParse({
+          ids: ["a".repeat(50), "b".repeat(50), "c".repeat(50)],
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept long id (50 characters)", () => {
+        const result = BulkDeleteSavingsBucketsSchema.safeParse({
+          ids: ["a".repeat(50)],
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject overly long id (51 characters)", () => {
+        const result = BulkDeleteSavingsBucketsSchema.safeParse({
+          ids: ["a".repeat(51)],
         });
         expect(result.success).toBe(false);
       });

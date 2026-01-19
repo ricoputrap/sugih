@@ -5,6 +5,7 @@ import { NextRequest } from "next/server";
 vi.mock("@/modules/SavingsBucket/actions", () => ({
   listSavingsBuckets: vi.fn(),
   createSavingsBucket: vi.fn(),
+  bulkDeleteSavingsBuckets: vi.fn(),
 }));
 
 // Mock the database client
@@ -74,9 +75,13 @@ vi.mock("@/lib/http", () => ({
   ),
 }));
 
-import { GET, POST } from "./route";
+import { GET, POST, DELETE } from "./route";
 
-import { listSavingsBuckets, createSavingsBucket } from "@/modules/SavingsBucket/actions";
+import {
+  listSavingsBuckets,
+  createSavingsBucket,
+  bulkDeleteSavingsBuckets,
+} from "@/modules/SavingsBucket/actions";
 
 // Helper to create mock NextRequest
 function createMockRequest(
@@ -316,13 +321,16 @@ describe("SavingsBuckets API Routes", () => {
     });
 
     it("should return 400 for invalid JSON body", async () => {
-      const request = new NextRequest("http://localhost:3000/api/savings-buckets", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const request = new NextRequest(
+        "http://localhost:3000/api/savings-buckets",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: "invalid json",
         },
-        body: "invalid json",
-      });
+      );
 
       const response = await POST(request);
       const { status, data } = await parseResponse(response);
@@ -393,7 +401,9 @@ describe("SavingsBuckets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(409);
-      expect(data.error.message).toBe("Savings bucket with this name already exists");
+      expect(data.error.message).toBe(
+        "Savings bucket with this name already exists",
+      );
     });
 
     it("should handle PostgreSQL not-null violation", async () => {
@@ -480,7 +490,9 @@ describe("SavingsBuckets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(400);
-      expect(data.error.message).toBe("Invalid data: Invalid savings bucket data");
+      expect(data.error.message).toBe(
+        "Invalid data: Invalid savings bucket data",
+      );
     });
 
     it("should handle PostgreSQL foreign key violation", async () => {
@@ -635,6 +647,246 @@ describe("SavingsBuckets API Routes", () => {
 
       expect(status).toBe(500);
       expect(data.error.message).toBe("Database error");
+    });
+  });
+
+  describe("DELETE /api/savings-buckets - Bulk Delete", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("should successfully delete multiple savings buckets", async () => {
+      vi.mocked(bulkDeleteSavingsBuckets).mockResolvedValue({
+        deletedCount: 3,
+        failedIds: [],
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/savings-buckets",
+        {
+          ids: ["bucket1", "bucket2", "bucket3"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.message).toBe("Savings buckets deleted successfully");
+      expect(data.deletedCount).toBe(3);
+      expect(bulkDeleteSavingsBuckets).toHaveBeenCalledWith([
+        "bucket1",
+        "bucket2",
+        "bucket3",
+      ]);
+    });
+
+    it("should return partial failure when some buckets cannot be deleted", async () => {
+      vi.mocked(bulkDeleteSavingsBuckets).mockResolvedValue({
+        deletedCount: 2,
+        failedIds: ["bucket3"],
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/savings-buckets",
+        {
+          ids: ["bucket1", "bucket2", "bucket3"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe(
+        "Some savings buckets could not be deleted",
+      );
+      expect(data.error.issues.details.deletedCount).toBe(2);
+      expect(data.error.issues.details.failedIds).toEqual(["bucket3"]);
+    });
+
+    it("should return 400 for missing ids field", async () => {
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/savings-buckets",
+        {},
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Missing required field: ids");
+    });
+
+    it("should return 400 for non-array ids field", async () => {
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/savings-buckets",
+        {
+          ids: "not-an-array",
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Field 'ids' must be an array");
+    });
+
+    it("should return 400 for invalid JSON body", async () => {
+      const request = new NextRequest(
+        "http://localhost:3000/api/savings-buckets",
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: "invalid json",
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Invalid JSON body");
+    });
+
+    it("should handle Zod validation errors", async () => {
+      const zodError = {
+        name: "ZodError",
+        issues: [{ message: "At least one savings bucket ID is required" }],
+      };
+
+      vi.mocked(bulkDeleteSavingsBuckets).mockRejectedValue(zodError);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/savings-buckets",
+        {
+          ids: [],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(500);
+      expect(data.error.message).toBe("Failed to delete savings buckets");
+    });
+
+    it("should handle validation errors as Response objects", async () => {
+      const validationResponse = new Response(
+        JSON.stringify({ error: { message: "Validation failed" } }),
+        {
+          status: 422,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+
+      vi.mocked(bulkDeleteSavingsBuckets).mockRejectedValue(validationResponse);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/savings-buckets",
+        {
+          ids: [""],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status } = await parseResponse(response);
+
+      expect(status).toBe(422);
+    });
+
+    it("should handle not found errors", async () => {
+      const notFoundError = new Error("Savings bucket not found");
+
+      vi.mocked(bulkDeleteSavingsBuckets).mockRejectedValue(notFoundError);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/savings-buckets",
+        {
+          ids: ["non-existent"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Savings bucket not found");
+    });
+
+    it("should handle PostgreSQL errors", async () => {
+      const pgError = {
+        code: "23503",
+        message: "foreign key violation",
+      };
+
+      vi.mocked(bulkDeleteSavingsBuckets).mockRejectedValue(pgError);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/savings-buckets",
+        {
+          ids: ["bucket1"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(500);
+      expect(data.error.message).toBe("Database error");
+    });
+
+    it("should handle unexpected errors", async () => {
+      const unexpectedError = new Error("Unexpected error");
+
+      vi.mocked(bulkDeleteSavingsBuckets).mockRejectedValue(unexpectedError);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/savings-buckets",
+        {
+          ids: ["bucket1"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(500);
+      expect(data.error.message).toBe("Failed to delete savings buckets");
+    });
+
+    it("should handle empty successful deletion", async () => {
+      vi.mocked(bulkDeleteSavingsBuckets).mockResolvedValue({
+        deletedCount: 0,
+        failedIds: ["bucket1", "bucket2"],
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/savings-buckets",
+        {
+          ids: ["bucket1", "bucket2"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.issues.details.deletedCount).toBe(0);
+      expect(data.error.issues.details.failedIds).toHaveLength(2);
     });
   });
 });

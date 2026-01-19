@@ -1,0 +1,1 @@
+ALTER TABLE "savings_buckets" ADD COLUMN "deleted_at" timestamp with time zone;

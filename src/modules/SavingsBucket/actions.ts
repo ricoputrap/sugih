@@ -6,11 +6,14 @@
  */
 
 import { nanoid } from "nanoid";
+import { inArray } from "drizzle-orm";
 import {
   SavingsBucketCreateSchema,
   SavingsBucketUpdateSchema,
   SavingsBucketIdSchema,
+  BulkDeleteSavingsBucketsSchema,
   SavingsBucket,
+  savingsBuckets,
 } from "./schema";
 import { getDb, getPool, sql } from "@/db/drizzle-client";
 import { formatZodError } from "@/lib/zod";
@@ -22,7 +25,7 @@ import { unprocessableEntity } from "@/lib/http";
 export async function listSavingsBuckets(): Promise<SavingsBucket[]> {
   const db = getDb();
   const result = await db.execute(
-    sql`SELECT id, name, description, archived, created_at, updated_at FROM savings_buckets ORDER BY name ASC`,
+    sql`SELECT id, name, description, archived, created_at, updated_at FROM savings_buckets WHERE deleted_at IS NULL ORDER BY name ASC`,
   );
 
   return result.rows.map((row) => ({
@@ -43,7 +46,7 @@ export async function getSavingsBucketById(
 ): Promise<SavingsBucket | null> {
   const db = getDb();
   const result = await db.execute(
-    sql`SELECT id, name, description, archived, created_at, updated_at FROM savings_buckets WHERE id = ${id}`,
+    sql`SELECT id, name, description, archived, created_at, updated_at FROM savings_buckets WHERE id = ${id} AND deleted_at IS NULL`,
   );
 
   const row = result.rows[0];
@@ -406,5 +409,71 @@ export async function getSavingsBucketStats(id: string): Promise<{
       );
     }
     throw error;
+  }
+}
+
+/**
+ * Bulk delete multiple savings buckets (soft delete)
+ */
+export async function bulkDeleteSavingsBuckets(
+  ids: string[],
+): Promise<{ deletedCount: number; failedIds: string[] }> {
+  const pool = getPool();
+
+  // Validate input
+  const validatedInput = BulkDeleteSavingsBucketsSchema.parse({ ids });
+
+  const db = getDb();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Check which savings buckets exist and are not already deleted
+    const checkQuery = `
+      SELECT id, deleted_at
+      FROM savings_buckets
+      WHERE id = ANY($1)
+    `;
+    const checkResult = await client.query(checkQuery, [validatedInput.ids]);
+    const buckets = checkResult.rows;
+
+    // Identify failed IDs
+    const foundIds = new Set(buckets.map((b) => b.id));
+    const notFoundIds = validatedInput.ids.filter((id) => !foundIds.has(id));
+    const alreadyDeletedIds = buckets
+      .filter((b) => b.deleted_at)
+      .map((b) => b.id);
+
+    const failedIds = [...notFoundIds, ...alreadyDeletedIds];
+    const deletableIds = buckets.filter((b) => !b.deleted_at).map((b) => b.id);
+
+    // Perform soft delete for valid, non-deleted savings buckets
+    let deletedCount = 0;
+    if (deletableIds.length > 0) {
+      const now = new Date();
+
+      // Use Drizzle ORM for type-safe bulk update
+      await db
+        .update(savingsBuckets)
+        .set({
+          deleted_at: now,
+          updated_at: now,
+        })
+        .where(inArray(savingsBuckets.id, deletableIds));
+
+      deletedCount = deletableIds.length;
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      deletedCount,
+      failedIds,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
 }

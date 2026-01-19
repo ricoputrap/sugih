@@ -16,6 +16,7 @@ import {
   restoreSavingsBucket,
   deleteSavingsBucket,
   getSavingsBucketStats,
+  bulkDeleteSavingsBuckets,
 } from "./actions";
 import { getPool, closeDb } from "@/db/drizzle-client";
 
@@ -367,6 +368,141 @@ describe("Savings Bucket Integration Tests", () => {
 
       expect(stats.transactionCount).toBe(0);
       expect(stats.totalAmount).toBe(0);
+    });
+  });
+
+  describe("Bulk Delete Savings Buckets", () => {
+    it("should delete multiple savings buckets", async () => {
+      const b1 = await createSavingsBucket({
+        name: `Bulk Delete 1 ${nanoid()}`,
+      });
+      const b2 = await createSavingsBucket({
+        name: `Bulk Delete 2 ${nanoid()}`,
+      });
+      const b3 = await createSavingsBucket({
+        name: `Bulk Delete 3 ${nanoid()}`,
+      });
+      testBucketIds.push(b1.id, b2.id, b3.id);
+
+      const result = await bulkDeleteSavingsBuckets([b1.id, b2.id]);
+
+      expect(result.deletedCount).toBe(2);
+      expect(result.failedIds).toHaveLength(0);
+
+      // Verify buckets are soft deleted
+      const bucket1 = await getSavingsBucketById(b1.id);
+      const bucket2 = await getSavingsBucketById(b2.id);
+      const bucket3 = await getSavingsBucketById(b3.id);
+
+      expect(bucket1).toBeNull(); // Soft deleted
+      expect(bucket2).toBeNull(); // Soft deleted
+      expect(bucket3).not.toBeNull(); // Not deleted
+    });
+
+    it("should handle non-existent bucket IDs", async () => {
+      const b1 = await createSavingsBucket({ name: `Bulk Test ${nanoid()}` });
+      testBucketIds.push(b1.id);
+
+      const nonExistentId = "non_existent_bucket_id";
+      const result = await bulkDeleteSavingsBuckets([b1.id, nonExistentId]);
+
+      expect(result.deletedCount).toBe(1);
+      expect(result.failedIds).toContain(nonExistentId);
+      expect(result.failedIds).toHaveLength(1);
+    });
+
+    it("should not delete already deleted buckets", async () => {
+      const b1 = await createSavingsBucket({
+        name: `Already Deleted ${nanoid()}`,
+      });
+      testBucketIds.push(b1.id);
+
+      // Delete once
+      await bulkDeleteSavingsBuckets([b1.id]);
+
+      // Try to delete again
+      const result = await bulkDeleteSavingsBuckets([b1.id]);
+
+      expect(result.deletedCount).toBe(0);
+      expect(result.failedIds).toContain(b1.id);
+    });
+
+    it("should handle empty ids array", async () => {
+      await expect(bulkDeleteSavingsBuckets([])).rejects.toThrow();
+    });
+
+    it("should handle mixed valid and invalid IDs", async () => {
+      const b1 = await createSavingsBucket({ name: `Mixed 1 ${nanoid()}` });
+      const b2 = await createSavingsBucket({ name: `Mixed 2 ${nanoid()}` });
+      testBucketIds.push(b1.id, b2.id);
+
+      // Delete b1 first
+      await bulkDeleteSavingsBuckets([b1.id]);
+
+      // Try to bulk delete: already deleted, valid, non-existent
+      const result = await bulkDeleteSavingsBuckets([
+        b1.id,
+        b2.id,
+        "non_existent",
+      ]);
+
+      expect(result.deletedCount).toBe(1); // Only b2
+      expect(result.failedIds).toHaveLength(2); // b1 (already deleted) and non_existent
+      expect(result.failedIds).toContain(b1.id);
+      expect(result.failedIds).toContain("non_existent");
+    });
+
+    it("should reject more than 100 IDs", async () => {
+      const ids = Array.from({ length: 101 }, (_, i) => `bucket_${i}`);
+      await expect(bulkDeleteSavingsBuckets(ids)).rejects.toThrow();
+    });
+
+    it("should accept up to 100 IDs", async () => {
+      // Create 5 buckets
+      const buckets = await Promise.all(
+        Array.from({ length: 5 }, (_, i) =>
+          createSavingsBucket({ name: `Bulk ${i} ${nanoid()}` }),
+        ),
+      );
+      buckets.forEach((b) => testBucketIds.push(b.id));
+
+      // Build array with 100 IDs (5 valid + 95 invalid)
+      const validIds = buckets.map((b) => b.id);
+      const invalidIds = Array.from({ length: 95 }, (_, i) => `invalid_${i}`);
+      const allIds = [...validIds, ...invalidIds];
+
+      const result = await bulkDeleteSavingsBuckets(allIds);
+
+      expect(result.deletedCount).toBe(5);
+      expect(result.failedIds).toHaveLength(95);
+    });
+
+    it("should use database transaction for atomicity", async () => {
+      const b1 = await createSavingsBucket({ name: `Txn Test 1 ${nanoid()}` });
+      const b2 = await createSavingsBucket({ name: `Txn Test 2 ${nanoid()}` });
+      testBucketIds.push(b1.id, b2.id);
+
+      // This should succeed for both
+      const result = await bulkDeleteSavingsBuckets([b1.id, b2.id]);
+
+      expect(result.deletedCount).toBe(2);
+      expect(result.failedIds).toHaveLength(0);
+
+      // Verify both are deleted
+      const bucket1 = await getSavingsBucketById(b1.id);
+      const bucket2 = await getSavingsBucketById(b2.id);
+
+      expect(bucket1).toBeNull();
+      expect(bucket2).toBeNull();
+    });
+
+    it("should return all failed IDs when all are invalid", async () => {
+      const invalidIds = ["invalid1", "invalid2", "invalid3"];
+      const result = await bulkDeleteSavingsBuckets(invalidIds);
+
+      expect(result.deletedCount).toBe(0);
+      expect(result.failedIds).toHaveLength(3);
+      expect(result.failedIds).toEqual(expect.arrayContaining(invalidIds));
     });
   });
 });
