@@ -6,3 +6,4 @@
 
 export { NetWorthTrendChart } from "./NetWorthTrendChart";
 export { SpendingTrendChart } from "./SpendingTrendChart";
+export { ChartAreaInteractive } from "./AreaChartExample";

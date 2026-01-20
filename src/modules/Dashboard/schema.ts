@@ -58,6 +58,16 @@ export interface CategoryBreakdownData {
   percentage: number;
 }
 
+// Category spending trend data for charts
+export interface CategorySpendingTrendChartData {
+  period: string; // YYYY-WXX for week, YYYY-MM for month, etc.
+  categories: {
+    categoryId: string;
+    categoryName: string;
+    amount: number;
+  }[];
+}
+
 // Recent transaction preview
 export interface RecentTransaction {
   id: string;
@@ -79,6 +89,7 @@ export interface DashboardData {
   spendingTrend: SpendingTrendChartData[];
   netWorthTrend: NetWorthChartData[];
   categoryBreakdown: CategoryBreakdownData[];
+  categorySpendingTrend: CategorySpendingTrendChartData[];
   recentTransactions: RecentTransaction[];
 }
 

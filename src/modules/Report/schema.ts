@@ -55,6 +55,14 @@ export const NetWorthTrendQuerySchema = z.object({
   granularity: GranularitySchema.default("month"),
 });
 
+// Category spending trend query schema
+export const CategorySpendingTrendQuerySchema = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  granularity: GranularitySchema.default("week"),
+  topCategories: z.number().int().positive().default(5),
+});
+
 // Money left to spend query schema
 export const MoneyLeftToSpendQuerySchema = z.object({
   month: MonthSchema,
@@ -97,6 +105,16 @@ export interface MoneyLeftToSpendData {
   budgetVariance: number;
 }
 
+// Category spending trend data point
+export interface CategorySpendingTrendData {
+  period: string; // YYYY-WXX for week, YYYY-MM for month, etc.
+  categories: {
+    categoryId: string;
+    categoryName: string;
+    amount: number;
+  }[];
+}
+
 // Type exports for TypeScript
 export type DateRangeInput = z.infer<typeof DateRangeSchema>;
 export type Granularity = z.infer<typeof GranularitySchema>;
@@ -106,6 +124,9 @@ export type CategoryBreakdownQueryInput = z.infer<
   typeof CategoryBreakdownQuerySchema
 >;
 export type NetWorthTrendQueryInput = z.infer<typeof NetWorthTrendQuerySchema>;
+export type CategorySpendingTrendQueryInput = z.infer<
+  typeof CategorySpendingTrendQuerySchema
+>;
 export type MoneyLeftToSpendQueryInput = z.infer<
   typeof MoneyLeftToSpendQuerySchema
 >;

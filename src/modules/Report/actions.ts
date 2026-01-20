@@ -17,6 +17,8 @@ import { formatZodError } from "@/lib/zod";
 import {
   type CategoryBreakdownData,
   CategoryBreakdownQuerySchema,
+  type CategorySpendingTrendData,
+  CategorySpendingTrendQuerySchema,
   type MoneyLeftToSpendData,
   MoneyLeftToSpendQuerySchema,
   type NetWorthData,
@@ -328,4 +330,189 @@ export async function moneyLeftToSpend(
     projectedMonthEndSpending: Math.round(projectedMonthEndSpending),
     budgetVariance: Math.round(budgetVariance),
   };
+}
+
+// ============================================================================
+// CATEGORY SPENDING TREND
+// ============================================================================
+
+/**
+ * Get spending trend by category over time
+ *
+ * Aggregates expense transactions by category and time period to show
+ * how spending in each category changes over time.
+ *
+ * @param query - Date range, granularity, and top categories limit
+ * @returns Array of time periods with spending broken down by category
+ */
+export async function categorySpendingTrend(
+  query: unknown,
+): Promise<CategorySpendingTrendData[]> {
+  const pool = getPool();
+
+  const validatedQuery = CategorySpendingTrendQuerySchema.parse(query);
+  const from = validatedQuery.from;
+  const to = validatedQuery.to;
+  const granularity = validatedQuery.granularity ?? "week";
+  const topCategories = validatedQuery.topCategories ?? 5;
+
+  // Determine SQL date format based on granularity
+  let granularityFormat: string;
+  switch (granularity) {
+    case "week":
+      granularityFormat = 'IYYY-"W"IW'; // ISO week format: 2024-W05
+      break;
+    case "month":
+      granularityFormat = "YYYY-MM";
+      break;
+    case "quarter":
+      granularityFormat = 'YYYY-"Q"Q'; // Quarter format: 2024-Q1
+      break;
+    case "day":
+    default:
+      granularityFormat = "YYYY-MM-DD";
+      break;
+  }
+
+  // First, get the top N categories by total spending in the date range
+  const whereConditions = ["te.type = 'expense'", "te.deleted_at IS NULL"];
+  const params: any[] = [];
+  let paramIndex = 1;
+
+  if (from) {
+    whereConditions.push(`te.occurred_at >= $${paramIndex}`);
+    params.push(from);
+    paramIndex++;
+  }
+
+  if (to) {
+    whereConditions.push(`te.occurred_at <= $${paramIndex}`);
+    params.push(to);
+    paramIndex++;
+  }
+
+  const whereClause = whereConditions.join(" AND ");
+
+  const topCategoriesResult = await pool.query(
+    `SELECT
+      te.category_id,
+      COALESCE(c.name, 'Uncategorized') as category_name,
+      COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as total_amount
+    FROM transaction_events te
+    JOIN postings p ON te.id = p.event_id
+    LEFT JOIN categories c ON te.category_id = c.id
+    WHERE ${whereClause}
+    GROUP BY te.category_id, c.name
+    ORDER BY total_amount DESC
+    LIMIT $${paramIndex}`,
+    [...params, topCategories],
+  );
+
+  const topCategoryIds = topCategoriesResult.rows.map((row) => row.category_id);
+  const categoryNames = new Map(
+    topCategoriesResult.rows.map((row) => [
+      row.category_id as string,
+      row.category_name as string,
+    ]),
+  );
+
+  // If no categories found, return empty array
+  if (topCategoryIds.length === 0) {
+    return [];
+  }
+
+  // Now get spending by period for these top categories
+  // Rebuild params for second query
+  const trendParams: any[] = [granularityFormat];
+  let trendParamIndex = 2;
+
+  const trendWhereConditions = ["te.type = 'expense'", "te.deleted_at IS NULL"];
+
+  if (from) {
+    trendWhereConditions.push(`te.occurred_at >= $${trendParamIndex}`);
+    trendParams.push(from);
+    trendParamIndex++;
+  }
+
+  if (to) {
+    trendWhereConditions.push(`te.occurred_at <= $${trendParamIndex}`);
+    trendParams.push(to);
+    trendParamIndex++;
+  }
+
+  trendWhereConditions.push(`te.category_id = ANY($${trendParamIndex})`);
+  trendParams.push(topCategoryIds);
+
+  const trendWhereClause = trendWhereConditions.join(" AND ");
+
+  const trendResult = await pool.query(
+    `SELECT
+      to_char(te.occurred_at, $1) as period,
+      te.category_id,
+      COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as amount
+    FROM transaction_events te
+    JOIN postings p ON te.id = p.event_id
+    WHERE ${trendWhereClause}
+    GROUP BY period, te.category_id
+    ORDER BY period ASC, amount DESC`,
+    trendParams,
+  );
+
+  // Group by period
+  const periodMap = new Map<
+    string,
+    { categoryId: string; categoryName: string; amount: number }[]
+  >();
+
+  for (const row of trendResult.rows) {
+    const period = row.period as string;
+    const categoryId = row.category_id as string;
+    const categoryName = categoryNames.get(categoryId) || "Uncategorized";
+    const amount = Number(row.amount);
+
+    if (!periodMap.has(period)) {
+      periodMap.set(period, []);
+    }
+
+    periodMap.get(period)!.push({
+      categoryId,
+      categoryName,
+      amount,
+    });
+  }
+
+  // Convert to array and ensure all periods have all categories (fill with 0 if missing)
+  const result: CategorySpendingTrendData[] = [];
+  for (const [period, categories] of periodMap.entries()) {
+    const categoryData: {
+      categoryId: string;
+      categoryName: string;
+      amount: number;
+    }[] = [];
+
+    // Add all top categories, filling with 0 if not present
+    for (const categoryId of topCategoryIds) {
+      const existing = categories.find((c) => c.categoryId === categoryId);
+      if (existing) {
+        categoryData.push(existing);
+      } else {
+        categoryData.push({
+          categoryId: categoryId as string,
+          categoryName:
+            categoryNames.get(categoryId as string) || "Uncategorized",
+          amount: 0,
+        });
+      }
+    }
+
+    result.push({
+      period,
+      categories: categoryData,
+    });
+  }
+
+  // Sort by period
+  result.sort((a, b) => a.period.localeCompare(b.period));
+
+  return result;
 }

@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { closeDb } from "@/db/drizzle-client";
 import {
   categoryBreakdown,
+  categorySpendingTrend,
   moneyLeftToSpend,
   netWorthTrend,
   spendingTrend,
@@ -200,6 +201,115 @@ describe("Report Integration Tests", () => {
 
       expect(result.remaining).toBe(result.totalBudget - result.totalSpent);
       expect(result.percentUsed).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe("Category Spending Trend", () => {
+    it("should return category spending trend with week granularity", async () => {
+      const trend = await categorySpendingTrend({
+        from: new Date(Date.now() - 8 * 7 * 24 * 60 * 60 * 1000), // 8 weeks ago
+        to: new Date(),
+        granularity: "week",
+        topCategories: 5,
+      });
+
+      expect(Array.isArray(trend)).toBe(true);
+      if (trend.length > 0) {
+        expect(trend[0]).toHaveProperty("period");
+        expect(trend[0]).toHaveProperty("categories");
+        expect(Array.isArray(trend[0].categories)).toBe(true);
+
+        // Check period format is ISO week format (e.g., "2024-W05")
+        expect(trend[0].period).toMatch(/^\d{4}-W\d{2}$/);
+
+        if (trend[0].categories.length > 0) {
+          expect(trend[0].categories[0]).toHaveProperty("categoryId");
+          expect(trend[0].categories[0]).toHaveProperty("categoryName");
+          expect(trend[0].categories[0]).toHaveProperty("amount");
+          expect(typeof trend[0].categories[0].amount).toBe("number");
+        }
+      }
+    });
+
+    it("should return category spending trend with month granularity", async () => {
+      const trend = await categorySpendingTrend({
+        from: new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000), // ~6 months ago
+        to: new Date(),
+        granularity: "month",
+        topCategories: 5,
+      });
+
+      expect(Array.isArray(trend)).toBe(true);
+      if (trend.length > 0) {
+        // Check period format is month format (e.g., "2024-01")
+        expect(trend[0].period).toMatch(/^\d{4}-\d{2}$/);
+      }
+    });
+
+    it("should limit to top N categories", async () => {
+      const trend = await categorySpendingTrend({
+        from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        to: new Date(),
+        granularity: "week",
+        topCategories: 3,
+      });
+
+      expect(Array.isArray(trend)).toBe(true);
+      if (trend.length > 0) {
+        // Should have at most 3 categories per period
+        expect(trend[0].categories.length).toBeLessThanOrEqual(3);
+      }
+    });
+
+    it("should return empty array when no expenses in range", async () => {
+      const futureDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+      const furtherFutureDate = new Date(
+        futureDate.getTime() + 30 * 24 * 60 * 60 * 1000,
+      );
+
+      const trend = await categorySpendingTrend({
+        from: futureDate,
+        to: furtherFutureDate,
+        granularity: "week",
+        topCategories: 5,
+      });
+
+      expect(Array.isArray(trend)).toBe(true);
+      expect(trend.length).toBe(0);
+    });
+
+    it("should fill missing categories with zero amount", async () => {
+      const trend = await categorySpendingTrend({
+        from: new Date(Date.now() - 8 * 7 * 24 * 60 * 60 * 1000),
+        to: new Date(),
+        granularity: "week",
+        topCategories: 5,
+      });
+
+      if (trend.length > 1) {
+        // All periods should have the same number of categories
+        const categoryCount = trend[0].categories.length;
+        for (const period of trend) {
+          expect(period.categories.length).toBe(categoryCount);
+        }
+      }
+    });
+
+    it("should return periods in ascending order", async () => {
+      const trend = await categorySpendingTrend({
+        from: new Date(Date.now() - 8 * 7 * 24 * 60 * 60 * 1000),
+        to: new Date(),
+        granularity: "week",
+        topCategories: 5,
+      });
+
+      if (trend.length > 1) {
+        for (let i = 1; i < trend.length; i++) {
+          expect(
+            trend[i].period.localeCompare(trend[i - 1].period),
+          ).toBeGreaterThan(0);
+        }
+      }
     });
   });
 });

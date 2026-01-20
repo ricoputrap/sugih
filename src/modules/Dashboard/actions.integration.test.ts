@@ -12,6 +12,7 @@ import { postings, transactionEvents } from "@/modules/Transaction/schema";
 import { createWallet, deleteWallet } from "@/modules/Wallet/actions";
 import {
   getCategoryBreakdownData,
+  getCategorySpendingTrendChartData,
   getDashboardData,
   getDashboardSummary,
   getNetWorthTrendChartData,
@@ -116,7 +117,9 @@ describe("Dashboard Integration Tests", () => {
     it("should return valid period string", async () => {
       const summary = await getDashboardSummary({});
 
-      expect(summary.period).toMatch(/\d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}/);
+      expect(summary.period).toMatch(
+        /\d{1,2} \w{3} \d{4} to \d{1,2} \w{3} \d{4}/,
+      );
     });
 
     it("should calculate correct net worth from transactions", async () => {
@@ -254,7 +257,64 @@ describe("Dashboard Integration Tests", () => {
       expect(Array.isArray(data.spendingTrend)).toBe(true);
       expect(Array.isArray(data.netWorthTrend)).toBe(true);
       expect(Array.isArray(data.categoryBreakdown)).toBe(true);
+      expect(Array.isArray(data.categorySpendingTrend)).toBe(true);
       expect(Array.isArray(data.recentTransactions)).toBe(true);
+    });
+  });
+
+  describe("Get Category Spending Trend Chart Data", () => {
+    it("should return category spending trend data for charts", async () => {
+      const trend = await getCategorySpendingTrendChartData({});
+
+      expect(Array.isArray(trend)).toBe(true);
+      if (trend.length > 0) {
+        expect(trend[0]).toHaveProperty("period");
+        expect(trend[0]).toHaveProperty("categories");
+        expect(Array.isArray(trend[0].categories)).toBe(true);
+      }
+    });
+
+    it("should return weekly periods by default", async () => {
+      const trend = await getCategorySpendingTrendChartData({});
+
+      if (trend.length > 0) {
+        // Should be ISO week format: YYYY-WXX
+        expect(trend[0].period).toMatch(/^\d{4}-W\d{2}$/);
+      }
+    });
+
+    it("should return up to 5 categories per period", async () => {
+      const trend = await getCategorySpendingTrendChartData({});
+
+      if (trend.length > 0) {
+        expect(trend[0].categories.length).toBeLessThanOrEqual(5);
+      }
+    });
+
+    it("should return category data with required properties", async () => {
+      const trend = await getCategorySpendingTrendChartData({});
+
+      if (trend.length > 0 && trend[0].categories.length > 0) {
+        const category = trend[0].categories[0];
+        expect(category).toHaveProperty("categoryId");
+        expect(category).toHaveProperty("categoryName");
+        expect(category).toHaveProperty("amount");
+        expect(typeof category.amount).toBe("number");
+      }
+    });
+
+    it("should filter by date range", async () => {
+      const now = new Date();
+      const fourWeeksAgo = new Date(
+        now.getTime() - 4 * 7 * 24 * 60 * 60 * 1000,
+      );
+
+      const trend = await getCategorySpendingTrendChartData({
+        from: fourWeeksAgo,
+        to: now,
+      });
+
+      expect(Array.isArray(trend)).toBe(true);
     });
   });
 

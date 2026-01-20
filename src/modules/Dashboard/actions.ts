@@ -10,6 +10,7 @@ import { unprocessableEntity } from "@/lib/http";
 import { formatZodError } from "@/lib/zod";
 import {
   categoryBreakdown,
+  categorySpendingTrend,
   moneyLeftToSpend,
   netWorthTrend,
   spendingTrend,
@@ -17,6 +18,7 @@ import {
 import { listTransactions } from "@/modules/Transaction/actions";
 import {
   type CategoryBreakdownData,
+  type CategorySpendingTrendChartData,
   type DashboardData,
   DashboardDateRangeSchema,
   type DashboardSummary,
@@ -261,6 +263,56 @@ export async function getCategoryBreakdownData(
 }
 
 // ============================================================================
+// CATEGORY SPENDING TREND DATA
+// ============================================================================
+
+/**
+ * Get category spending trend data for charts
+ * Formats data specifically for chart visualization with weekly granularity
+ */
+export async function getCategorySpendingTrendChartData(
+  query: unknown = {},
+): Promise<CategorySpendingTrendChartData[]> {
+  try {
+    const validatedQuery = DashboardDateRangeSchema.parse(query);
+
+    // Default to last 8 weeks for weekly trend visualization
+    let { from, to } = validatedQuery;
+
+    if (!from && !to) {
+      to = new Date();
+      from = new Date();
+      from.setDate(from.getDate() - 8 * 7); // 8 weeks ago
+    }
+
+    const trendData = await categorySpendingTrend({
+      from,
+      to,
+      granularity: "week",
+      topCategories: 5,
+    });
+
+    // Format for chart consumption
+    return trendData.map((item) => ({
+      period: item.period,
+      categories: item.categories.map((cat) => ({
+        categoryId: cat.categoryId,
+        categoryName: cat.categoryName,
+        amount: cat.amount,
+      })),
+    }));
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      throw unprocessableEntity(
+        "Invalid category spending trend query",
+        formatZodError(error),
+      );
+    }
+    throw error;
+  }
+}
+
+// ============================================================================
 // RECENT TRANSACTIONS
 // ============================================================================
 
@@ -320,6 +372,7 @@ export async function getDashboardData(
       spendingTrend,
       netWorthTrend,
       categoryBreakdown,
+      categorySpendingTrend,
       recentTransactions,
     ] = await Promise.all([
       getDashboardSummary(validatedQuery),
@@ -329,6 +382,7 @@ export async function getDashboardData(
         from: new Date(now.getFullYear(), now.getMonth(), 1),
         to: new Date(now.getFullYear(), now.getMonth() + 1, 1),
       }),
+      getCategorySpendingTrendChartData(validatedQuery),
       getRecentTransactions(5),
     ]);
 
@@ -337,6 +391,7 @@ export async function getDashboardData(
       spendingTrend,
       netWorthTrend,
       categoryBreakdown,
+      categorySpendingTrend,
       recentTransactions,
     };
   } catch (error: any) {
