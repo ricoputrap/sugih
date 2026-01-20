@@ -9,24 +9,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  CategorySpendingAreaChart,
   NetWorthTrendChart,
-  SpendingTrendChart,
 } from "@/modules/Dashboard/components";
 import type {
+  CategorySpendingTrendChartData,
   DashboardData,
   DashboardDateRangeInput,
   DashboardSummary,
   NetWorthChartData,
-  SpendingTrendChartData,
 } from "@/modules/Dashboard/schema";
 
 export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(
     null,
   );
-  const [spendingTrend, setSpendingTrend] = useState<SpendingTrendChartData[]>(
-    [],
-  );
+  const [categorySpendingTrend, setCategorySpendingTrend] = useState<
+    CategorySpendingTrendChartData[]
+  >([]);
   const [netWorthTrend, setNetWorthTrend] = useState<NetWorthChartData[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,7 +69,7 @@ export default function DashboardPage() {
       const data = result.data;
 
       setDashboardData(data);
-      setSpendingTrend(data.spendingTrend || []);
+      setCategorySpendingTrend(data.categorySpendingTrend || []);
       setNetWorthTrend(data.netWorthTrend || []);
       setSummary(data.summary);
     } catch (err: unknown) {
@@ -278,11 +278,11 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="grid gap-4 md:grid-cols-2">
-        <SpendingTrendChart
-          data={spendingTrend}
+        <CategorySpendingAreaChart
+          data={categorySpendingTrend}
           isLoading={isLoading}
-          title="Spending Trend"
-          description="Your spending patterns over time"
+          title="Category Spending Trends"
+          description="Track how spending in each category changes over time"
         />
 
         <NetWorthTrendChart
