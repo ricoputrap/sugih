@@ -91,12 +91,21 @@ export async function getDashboardSummary(
         getTotalIncome(from, to),
       ]);
 
+    // Format dates in a more readable format (e.g., "21 Dec 2025 to 20 Jan 2026")
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    };
+
     return {
       currentNetWorth,
       moneyLeftToSpend: moneyLeft.remaining,
       totalSpending: spendingData.total,
       totalIncome: incomeData.total,
-      period: `${from.toISOString().split("T")[0]} to ${to.toISOString().split("T")[0]}`,
+      period: `${formatDate(from)} to ${formatDate(to)}`,
     };
   } catch (error: any) {
     if (error.name === "ZodError") {
