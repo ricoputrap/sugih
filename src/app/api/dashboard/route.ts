@@ -5,6 +5,7 @@ import {
   getSpendingTrendChartData,
   getNetWorthTrendChartData,
   getCategoryBreakdownData,
+  getCategorySpendingTrendChartData,
   getRecentTransactions,
 } from "@/modules/Dashboard/actions";
 import { ok, badRequest } from "@/lib/http";
@@ -25,6 +26,8 @@ async function handleGet(request: NextRequest) {
     // Parse query parameters
     const from = searchParams.get("from");
     const to = searchParams.get("to");
+    const categoryPeriod = searchParams.get("categoryPeriod");
+    const categoryDateRangePreset = searchParams.get("categoryDateRangePreset");
 
     // Build query object
     const query: any = {};
@@ -35,6 +38,15 @@ async function handleGet(request: NextRequest) {
 
     if (to) {
       query.to = new Date(to);
+    }
+
+    // Category chart specific filters
+    if (categoryPeriod) {
+      query.granularity = categoryPeriod;
+    }
+
+    if (categoryDateRangePreset) {
+      query.dateRangePreset = categoryDateRangePreset;
     }
 
     // Determine what data to fetch based on query params
@@ -63,6 +75,11 @@ async function handleGet(request: NextRequest) {
           limit ? parseInt(limit) : 10,
         );
         return ok({ data: recentTransactions });
+
+      case "category-spending-trend":
+        const categorySpendingTrend =
+          await getCategorySpendingTrendChartData(query);
+        return ok({ data: categorySpendingTrend });
 
       default:
         // Default: fetch all dashboard data

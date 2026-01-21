@@ -19,6 +19,7 @@ import { listTransactions } from "@/modules/Transaction/actions";
 import {
   type CategoryBreakdownData,
   type CategorySpendingTrendChartData,
+  CategorySpendingTrendQuerySchema,
   type DashboardData,
   DashboardDateRangeSchema,
   type DashboardSummary,
@@ -268,27 +269,66 @@ export async function getCategoryBreakdownData(
 
 /**
  * Get category spending trend data for charts
- * Formats data specifically for chart visualization with weekly granularity
+ * Formats data specifically for chart visualization with configurable granularity
  */
 export async function getCategorySpendingTrendChartData(
-  query: unknown = {},
+  query: CategorySpendingTrendQueryInput = {},
 ): Promise<CategorySpendingTrendChartData[]> {
   try {
-    const validatedQuery = DashboardDateRangeSchema.parse(query);
+    const validatedQuery = CategorySpendingTrendQuerySchema.parse(query);
 
-    // Default to last 8 weeks for weekly trend visualization
-    let { from, to } = validatedQuery;
+    let { from, to, granularity } = validatedQuery;
 
+    // Calculate date range from preset if provided
+    if (validatedQuery.dateRangePreset && !from && !to) {
+      const now = new Date();
+      to = now;
+
+      switch (validatedQuery.dateRangePreset) {
+        case "last_week":
+          from = new Date(now);
+          from.setDate(from.getDate() - 7);
+          break;
+        case "this_month":
+          from = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case "last_month":
+          from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          to = new Date(now.getFullYear(), now.getMonth(), 0);
+          break;
+        case "last_3_months":
+          from = new Date(now);
+          from.setMonth(from.getMonth() - 3);
+          break;
+        case "last_6_months":
+          from = new Date(now);
+          from.setMonth(from.getMonth() - 6);
+          break;
+        case "this_year":
+          from = new Date(now.getFullYear(), 0, 1);
+          break;
+        case "last_year":
+          from = new Date(now.getFullYear() - 1, 0, 1);
+          to = new Date(now.getFullYear(), 0, 0);
+          break;
+        case "all":
+        default:
+          from = new Date(2020, 0, 1);
+          break;
+      }
+    }
+
+    // Default to last 8 weeks if no date range provided
     if (!from && !to) {
       to = new Date();
       from = new Date();
-      from.setDate(from.getDate() - 8 * 7); // 8 weeks ago
+      from.setDate(from.getDate() - 8 * 7);
     }
 
     const trendData = await categorySpendingTrend({
       from,
       to,
-      granularity: "week",
+      granularity: granularity ?? "week",
       topCategories: 5,
     });
 

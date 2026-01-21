@@ -7,6 +7,21 @@
 
 import { z } from "zod";
 
+// Date range preset options for chart filters
+export const DateRangePresetSchema = z.enum([
+  "last_week",
+  "this_month",
+  "last_month",
+  "last_3_months",
+  "last_6_months",
+  "this_year",
+  "last_year",
+  "all",
+]);
+
+// Period granularity options for chart data
+export const PeriodGranularitySchema = z.enum(["day", "week", "month"]);
+
 // Date range schema for dashboard filters
 export const DashboardDateRangeSchema = z
   .object({
@@ -68,6 +83,14 @@ export interface CategorySpendingTrendChartData {
   }[];
 }
 
+// Category spending trend query with filters
+export const CategorySpendingTrendQuerySchema = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  granularity: PeriodGranularitySchema.default("week"),
+  dateRangePreset: DateRangePresetSchema.optional(),
+});
+
 // Recent transaction preview
 export interface RecentTransaction {
   id: string;
@@ -95,3 +118,8 @@ export interface DashboardData {
 
 // Type exports for TypeScript
 export type DashboardDateRangeInput = z.infer<typeof DashboardDateRangeSchema>;
+export type DateRangePreset = z.infer<typeof DateRangePresetSchema>;
+export type PeriodGranularity = z.infer<typeof PeriodGranularitySchema>;
+export type CategorySpendingTrendQueryInput = z.infer<
+  typeof CategorySpendingTrendQuerySchema
+>;

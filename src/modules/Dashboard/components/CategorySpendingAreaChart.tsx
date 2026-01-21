@@ -18,6 +18,11 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import {
+  CategorySpendingFilters,
+  type DateRangePreset,
+  type PeriodGranularity,
+} from "./CategorySpendingFilters";
 
 export interface CategorySpendingTrendData {
   period: string;
@@ -33,6 +38,12 @@ interface CategorySpendingAreaChartProps {
   isLoading?: boolean;
   title?: string;
   description?: string;
+  initialPeriod?: PeriodGranularity;
+  initialDateRangePreset?: DateRangePreset;
+  onFilterChange?: (params: {
+    period: PeriodGranularity;
+    dateRangePreset: DateRangePreset;
+  }) => void;
 }
 
 // Color palette for categories (supports up to 5 categories)
@@ -49,7 +60,37 @@ export function CategorySpendingAreaChart({
   isLoading = false,
   title = "Category Spending Trends",
   description = "Track how spending in each category changes over time",
+  initialPeriod = "week",
+  initialDateRangePreset = "last_3_months",
+  onFilterChange,
 }: CategorySpendingAreaChartProps) {
+  // Filter state
+  const [period, setPeriod] = React.useState<PeriodGranularity>(initialPeriod);
+  const [dateRangePreset, setDateRangePreset] = React.useState<DateRangePreset>(
+    initialDateRangePreset,
+  );
+
+  // Handle filter changes
+  const handlePeriodChange = React.useCallback(
+    (newPeriod: PeriodGranularity) => {
+      setPeriod(newPeriod);
+      if (onFilterChange) {
+        onFilterChange({ period: newPeriod, dateRangePreset });
+      }
+    },
+    [dateRangePreset, onFilterChange],
+  );
+
+  const handleDateRangePresetChange = React.useCallback(
+    (newPreset: DateRangePreset) => {
+      setDateRangePreset(newPreset);
+      if (onFilterChange) {
+        onFilterChange({ period, dateRangePreset: newPreset });
+      }
+    },
+    [period, onFilterChange],
+  );
+
   // Get unique category names sorted by total amount (for stacking order)
   const categoryTotals = React.useMemo(() => {
     const totals = new Map<string, number>();
@@ -116,6 +157,20 @@ export function CategorySpendingAreaChart({
     });
   }, [categoryNames]);
 
+  // Determine period label for limited data warning
+  const periodLabel = React.useMemo(() => {
+    switch (period) {
+      case "day":
+        return "day";
+      case "week":
+        return "week";
+      case "month":
+        return "month";
+      default:
+        return "period";
+    }
+  }, [period]);
+
   // Filter data for limited periods
   const hasLimitedData = data.length < 3;
 
@@ -124,8 +179,19 @@ export function CategorySpendingAreaChart({
     return (
       <Card className="pt-0">
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+          <div className="flex flex-col gap-4">
+            <div>
+              <CardTitle>{title}</CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </div>
+            <CategorySpendingFilters
+              period={period}
+              dateRangePreset={dateRangePreset}
+              onPeriodChange={handlePeriodChange}
+              onDateRangePresetChange={handleDateRangePresetChange}
+              isLoading
+            />
+          </div>
         </CardHeader>
         <CardContent className="h-[350px] flex items-center justify-center">
           <div className="space-y-2 text-center w-full">
@@ -142,8 +208,19 @@ export function CategorySpendingAreaChart({
     return (
       <Card className="pt-0">
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+          <div className="flex flex-col gap-4">
+            <div>
+              <CardTitle>{title}</CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </div>
+            <CategorySpendingFilters
+              period={period}
+              dateRangePreset={dateRangePreset}
+              onPeriodChange={handlePeriodChange}
+              onDateRangePresetChange={handleDateRangePresetChange}
+              isLoading={isLoading}
+            />
+          </div>
         </CardHeader>
         <CardContent className="h-[350px] flex items-center justify-center">
           <div className="text-center text-muted-foreground">
@@ -160,17 +237,28 @@ export function CategorySpendingAreaChart({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <div className="flex flex-col gap-4">
+          <div>
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <CategorySpendingFilters
+            period={period}
+            dateRangePreset={dateRangePreset}
+            onPeriodChange={handlePeriodChange}
+            onDateRangePresetChange={handleDateRangePresetChange}
+            isLoading={isLoading}
+          />
+        </div>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         {hasLimitedData && (
           <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
             <p className="text-xs text-amber-800 dark:text-amber-200">
-              ℹ️ Limited data available ({data.length} week
+              ℹ️ Limited data available ({data.length} {periodLabel}
               {data.length === 1 ? "" : "s"}
-              ). Add more transactions over multiple weeks to see clearer
-              trends.
+              ). Add more transactions over multiple {periodLabel}s to see
+              clearer trends.
             </p>
           </div>
         )}
@@ -232,7 +320,8 @@ export function CategorySpendingAreaChart({
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
               Tracking {categoryNames.length} categor
-              {categoryNames.length === 1 ? "y" : "ies"} over {data.length} week
+              {categoryNames.length === 1 ? "y" : "ies"} over {data.length}{" "}
+              {periodLabel}
               {data.length === 1 ? "" : "s"}
             </span>
           </div>
@@ -242,7 +331,7 @@ export function CategorySpendingAreaChart({
   );
 }
 
-// Helper function to format period labels for weekly display
+// Helper function to format period labels for various granularities
 function formatPeriodLabel(period: string): string {
   if (period.includes("-W")) {
     // Week format: 2024-W05

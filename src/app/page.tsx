@@ -17,7 +17,9 @@ import type {
   DashboardData,
   DashboardDateRangeInput,
   DashboardSummary,
+  DateRangePreset,
   NetWorthChartData,
+  PeriodGranularity,
 } from "@/modules/Dashboard/schema";
 
 export default function DashboardPage() {
@@ -38,49 +40,85 @@ export default function DashboardPage() {
     to: new Date(),
   });
 
-  // Fetch dashboard data
-  const fetchData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  // Category spending chart filter state
+  const [categoryPeriod, setCategoryPeriod] =
+    useState<PeriodGranularity>("week");
+  const [categoryDateRangePreset, setCategoryDateRangePreset] =
+    useState<DateRangePreset>("last_3_months");
 
-      // Build query parameters
-      const params = new URLSearchParams();
-      if (dateRange.from) {
-        params.set("from", dateRange.from.toISOString());
-      }
-      if (dateRange.to) {
-        params.set("to", dateRange.to.toISOString());
-      }
+  // Fetch dashboard data with optional category filters
+  const fetchData = useCallback(
+    async (filters?: {
+      period?: PeriodGranularity;
+      dateRangePreset?: DateRangePreset;
+    }) => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      // Fetch data from API
-      const response = await fetch(`/api/dashboard?${params.toString()}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (dateRange.from) {
+          params.set("from", dateRange.from.toISOString());
+        }
+        if (dateRange.to) {
+          params.set("to", dateRange.to.toISOString());
+        }
+
+        // Add category chart filters
+        if (filters?.period) {
+          params.set("categoryPeriod", filters.period);
+        }
+        if (filters?.dateRangePreset) {
+          params.set("categoryDateRangePreset", filters.dateRangePreset);
+        }
+
+        // Fetch data from API
+        const response = await fetch(`/api/dashboard?${params.toString()}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        const data = result.data;
+
+        setDashboardData(data);
+        setCategorySpendingTrend(data.categorySpendingTrend || []);
+        setNetWorthTrend(data.netWorthTrend || []);
+        setSummary(data.summary);
+      } catch (err: unknown) {
+        console.error("Failed to fetch dashboard data:", err);
+        const message =
+          err instanceof Error ? err.message : "Failed to load dashboard data";
+        setError(message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [dateRange],
+  );
+
+  // Handle category chart filter changes
+  const handleCategoryFilterChange = useCallback(
+    (params: {
+      period: PeriodGranularity;
+      dateRangePreset: DateRangePreset;
+    }) => {
+      setCategoryPeriod(params.period);
+      setCategoryDateRangePreset(params.dateRangePreset);
+      fetchData({
+        period: params.period,
+        dateRangePreset: params.dateRangePreset,
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const data = result.data;
-
-      setDashboardData(data);
-      setCategorySpendingTrend(data.categorySpendingTrend || []);
-      setNetWorthTrend(data.netWorthTrend || []);
-      setSummary(data.summary);
-    } catch (err: unknown) {
-      console.error("Failed to fetch dashboard data:", err);
-      const message =
-        err instanceof Error ? err.message : "Failed to load dashboard data";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [dateRange]);
+    },
+    [fetchData],
+  );
 
   // Fetch data on component mount and date range change
   useEffect(() => {
@@ -283,6 +321,9 @@ export default function DashboardPage() {
           isLoading={isLoading}
           title="Category Spending Trends"
           description="Track how spending in each category changes over time"
+          initialPeriod={categoryPeriod}
+          initialDateRangePreset={categoryDateRangePreset}
+          onFilterChange={handleCategoryFilterChange}
         />
 
         <NetWorthTrendChart
