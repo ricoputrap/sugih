@@ -2,12 +2,7 @@
 
 import { Cell, Pie, PieChart } from "recharts";
 
-import {
-  type ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 import type { CategoryBreakdownData } from "@/modules/Dashboard/schema";
 
 /**
@@ -111,20 +106,14 @@ export function CategoryBreakdownChart({
           className="aspect-square h-[280px] w-full"
         >
           <PieChart>
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  formatter={(value) => formatCurrency(Number(value))}
-                />
-              }
-            />
+            {/* Outer Pie - External labels with category name and amount */}
             <Pie
               data={chartData}
               dataKey="value"
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={60}
+              innerRadius={50}
               outerRadius={100}
               paddingAngle={2}
               label={({ cx, cy, midAngle, outerRadius, name, value }) => {
@@ -161,6 +150,61 @@ export function CategoryBreakdownChart({
             >
               {chartData.map((entry) => (
                 <Cell key={`cell-${entry.name}`} fill={entry.fill} />
+              ))}
+            </Pie>
+            {/* Inner Pie - Percentage labels inside slices */}
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={100}
+              paddingAngle={2}
+              label={({
+                cx,
+                cy,
+                midAngle,
+                innerRadius,
+                outerRadius,
+                payload,
+              }) => {
+                const RADIAN = Math.PI / 180;
+                // Position percentage inside the slice
+                const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                const angle = midAngle ?? 0;
+                const x = cx + radius * Math.cos(-angle * RADIAN);
+                const y = cy + radius * Math.sin(-angle * RADIAN);
+
+                // Get percentage from payload
+                const percentage = payload?.percentage ?? 0;
+
+                // Only show percentage if slice is large enough (> 3%)
+                if (percentage < 3) return null;
+
+                return (
+                  <text
+                    x={x}
+                    y={y}
+                    fill="white"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="text-xs font-semibold"
+                  >
+                    {percentage.toFixed(1)}%
+                  </text>
+                );
+              }}
+              labelLine={false}
+              isAnimationActive={false}
+              stroke="none"
+            >
+              {chartData.map((entry) => (
+                <Cell
+                  key={`cell-percentage-${entry.name}`}
+                  fill="transparent"
+                />
               ))}
             </Pie>
           </PieChart>
