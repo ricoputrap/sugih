@@ -315,25 +315,24 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <CategorySpendingAreaChart
-          data={categorySpendingTrend}
-          isLoading={isLoading}
-          title="Category Spending Trends"
-          description="Track how spending in each category changes over time"
-          initialPeriod={categoryPeriod}
-          initialDateRangePreset={categoryDateRangePreset}
-          onFilterChange={handleCategoryFilterChange}
-        />
+      {/* Category Spending Chart - Full Width */}
+      <CategorySpendingAreaChart
+        data={categorySpendingTrend}
+        isLoading={isLoading}
+        title="Category Spending Trends"
+        description="Track how spending in each category changes over time"
+        initialPeriod={categoryPeriod}
+        initialDateRangePreset={categoryDateRangePreset}
+        onFilterChange={handleCategoryFilterChange}
+      />
 
-        <NetWorthTrendChart
-          data={netWorthTrend}
-          isLoading={isLoading}
-          title="Net Worth Trend"
-          description="Your net worth progression over time"
-        />
-      </div>
+      {/* Net Worth Chart */}
+      <NetWorthTrendChart
+        data={netWorthTrend}
+        isLoading={isLoading}
+        title="Net Worth Trend"
+        description="Your net worth progression over time"
+      />
 
       {/* Category Breakdown */}
       <Card>
