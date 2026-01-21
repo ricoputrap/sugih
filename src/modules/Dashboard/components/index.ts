@@ -7,3 +7,4 @@
 export { NetWorthTrendChart } from "./NetWorthTrendChart";
 export { SpendingTrendChart } from "./SpendingTrendChart";
 export { CategorySpendingAreaChart } from "./CategorySpendingAreaChart";
+export { CategoryBreakdownChart } from "./CategoryBreakdownChart";

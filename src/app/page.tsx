@@ -11,6 +11,7 @@ import {
 import {
   CategorySpendingAreaChart,
   NetWorthTrendChart,
+  CategoryBreakdownChart,
 } from "@/modules/Dashboard/components";
 import type {
   CategorySpendingTrendChartData,
@@ -226,7 +227,7 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">{error}</p>
               <button
                 type="button"
-                onClick={fetchData}
+                onClick={() => fetchData()}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
               >
                 Try Again
@@ -341,41 +342,10 @@ export default function DashboardPage() {
           <CardDescription>Spending by category this month</CardDescription>
         </CardHeader>
         <CardContent>
-          {dashboardData?.categoryBreakdown &&
-          dashboardData.categoryBreakdown.length > 0 ? (
-            <div className="space-y-4">
-              {dashboardData.categoryBreakdown.slice(0, 5).map((category) => (
-                <div
-                  key={category.categoryId}
-                  className="flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 rounded-full bg-primary" />
-                    <span className="text-sm font-medium">
-                      {category.categoryName}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold">
-                      {formatCurrencyDisplay(category.amount)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {category.percentage.toFixed(1)}%
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <p className="text-sm">No category data available</p>
-                <p className="text-xs mt-1">
-                  Start recording expenses to see category breakdown
-                </p>
-              </div>
-            </div>
-          )}
+          <CategoryBreakdownChart
+            data={dashboardData?.categoryBreakdown}
+            formatCurrency={formatCurrencyDisplay}
+          />
         </CardContent>
       </Card>
 
