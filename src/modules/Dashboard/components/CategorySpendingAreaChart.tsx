@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+} from "recharts";
 
 import {
   Card,
@@ -15,7 +22,6 @@ import {
   ChartLegend,
   ChartLegendContent,
   ChartTooltip,
-  ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 import {
@@ -23,6 +29,8 @@ import {
   type DateRangePreset,
   type PeriodGranularity,
 } from "./CategorySpendingFilters";
+import { ChartTypeSelector } from "./ChartTypeSelector";
+import { useChartTypeStore, type ChartType } from "../stores/useChartTypeStore";
 
 export interface CategorySpendingTrendData {
   period: string;
@@ -43,6 +51,7 @@ interface CategorySpendingAreaChartProps {
   onFilterChange?: (params: {
     period: PeriodGranularity;
     dateRangePreset: DateRangePreset;
+    chartType: ChartType;
   }) => void;
 }
 
@@ -70,25 +79,41 @@ export function CategorySpendingAreaChart({
     initialDateRangePreset,
   );
 
+  // Chart type from Zustand store
+  const { chartType } = useChartTypeStore();
+
+  // Track previous chartType to detect changes
+  const prevChartTypeRef = React.useRef<ChartType>(chartType);
+
+  // Notify parent when chartType changes
+  React.useEffect(() => {
+    if (prevChartTypeRef.current !== chartType) {
+      prevChartTypeRef.current = chartType;
+      if (onFilterChange) {
+        onFilterChange({ period, dateRangePreset, chartType });
+      }
+    }
+  }, [chartType, period, dateRangePreset, onFilterChange]);
+
   // Handle filter changes
   const handlePeriodChange = React.useCallback(
     (newPeriod: PeriodGranularity) => {
       setPeriod(newPeriod);
       if (onFilterChange) {
-        onFilterChange({ period: newPeriod, dateRangePreset });
+        onFilterChange({ period: newPeriod, dateRangePreset, chartType });
       }
     },
-    [dateRangePreset, onFilterChange],
+    [dateRangePreset, chartType, onFilterChange],
   );
 
   const handleDateRangePresetChange = React.useCallback(
     (newPreset: DateRangePreset) => {
       setDateRangePreset(newPreset);
       if (onFilterChange) {
-        onFilterChange({ period, dateRangePreset: newPreset });
+        onFilterChange({ period, dateRangePreset: newPreset, chartType });
       }
     },
-    [period, onFilterChange],
+    [period, chartType, onFilterChange],
   );
 
   // Get unique category names sorted by total amount (for stacking order)
@@ -136,8 +161,11 @@ export function CategorySpendingAreaChart({
     });
   }, [data]);
 
-  // Generate gradient definitions for each category
+  // Generate gradient definitions for each category (only used for area chart)
   const gradientDefs = React.useMemo(() => {
+    if (chartType === "line") {
+      return null;
+    }
     return categoryNames.map((categoryName, index) => {
       const color = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
       const gradientId = `gradient${categoryName.replace(/\s+/g, "")}`;
@@ -155,7 +183,7 @@ export function CategorySpendingAreaChart({
         </linearGradient>
       );
     });
-  }, [categoryNames]);
+  }, [categoryNames, chartType]);
 
   // Determine period label for limited data warning
   const periodLabel = React.useMemo(() => {
@@ -174,6 +202,59 @@ export function CategorySpendingAreaChart({
   // Filter data for limited periods
   const hasLimitedData = data.length < 3;
 
+  // Custom tooltip content
+  const tooltipContent = React.useCallback(
+    ({
+      active,
+      payload,
+      label,
+    }: {
+      active?: boolean;
+      payload?: readonly { name: string; value: number }[];
+      label?: string | number;
+    }) => {
+      if (active && payload && payload.length) {
+        return (
+          <div className="rounded-lg border bg-background p-3 shadow-lg">
+            <p className="font-semibold mb-2">{label}</p>
+            <div className="space-y-1">
+              {payload.map((entry, index) => {
+                const name = entry.name;
+                const color =
+                  chartConfig[name]?.color ||
+                  CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+                return (
+                  <div
+                    key={name}
+                    className="flex items-center justify-between gap-4 text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="text-muted-foreground">{name}</span>
+                    </div>
+                    <span className="font-medium">
+                      {new Intl.NumberFormat("id-ID", {
+                        style: "currency",
+                        currency: "IDR",
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      }).format(entry.value as number)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+      return null;
+    },
+    [chartConfig],
+  );
+
   // Loading state
   if (isLoading) {
     return (
@@ -185,13 +266,16 @@ export function CategorySpendingAreaChart({
                 <CardTitle>{title}</CardTitle>
                 <CardDescription>{description}</CardDescription>
               </div>
-              <CategorySpendingFilters
-                period={period}
-                dateRangePreset={dateRangePreset}
-                onPeriodChange={handlePeriodChange}
-                onDateRangePresetChange={handleDateRangePresetChange}
-                isLoading
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <ChartTypeSelector disabled />
+                <CategorySpendingFilters
+                  period={period}
+                  dateRangePreset={dateRangePreset}
+                  onPeriodChange={handlePeriodChange}
+                  onDateRangePresetChange={handleDateRangePresetChange}
+                  isLoading
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -216,13 +300,16 @@ export function CategorySpendingAreaChart({
                 <CardTitle>{title}</CardTitle>
                 <CardDescription>{description}</CardDescription>
               </div>
-              <CategorySpendingFilters
-                period={period}
-                dateRangePreset={dateRangePreset}
-                onPeriodChange={handlePeriodChange}
-                onDateRangePresetChange={handleDateRangePresetChange}
-                isLoading={isLoading}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <ChartTypeSelector disabled={isLoading} />
+                <CategorySpendingFilters
+                  period={period}
+                  dateRangePreset={dateRangePreset}
+                  onPeriodChange={handlePeriodChange}
+                  onDateRangePresetChange={handleDateRangePresetChange}
+                  isLoading={isLoading}
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -238,6 +325,80 @@ export function CategorySpendingAreaChart({
     );
   }
 
+  // Render the appropriate chart based on chartType
+  const renderChart = () => {
+    if (chartType === "line") {
+      return (
+        <LineChart data={chartData}>
+          <CartesianGrid
+            strokeDasharray="3 3"
+            className="stroke-muted"
+            opacity={0.3}
+          />
+          <XAxis
+            dataKey="date"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            minTickGap={32}
+            tickFormatter={(value) => value}
+            className="text-xs fill-muted-foreground"
+          />
+          <ChartTooltip cursor={false} content={tooltipContent} />
+          <ChartLegend content={<ChartLegendContent />} />
+          {categoryNames.map((categoryName, index) => (
+            <Line
+              key={categoryName}
+              dataKey={categoryName}
+              type="monotone"
+              stroke={CATEGORY_COLORS[index % CATEGORY_COLORS.length]}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          ))}
+        </LineChart>
+      );
+    }
+
+    // Default: Area chart
+    return (
+      <AreaChart data={chartData}>
+        <defs>{gradientDefs}</defs>
+        <CartesianGrid
+          strokeDasharray="3 3"
+          className="stroke-muted"
+          opacity={0.3}
+        />
+        <XAxis
+          dataKey="date"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={32}
+          tickFormatter={(value) => value}
+          className="text-xs fill-muted-foreground"
+        />
+        <ChartTooltip cursor={false} content={tooltipContent} />
+        <ChartLegend content={<ChartLegendContent />} />
+        {categoryNames.map((categoryName, index) => {
+          const gradientId = `gradient${categoryName.replace(/\s+/g, "")}`;
+          return (
+            <Area
+              key={categoryName}
+              dataKey={categoryName}
+              type="monotone"
+              fill={`url(#${gradientId})`}
+              stroke={CATEGORY_COLORS[index % CATEGORY_COLORS.length]}
+              strokeWidth={2}
+              stackId="1"
+            />
+          );
+        })}
+      </AreaChart>
+    );
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -247,13 +408,16 @@ export function CategorySpendingAreaChart({
               <CardTitle>{title}</CardTitle>
               <CardDescription>{description}</CardDescription>
             </div>
-            <CategorySpendingFilters
-              period={period}
-              dateRangePreset={dateRangePreset}
-              onPeriodChange={handlePeriodChange}
-              onDateRangePresetChange={handleDateRangePresetChange}
-              isLoading={isLoading}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <ChartTypeSelector disabled={isLoading} />
+              <CategorySpendingFilters
+                period={period}
+                dateRangePreset={dateRangePreset}
+                onPeriodChange={handlePeriodChange}
+                onDateRangePresetChange={handleDateRangePresetChange}
+                isLoading={isLoading}
+              />
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -272,83 +436,7 @@ export function CategorySpendingAreaChart({
           config={chartConfig}
           className="aspect-auto h-[350px] w-full"
         >
-          <AreaChart data={chartData}>
-            <defs>{gradientDefs}</defs>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              className="stroke-muted"
-              opacity={0.3}
-            />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              tickFormatter={(value) => value}
-              className="text-xs fill-muted-foreground"
-            />
-            <ChartTooltip
-              cursor={false}
-              content={({ active, payload, label }) => {
-                if (active && payload && payload.length) {
-                  return (
-                    <div className="rounded-lg border bg-background p-3 shadow-lg">
-                      <p className="font-semibold mb-2">{label}</p>
-                      <div className="space-y-1">
-                        {payload.map((entry, index) => {
-                          const name = entry.name;
-                          const color =
-                            chartConfig[name]?.color ||
-                            CATEGORY_COLORS[index % CATEGORY_COLORS.length];
-                          return (
-                            <div
-                              key={name}
-                              className="flex items-center justify-between gap-4 text-sm"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="w-3 h-3 rounded-full"
-                                  style={{ backgroundColor: color }}
-                                />
-                                <span className="text-muted-foreground">
-                                  {name}
-                                </span>
-                              </div>
-                              <span className="font-medium">
-                                {new Intl.NumberFormat("id-ID", {
-                                  style: "currency",
-                                  currency: "IDR",
-                                  minimumFractionDigits: 0,
-                                  maximumFractionDigits: 0,
-                                }).format(entry.value as number)}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <ChartLegend content={<ChartLegendContent />} />
-            {categoryNames.map((categoryName, index) => {
-              const gradientId = `gradient${categoryName.replace(/\s+/g, "")}`;
-              return (
-                <Area
-                  key={categoryName}
-                  dataKey={categoryName}
-                  type="monotone"
-                  fill={`url(#${gradientId})`}
-                  stroke={CATEGORY_COLORS[index % CATEGORY_COLORS.length]}
-                  strokeWidth={2}
-                  stackId="1"
-                />
-              );
-            })}
-          </AreaChart>
+          {renderChart()}
         </ChartContainer>
         <div className="mt-4 pt-4 border-t">
           <div className="flex items-center justify-between text-xs text-muted-foreground">

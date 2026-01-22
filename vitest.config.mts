@@ -17,6 +17,7 @@ export default defineConfig({
     hookTimeout: 10000,
     include: ["**/*.test.ts", "**/*.test.tsx"],
     exclude: ["node_modules", ".next", "dist"],
+    setupFiles: ["./src/test/setup.ts"],
   },
   resolve: {
     alias: {
