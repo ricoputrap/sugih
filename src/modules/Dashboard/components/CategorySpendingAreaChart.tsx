@@ -290,20 +290,48 @@ export function CategorySpendingAreaChart({
             />
             <ChartTooltip
               cursor={false}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(value) => value}
-                  formatter={(value: number) => {
-                    return new Intl.NumberFormat("id-ID", {
-                      style: "currency",
-                      currency: "IDR",
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0,
-                    }).format(value);
-                  }}
-                  indicator="dot"
-                />
-              }
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  return (
+                    <div className="rounded-lg border bg-background p-3 shadow-lg">
+                      <p className="font-semibold mb-2">{label}</p>
+                      <div className="space-y-1">
+                        {payload.map((entry, index) => {
+                          const name = entry.name;
+                          const color =
+                            chartConfig[name]?.color ||
+                            CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+                          return (
+                            <div
+                              key={name}
+                              className="flex items-center justify-between gap-4 text-sm"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: color }}
+                                />
+                                <span className="text-muted-foreground">
+                                  {name}
+                                </span>
+                              </div>
+                              <span className="font-medium">
+                                {new Intl.NumberFormat("id-ID", {
+                                  style: "currency",
+                                  currency: "IDR",
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 0,
+                                }).format(entry.value as number)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              }}
             />
             <ChartLegend content={<ChartLegendContent />} />
             {categoryNames.map((categoryName, index) => {
