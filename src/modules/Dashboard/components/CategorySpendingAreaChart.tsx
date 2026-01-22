@@ -179,18 +179,20 @@ export function CategorySpendingAreaChart({
     return (
       <Card className="pt-0">
         <CardHeader>
-          <div className="flex flex-col gap-4">
-            <div>
-              <CardTitle>{title}</CardTitle>
-              <CardDescription>{description}</CardDescription>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div>
+                <CardTitle>{title}</CardTitle>
+                <CardDescription>{description}</CardDescription>
+              </div>
+              <CategorySpendingFilters
+                period={period}
+                dateRangePreset={dateRangePreset}
+                onPeriodChange={handlePeriodChange}
+                onDateRangePresetChange={handleDateRangePresetChange}
+                isLoading
+              />
             </div>
-            <CategorySpendingFilters
-              period={period}
-              dateRangePreset={dateRangePreset}
-              onPeriodChange={handlePeriodChange}
-              onDateRangePresetChange={handleDateRangePresetChange}
-              isLoading
-            />
           </div>
         </CardHeader>
         <CardContent className="h-[350px] flex items-center justify-center">
@@ -208,18 +210,20 @@ export function CategorySpendingAreaChart({
     return (
       <Card className="pt-0">
         <CardHeader>
-          <div className="flex flex-col gap-4">
-            <div>
-              <CardTitle>{title}</CardTitle>
-              <CardDescription>{description}</CardDescription>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div>
+                <CardTitle>{title}</CardTitle>
+                <CardDescription>{description}</CardDescription>
+              </div>
+              <CategorySpendingFilters
+                period={period}
+                dateRangePreset={dateRangePreset}
+                onPeriodChange={handlePeriodChange}
+                onDateRangePresetChange={handleDateRangePresetChange}
+                isLoading={isLoading}
+              />
             </div>
-            <CategorySpendingFilters
-              period={period}
-              dateRangePreset={dateRangePreset}
-              onPeriodChange={handlePeriodChange}
-              onDateRangePresetChange={handleDateRangePresetChange}
-              isLoading={isLoading}
-            />
           </div>
         </CardHeader>
         <CardContent className="h-[350px] flex items-center justify-center">
@@ -237,18 +241,20 @@ export function CategorySpendingAreaChart({
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col gap-4">
-          <div>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <CardTitle>{title}</CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </div>
+            <CategorySpendingFilters
+              period={period}
+              dateRangePreset={dateRangePreset}
+              onPeriodChange={handlePeriodChange}
+              onDateRangePresetChange={handleDateRangePresetChange}
+              isLoading={isLoading}
+            />
           </div>
-          <CategorySpendingFilters
-            period={period}
-            dateRangePreset={dateRangePreset}
-            onPeriodChange={handlePeriodChange}
-            onDateRangePresetChange={handleDateRangePresetChange}
-            isLoading={isLoading}
-          />
         </div>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
