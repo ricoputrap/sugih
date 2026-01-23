@@ -21,13 +21,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Category, CategoryCreateSchema } from "../schema";
+import { Category, CategoryCreateSchema, CategoryType } from "../schema";
 import { toast } from "sonner";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 interface CategoryDialogFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (values: { name: string }) => Promise<void>;
+  onSubmit: (values: { name: string; type: CategoryType }) => Promise<void>;
   isLoading?: boolean;
   mode: "create" | "edit";
   initialData?: Category | null;
@@ -43,10 +45,11 @@ export function CategoryDialogForm({
 }: CategoryDialogFormProps) {
   const isEditing = mode === "edit" && !!initialData;
 
-  const form = useForm<{ name: string }>({
+  const form = useForm<{ name: string; type: CategoryType }>({
     resolver: zodResolver(CategoryCreateSchema),
     defaultValues: {
       name: initialData?.name || "",
+      type: initialData?.type || "expense",
     },
   });
 
@@ -54,11 +57,12 @@ export function CategoryDialogForm({
     if (open) {
       form.reset({
         name: initialData?.name || "",
+        type: initialData?.type || "expense",
       });
     }
   }, [open, initialData, form]);
 
-  const handleSubmit = async (values: { name: string }) => {
+  const handleSubmit = async (values: { name: string; type: CategoryType }) => {
     try {
       await onSubmit(values);
       form.reset();
@@ -91,8 +95,8 @@ export function CategoryDialogForm({
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Make changes to the category name."
-              : "Add a new expense category to organize your transactions."}
+              ? "Make changes to the category details."
+              : "Add a new category to organize your transactions."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -112,6 +116,50 @@ export function CategoryDialogForm({
                       {...field}
                       disabled={isLoading}
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Category Type</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex flex-col space-y-1"
+                      disabled={isLoading}
+                    >
+                      <div className="flex items-center space-x-3 space-y-0">
+                        <RadioGroupItem value="expense" id="expense" />
+                        <Label
+                          htmlFor="expense"
+                          className="font-normal cursor-pointer"
+                        >
+                          <div className="font-medium">Expense</div>
+                          <div className="text-sm text-muted-foreground">
+                            For spending and costs (can be budgeted)
+                          </div>
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-3 space-y-0">
+                        <RadioGroupItem value="income" id="income" />
+                        <Label
+                          htmlFor="income"
+                          className="font-normal cursor-pointer"
+                        >
+                          <div className="font-medium">Income</div>
+                          <div className="text-sm text-muted-foreground">
+                            For earnings and revenue (cannot be budgeted)
+                          </div>
+                        </Label>
+                      </div>
+                    </RadioGroup>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

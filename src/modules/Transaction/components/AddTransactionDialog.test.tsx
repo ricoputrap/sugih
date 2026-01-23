@@ -102,9 +102,9 @@ const mockWallets = [
 ];
 
 const mockCategories = [
-  { id: "cat_1", name: "Food & Dining" },
-  { id: "cat_2", name: "Salary" },
-  { id: "cat_3", name: "Freelance" },
+  { id: "cat_1", name: "Food & Dining", type: "expense" as const },
+  { id: "cat_2", name: "Salary", type: "income" as const },
+  { id: "cat_3", name: "Freelance", type: "income" as const },
 ];
 
 const mockSavingsBuckets = [

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { CategoryTable } from "@/modules/Category/components/CategoryTable";
 import { CategoryDialogForm } from "@/modules/Category/components/CategoryDialogForm";
-import { Category } from "@/modules/Category/schema";
+import { Category, CategoryType } from "@/modules/Category/schema";
 import { toast } from "sonner";
 
 export default function CategoriesPage() {
@@ -48,7 +48,10 @@ export default function CategoriesPage() {
   }, []);
 
   // Handle create category
-  const handleCreateCategory = async (values: { name: string }) => {
+  const handleCreateCategory = async (values: {
+    name: string;
+    type: CategoryType;
+  }) => {
     try {
       const response = await fetch("/api/categories", {
         method: "POST",
@@ -70,7 +73,10 @@ export default function CategoriesPage() {
   };
 
   // Handle update category
-  const handleUpdateCategory = async (values: { name: string }) => {
+  const handleUpdateCategory = async (values: {
+    name: string;
+    type: CategoryType;
+  }) => {
     if (!selectedCategory) return;
 
     try {
@@ -131,6 +137,10 @@ export default function CategoriesPage() {
   // Count active and archived categories
   const activeCategories = categories.filter((c) => !c.archived);
   const archivedCategories = categories.filter((c) => c.archived);
+  const incomeCategories = activeCategories.filter((c) => c.type === "income");
+  const expenseCategories = activeCategories.filter(
+    (c) => c.type === "expense",
+  );
 
   return (
     <div className="space-y-6">
@@ -138,7 +148,7 @@ export default function CategoriesPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
           <p className="text-muted-foreground">
-            Manage your expense categories to organize transactions
+            Manage your income and expense categories to organize transactions
           </p>
         </div>
         <Button onClick={() => setIsCreateDialogOpen(true)}>
@@ -148,7 +158,37 @@ export default function CategoriesPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Income Categories
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {incomeCategories.length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              For earnings & revenue
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Expense Categories
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              {expenseCategories.length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              For spending & costs
+            </p>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -157,9 +197,7 @@ export default function CategoriesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeCategories.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Available for transactions
-            </p>
+            <p className="text-xs text-muted-foreground">Available for use</p>
           </CardContent>
         </Card>
         <Card>
@@ -182,7 +220,7 @@ export default function CategoriesPage() {
         <CardHeader>
           <CardTitle>All Categories</CardTitle>
           <CardDescription>
-            A list of all your expense categories
+            A list of all your income and expense categories
           </CardDescription>
         </CardHeader>
         <CardContent>

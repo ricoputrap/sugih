@@ -45,7 +45,7 @@ interface AddTransactionDialogProps {
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   wallets?: Array<{ id: string; name: string }>;
-  categories?: Array<{ id: string; name: string }>;
+  categories?: Array<{ id: string; name: string; type: "income" | "expense" }>;
   savingsBuckets?: Array<{ id: string; name: string }>;
 }
 
@@ -98,6 +98,9 @@ export function AddTransactionDialog({
   categories = [],
   savingsBuckets = [],
 }: AddTransactionDialogProps) {
+  // Filter categories by type
+  const expenseCategories = categories.filter((cat) => cat.type === "expense");
+  const incomeCategories = categories.filter((cat) => cat.type === "income");
   const [activeTab, setActiveTab] = useState("expense");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -345,7 +348,7 @@ export function AddTransactionDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {categories.map((category) => (
+                          {expenseCategories.map((category) => (
                             <SelectItem key={category.id} value={category.id}>
                               {category.name}
                             </SelectItem>
@@ -515,7 +518,7 @@ export function AddTransactionDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {categories.map((category) => (
+                          {incomeCategories.map((category) => (
                             <SelectItem key={category.id} value={category.id}>
                               {category.name}
                             </SelectItem>

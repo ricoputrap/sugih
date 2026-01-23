@@ -110,6 +110,7 @@ export function CategoryTable({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="w-[50px]"></TableHead>
@@ -120,6 +121,9 @@ export function CategoryTable({
               <TableRow key={i}>
                 <TableCell className="animate-pulse">
                   <div className="h-4 bg-gray-200 rounded w-32"></div>
+                </TableCell>
+                <TableCell className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-16"></div>
                 </TableCell>
                 <TableCell className="animate-pulse">
                   <div className="h-4 bg-gray-200 rounded w-16"></div>
@@ -142,6 +146,7 @@ export function CategoryTable({
         <TableHeader>
           <TableRow>
             <TableHead className="w-[300px]">Name</TableHead>
+            <TableHead className="w-[100px]">Type</TableHead>
             <TableHead className="w-[100px]">Status</TableHead>
             <TableHead className="w-[150px]">Created</TableHead>
             <TableHead className="w-[50px]"></TableHead>
@@ -151,7 +156,7 @@ export function CategoryTable({
           {categories.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={4}
+                colSpan={5}
                 className="text-center text-muted-foreground py-8"
               >
                 No categories found. Create your first category to get started.
@@ -161,6 +166,23 @@ export function CategoryTable({
             categories.map((category) => (
               <TableRow key={category.id}>
                 <TableCell className="font-medium">{category.name}</TableCell>
+                <TableCell>
+                  {category.type === "income" ? (
+                    <Badge
+                      variant="outline"
+                      className="bg-green-50 text-green-700 border-green-200"
+                    >
+                      Income
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="bg-blue-50 text-blue-700 border-blue-200"
+                    >
+                      Expense
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell>
                   {category.archived ? (
                     <Badge variant="secondary">Archived</Badge>
