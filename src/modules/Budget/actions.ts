@@ -153,7 +153,7 @@ export async function upsertBudgets(
   const pool = getPool();
 
   try {
-    const validatedInput = BudgetUpsertSchema.parse(input);
+    const validatedInput = await BudgetUpsertSchema.parseAsync(input);
 
     // Verify all categories exist and are not archived
     const categoryIds = validatedInput.items.map((item) => item.categoryId);
@@ -295,13 +295,20 @@ export async function createBudget(input: {
   try {
     BudgetMonthSchema.parse(input.month);
 
-    // Verify category exists and is not archived
+    // Verify category exists, is not archived, and is an expense category
     const categoryResult = await db.execute(
-      sql`SELECT id, name FROM categories WHERE id = ${input.categoryId} AND archived = false`,
+      sql`SELECT id, name, type FROM categories WHERE id = ${input.categoryId} AND archived = false`,
     );
 
     if (categoryResult.rows.length === 0) {
       throw new Error("Category not found or archived");
+    }
+
+    const category = categoryResult.rows[0];
+    if (category.type !== "expense") {
+      throw new Error(
+        "Budget category must be an expense category. Income categories cannot be budgeted.",
+      );
     }
 
     // Check if budget already exists for this month/category

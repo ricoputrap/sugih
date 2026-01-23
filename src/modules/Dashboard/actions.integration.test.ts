@@ -42,9 +42,10 @@ describe("Dashboard Integration Tests", () => {
     });
     testWallet2Id = wallet2.id;
 
-    // Create test category
+    // Create test category (expense type for expense transactions)
     const category = await createCategory({
       name: `Dashboard Category ${nanoid()}`,
+      type: "expense",
     });
     testCategoryId = category.id;
 

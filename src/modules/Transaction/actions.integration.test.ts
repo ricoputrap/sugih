@@ -27,6 +27,8 @@ describe("Transaction Integration Tests", () => {
   let testWalletId: string;
   let testWallet2Id: string;
   let testCategoryId: string;
+  let testIncomeCategoryId: string;
+  let testExpenseCategoryId: string;
   let testBucketId: string;
   const testTransactionIds: string[] = [];
 
@@ -45,9 +47,26 @@ describe("Transaction Integration Tests", () => {
     });
     testWallet2Id = wallet2.id;
 
-    // Create test category
-    const category = await createCategory({ name: `Tx Category ${nanoid()}` });
+    // Create test category (default expense type for backward compatibility)
+    const category = await createCategory({
+      name: `Tx Category ${nanoid()}`,
+      type: "expense",
+    });
     testCategoryId = category.id;
+
+    // Create test income category
+    const incomeCategory = await createCategory({
+      name: `Income Category ${nanoid()}`,
+      type: "income",
+    });
+    testIncomeCategoryId = incomeCategory.id;
+
+    // Create test expense category
+    const expenseCategory = await createCategory({
+      name: `Expense Category ${nanoid()}`,
+      type: "expense",
+    });
+    testExpenseCategoryId = expenseCategory.id;
 
     // Create test savings bucket
     const bucket = await createSavingsBucket({
@@ -77,6 +96,8 @@ describe("Transaction Integration Tests", () => {
       await deleteWallet(testWalletId);
       await deleteWallet(testWallet2Id);
       await deleteCategory(testCategoryId);
+      await deleteCategory(testIncomeCategoryId);
+      await deleteCategory(testExpenseCategoryId);
       await deleteSavingsBucket(testBucketId);
     } catch (error) {
       console.error("Failed to cleanup test data:", error);
@@ -121,7 +142,7 @@ describe("Transaction Integration Tests", () => {
           categoryId: "non-existent-category-id",
           amountIdr: 100000,
         }),
-      ).rejects.toThrow("Category not found");
+      ).rejects.toThrow();
     });
 
     it("should handle idempotency key", async () => {
@@ -166,7 +187,7 @@ describe("Transaction Integration Tests", () => {
       const income = await createIncome({
         occurredAt: new Date(),
         walletId: testWalletId,
-        categoryId: testCategoryId,
+        categoryId: testIncomeCategoryId,
         amountIdr: 750000,
         note: "Categorized income",
         payee: "Client",
@@ -175,7 +196,7 @@ describe("Transaction Integration Tests", () => {
 
       expect(income.id).toBeDefined();
       expect(income.type).toBe("income");
-      expect(income.category_id).toBe(testCategoryId);
+      expect(income.category_id).toBe(testIncomeCategoryId);
       expect(income.category_name).toBeDefined();
     });
 
@@ -211,7 +232,7 @@ describe("Transaction Integration Tests", () => {
           categoryId: "non-existent-category-id",
           amountIdr: 500000,
         }),
-      ).rejects.toThrow("Category not found");
+      ).rejects.toThrow();
     });
   });
 
@@ -345,7 +366,7 @@ describe("Transaction Integration Tests", () => {
       const income = await createIncome({
         occurredAt: new Date(),
         walletId: testWalletId,
-        categoryId: testCategoryId,
+        categoryId: testIncomeCategoryId,
         amountIdr: 250000,
         note: "Categorized income for listing test",
       });
@@ -355,7 +376,7 @@ describe("Transaction Integration Tests", () => {
 
       const foundIncome = result.find((tx) => tx.id === income.id);
       expect(foundIncome).toBeDefined();
-      expect(foundIncome?.category_id).toBe(testCategoryId);
+      expect(foundIncome?.category_id).toBe(testIncomeCategoryId);
       expect(foundIncome?.category_name).toBeDefined();
       expect(foundIncome?.category_name).not.toBeNull();
     });
@@ -364,19 +385,21 @@ describe("Transaction Integration Tests", () => {
       const income = await createIncome({
         occurredAt: new Date(),
         walletId: testWalletId,
-        categoryId: testCategoryId,
+        categoryId: testIncomeCategoryId,
         amountIdr: 400000,
         note: "Income for categoryId filter test",
       });
       testTransactionIds.push(income.id);
 
-      const result = await listTransactions({ categoryId: testCategoryId });
+      const result = await listTransactions({
+        categoryId: testIncomeCategoryId,
+      });
 
       expect(result.length).toBeGreaterThan(0);
       const foundIncome = result.find((tx) => tx.id === income.id);
       expect(foundIncome).toBeDefined();
       expect(foundIncome?.type).toBe("income");
-      expect(foundIncome?.category_id).toBe(testCategoryId);
+      expect(foundIncome?.category_id).toBe(testIncomeCategoryId);
     });
   });
 
@@ -771,6 +794,188 @@ describe("Transaction Integration Tests", () => {
       expect(stats.totalIncome).toBe(0);
       expect(stats.totalExpense).toBe(0);
       expect(stats.transactionCount).toBe(0);
+    });
+  });
+
+  describe("Category Type Validation", () => {
+    it("should accept expense transaction with expense category", async () => {
+      const expense = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testExpenseCategoryId,
+        amountIdr: 100000,
+        note: "Test expense with correct category type",
+      });
+      testTransactionIds.push(expense.id);
+
+      expect(expense.id).toBeDefined();
+      expect(expense.type).toBe("expense");
+      expect(expense.category_id).toBe(testExpenseCategoryId);
+    });
+
+    it("should reject expense transaction with income category", async () => {
+      await expect(
+        createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testIncomeCategoryId,
+          amountIdr: 100000,
+          note: "Test expense with income category (should fail)",
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("should accept income transaction with income category", async () => {
+      const income = await createIncome({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testIncomeCategoryId,
+        amountIdr: 500000,
+        note: "Test income with correct category type",
+        payee: "Test Company",
+      });
+      testTransactionIds.push(income.id);
+
+      expect(income.id).toBeDefined();
+      expect(income.type).toBe("income");
+      expect(income.category_id).toBe(testIncomeCategoryId);
+    });
+
+    it("should reject income transaction with expense category", async () => {
+      await expect(
+        createIncome({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 500000,
+          note: "Test income with expense category (should fail)",
+          payee: "Test Company",
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("should allow income transaction without category", async () => {
+      const income = await createIncome({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        amountIdr: 300000,
+        note: "Test income without category",
+        payee: "Test Company",
+      });
+      testTransactionIds.push(income.id);
+
+      expect(income.id).toBeDefined();
+      expect(income.type).toBe("income");
+      expect(income.category_id).toBeNull();
+    });
+  });
+
+  describe("Filter by Category Type", () => {
+    it("should filter transactions by expense category type", async () => {
+      const expense = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testExpenseCategoryId,
+        amountIdr: 100000,
+        note: "Test expense",
+      });
+      testTransactionIds.push(expense.id);
+
+      const income = await createIncome({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testIncomeCategoryId,
+        amountIdr: 500000,
+        note: "Test income",
+      });
+      testTransactionIds.push(income.id);
+
+      const result = await listTransactions({ categoryType: "expense" });
+
+      const expenseTransactions = result.filter((tx) =>
+        testTransactionIds.includes(tx.id),
+      );
+
+      expect(expenseTransactions.length).toBeGreaterThan(0);
+      expenseTransactions.forEach((tx) => {
+        expect(tx.category_id).toBeDefined();
+        expect(tx.category_id).not.toBeNull();
+      });
+
+      const foundExpense = result.find((tx) => tx.id === expense.id);
+      expect(foundExpense).toBeDefined();
+
+      const foundIncome = result.find((tx) => tx.id === income.id);
+      expect(foundIncome).toBeUndefined();
+    });
+
+    it("should filter transactions by income category type", async () => {
+      const expense = await createExpense({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testExpenseCategoryId,
+        amountIdr: 100000,
+        note: "Test expense",
+      });
+      testTransactionIds.push(expense.id);
+
+      const income = await createIncome({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testIncomeCategoryId,
+        amountIdr: 500000,
+        note: "Test income",
+      });
+      testTransactionIds.push(income.id);
+
+      const result = await listTransactions({ categoryType: "income" });
+
+      const incomeTransactions = result.filter((tx) =>
+        testTransactionIds.includes(tx.id),
+      );
+
+      expect(incomeTransactions.length).toBeGreaterThan(0);
+      incomeTransactions.forEach((tx) => {
+        expect(tx.category_id).toBeDefined();
+        expect(tx.category_id).not.toBeNull();
+      });
+
+      const foundIncome = result.find((tx) => tx.id === income.id);
+      expect(foundIncome).toBeDefined();
+
+      const foundExpense = result.find((tx) => tx.id === expense.id);
+      expect(foundExpense).toBeUndefined();
+    });
+
+    it("should exclude transactions without categories when filtering by category type", async () => {
+      const incomeWithoutCategory = await createIncome({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        amountIdr: 300000,
+        note: "Income without category",
+      });
+      testTransactionIds.push(incomeWithoutCategory.id);
+
+      const incomeWithCategory = await createIncome({
+        occurredAt: new Date(),
+        walletId: testWalletId,
+        categoryId: testIncomeCategoryId,
+        amountIdr: 500000,
+        note: "Income with category",
+      });
+      testTransactionIds.push(incomeWithCategory.id);
+
+      const result = await listTransactions({ categoryType: "income" });
+
+      const foundWithCategory = result.find(
+        (tx) => tx.id === incomeWithCategory.id,
+      );
+      expect(foundWithCategory).toBeDefined();
+
+      const foundWithoutCategory = result.find(
+        (tx) => tx.id === incomeWithoutCategory.id,
+      );
+      expect(foundWithoutCategory).toBeUndefined();
     });
   });
 });

@@ -469,5 +469,63 @@ describe("Categories API Routes", () => {
       expect(status).toBe(200);
       expect(data.name).toBe("Food & Dining 🚀");
     });
+
+    it("should accept category with type field (expense)", async () => {
+      const newCategory = {
+        id: "new-cat-id",
+        name: "Groceries",
+        type: "expense" as const,
+        archived: false,
+        created_at: new Date("2024-01-01"),
+        updated_at: new Date("2024-01-01"),
+      };
+
+      vi.mocked(createCategory).mockResolvedValue(newCategory);
+
+      const request = createMockRequest(
+        "POST",
+        "http://localhost:3000/api/categories",
+        {
+          name: "Groceries",
+          type: "expense",
+        },
+      );
+
+      const response = await POST(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.name).toBe("Groceries");
+      expect(data.type).toBe("expense");
+    });
+
+    it("should accept category with type field (income)", async () => {
+      const newCategory = {
+        id: "new-cat-id",
+        name: "Salary",
+        type: "income" as const,
+        archived: false,
+        created_at: new Date("2024-01-01"),
+        updated_at: new Date("2024-01-01"),
+      };
+
+      vi.mocked(createCategory).mockResolvedValue(newCategory);
+
+      const request = createMockRequest(
+        "POST",
+        "http://localhost:3000/api/categories",
+        {
+          name: "Salary",
+          type: "income",
+        },
+      );
+
+      const response = await POST(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.name).toBe("Salary");
+      expect(data.type).toBe("income");
+    });
   });
 });

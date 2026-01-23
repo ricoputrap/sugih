@@ -29,6 +29,13 @@
       "when": 1768862293346,
       "tag": "0003_flimsy_blink",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1769130374911,
+      "tag": "0004_woozy_jackpot",
+      "breakpoints": true
     }
   ]
 }

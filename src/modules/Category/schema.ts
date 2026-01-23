@@ -4,13 +4,18 @@ import {
   varchar,
   timestamp,
   boolean,
+  pgEnum,
 } from "drizzle-orm/pg-core";
 import { z } from "zod";
+
+// Category type enum
+export const categoryTypeEnum = pgEnum("category_type", ["income", "expense"]);
 
 // Drizzle schema
 export const categories = pgTable("categories", {
   id: text("id").primaryKey(), // UUID as text
   name: varchar("name", { length: 255 }).notNull().unique(),
+  type: categoryTypeEnum("type").notNull(),
   archived: boolean("archived").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).$default(
     () => new Date(),
@@ -23,6 +28,10 @@ export const categories = pgTable("categories", {
 // Zod schemas for validation
 export const CategoryCreateSchema = z.object({
   name: z.string().min(1, "Name is required").max(255, "Name too long"),
+  type: z.enum(["income", "expense"], {
+    required_error: "Category type is required",
+    invalid_type_error: "Category type must be either 'income' or 'expense'",
+  }),
 });
 
 export const CategoryUpdateSchema = z.object({
@@ -30,6 +39,11 @@ export const CategoryUpdateSchema = z.object({
     .string()
     .min(1, "Name is required")
     .max(255, "Name too long")
+    .optional(),
+  type: z
+    .enum(["income", "expense"], {
+      invalid_type_error: "Category type must be either 'income' or 'expense'",
+    })
     .optional(),
   archived: z.boolean().optional(),
 });
@@ -42,6 +56,8 @@ export const CategoryIdSchema = z.object({
 });
 
 // Type exports for TypeScript
+export type CategoryType = "income" | "expense";
+
 export type Category = typeof categories.$inferSelect & {
   created_at: Date | string | null;
   updated_at: Date | string | null;

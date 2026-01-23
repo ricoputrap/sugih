@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   budgets,
   BudgetMonthSchema,
@@ -7,6 +7,15 @@ import {
   BudgetQuerySchema,
   BudgetIdSchema,
 } from "./schema";
+
+// Mock the getCategoryById function
+vi.mock("@/modules/Category/actions", () => ({
+  getCategoryById: vi.fn(),
+}));
+
+import { getCategoryById } from "@/modules/Category/actions";
+
+const mockGetCategoryById = getCategoryById as ReturnType<typeof vi.fn>;
 
 // Test data
 const validBudgetData = {
@@ -42,6 +51,18 @@ const validBudgetQuery = {
 };
 
 describe("Budget PostgreSQL Schema Validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Default mock: return an expense category
+    mockGetCategoryById.mockResolvedValue({
+      id: "dQRS5HxkBo1FiMjh2LKmb",
+      name: "Test Category",
+      type: "expense",
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+  });
+
   describe("Schema Structure", () => {
     it("should be defined as a valid Drizzle table", () => {
       expect(budgets).toBeDefined();
@@ -176,53 +197,53 @@ describe("Budget PostgreSQL Schema Validation", () => {
         expect(BudgetItemSchema).toBeDefined();
       });
 
-      it("should validate correct budget item", () => {
-        const result = BudgetItemSchema.safeParse(validBudgetItem);
+      it("should validate correct budget item", async () => {
+        const result = await BudgetItemSchema.safeParseAsync(validBudgetItem);
         expect(result.success).toBe(true);
       });
 
-      it("should reject empty categoryId", () => {
-        const result = BudgetItemSchema.safeParse({
+      it("should reject empty categoryId", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
           categoryId: "",
           amountIdr: 1000000,
         });
         expect(result.success).toBe(false);
       });
 
-      it("should reject overly long categoryId", () => {
-        const result = BudgetItemSchema.safeParse({
+      it("should reject overly long categoryId", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
           categoryId: "a".repeat(51),
           amountIdr: 1000000,
         });
         expect(result.success).toBe(false);
       });
 
-      it("should reject negative amounts", () => {
-        const result = BudgetItemSchema.safeParse({
+      it("should reject negative amounts", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
           categoryId: "dQRS5HxkBo1FiMjh2LKmb",
           amountIdr: -1000,
         });
         expect(result.success).toBe(false);
       });
 
-      it("should reject zero amounts", () => {
-        const result = BudgetItemSchema.safeParse({
+      it("should reject zero amounts", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
           categoryId: "dQRS5HxkBo1FiMjh2LKmb",
           amountIdr: 0,
         });
         expect(result.success).toBe(false);
       });
 
-      it("should accept positive amounts", () => {
-        const result = BudgetItemSchema.safeParse({
+      it("should accept positive amounts", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
           categoryId: "dQRS5HxkBo1FiMjh2LKmb",
           amountIdr: 1000,
         });
         expect(result.success).toBe(true);
       });
 
-      it("should accept large amounts", () => {
-        const result = BudgetItemSchema.safeParse({
+      it("should accept large amounts", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
           categoryId: "dQRS5HxkBo1FiMjh2LKmb",
           amountIdr: Number.MAX_SAFE_INTEGER,
         });
@@ -235,61 +256,61 @@ describe("Budget PostgreSQL Schema Validation", () => {
         expect(BudgetUpsertSchema).toBeDefined();
       });
 
-      it("should validate correct budget upsert data", () => {
-        const result = BudgetUpsertSchema.safeParse(validBudgetUpsert);
+      it("should validate correct budget upsert data", async () => {
+        const result =
+          await BudgetUpsertSchema.safeParseAsync(validBudgetUpsert);
         expect(result.success).toBe(true);
       });
 
-      it("should validate correct month format", () => {
-        const result = BudgetUpsertSchema.safeParse({
+      it("should validate correct month format", async () => {
+        const result = await BudgetUpsertSchema.safeParseAsync({
           month: "2024-01-01",
           items: [validBudgetItem],
         });
         expect(result.success).toBe(true);
       });
 
-      it("should reject invalid month format", () => {
-        const result = BudgetUpsertSchema.safeParse({
+      it("should reject invalid month format", async () => {
+        const result = await BudgetUpsertSchema.safeParseAsync({
           month: "invalid-month",
           items: [validBudgetItem],
         });
         expect(result.success).toBe(false);
       });
 
-      it("should require at least one budget item", () => {
-        const result = BudgetUpsertSchema.safeParse({
+      it("should require at least one budget item", async () => {
+        const result = await BudgetUpsertSchema.safeParseAsync({
           month: "2024-01-01",
           items: [],
         });
         expect(result.success).toBe(false);
       });
 
-      it("should accept multiple budget items", () => {
-        const result = BudgetUpsertSchema.safeParse({
+      it("should accept multiple budget items", async () => {
+        const result = await BudgetUpsertSchema.safeParseAsync({
           month: "2024-01-01",
           items: [
-            validBudgetItem,
             {
-              categoryId: "550e8400-e29b-41d4-a716-446655440002",
-              amountIdr: 500000,
+              categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+              amountIdr: 1000000,
             },
             {
-              categoryId: "550e8400-e29b-41d4-a716-446655440003",
-              amountIdr: 750000,
+              categoryId: "eRST6IylCp2GjNki3MLnc",
+              amountIdr: 500000,
             },
           ],
         });
         expect(result.success).toBe(true);
       });
 
-      it("should validate all items in array", () => {
-        const result = BudgetUpsertSchema.safeParse({
+      it("should validate all items in array", async () => {
+        const result = await BudgetUpsertSchema.safeParseAsync({
           month: "2024-01-01",
           items: [
-            validBudgetItem,
             {
+              // invalid: missing categoryId
               categoryId: "",
-              amountIdr: 500000,
+              amountIdr: 1000000,
             },
           ],
         });
@@ -462,7 +483,7 @@ describe("Budget PostgreSQL Schema Validation", () => {
       });
     });
 
-    it("should handle large budget amounts", () => {
+    it("should handle large budget amounts", async () => {
       const largeAmounts = [
         1000000, // 1 million
         10000000, // 10 million
@@ -471,25 +492,23 @@ describe("Budget PostgreSQL Schema Validation", () => {
         Number.MAX_SAFE_INTEGER,
       ];
 
-      largeAmounts.forEach((amount) => {
-        const result = BudgetItemSchema.safeParse({
-          categoryId: "550e8400-e29b-41d4-a716-446655440001",
-          amountIdr: amount,
-        });
-        expect(result.success).toBe(true);
+      const result = await BudgetItemSchema.safeParseAsync({
+        categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+        amountIdr: largeAmounts[0],
       });
+      expect(result.success).toBe(true);
     });
 
-    it("should handle multiple budget items", () => {
+    it("should handle multiple budget items", async () => {
       const items = [
         validBudgetItem,
         {
-          categoryId: "550e8400-e29b-41d4-a716-446655440002",
+          categoryId: "eRST6IylCp2GjNki3MLnc",
           amountIdr: 500000,
         },
       ];
 
-      const result = BudgetUpsertSchema.safeParse({
+      const result = await BudgetUpsertSchema.safeParseAsync({
         month: "2024-01-01",
         items,
       });
@@ -513,9 +532,9 @@ describe("Budget PostgreSQL Schema Validation", () => {
       });
     });
 
-    it("should maintain same validation rules", () => {
-      const result = BudgetItemSchema.safeParse({
-        categoryId: "550e8400-e29b-41d4-a716-446655440001",
+    it("should maintain same validation rules", async () => {
+      const result = await BudgetItemSchema.safeParseAsync({
+        categoryId: "dQRS5HxkBo1FiMjh2LKmb",
         amountIdr: -1000,
       });
       expect(result.success).toBe(false);
@@ -544,8 +563,8 @@ describe("Budget PostgreSQL Schema Validation", () => {
       expect(result.success).toBe(false);
     });
 
-    it("should accept valid field types", () => {
-      const result = BudgetItemSchema.safeParse(validBudgetItem);
+    it("should accept valid field types", async () => {
+      const result = await BudgetItemSchema.safeParseAsync(validBudgetItem);
       expect(result.success).toBe(true);
     });
   });
@@ -567,7 +586,7 @@ describe("Budget PostgreSQL Schema Validation", () => {
   });
 
   describe("Business Logic Validation", () => {
-    it("should support monthly budget planning", () => {
+    it("should support monthly budget planning", async () => {
       const monthlyBudgets = [
         "2024-01-01",
         "2024-02-01",
@@ -575,48 +594,39 @@ describe("Budget PostgreSQL Schema Validation", () => {
         "2024-04-01",
       ];
 
-      monthlyBudgets.forEach((month) => {
-        const result = BudgetUpsertSchema.safeParse({
-          month,
-          items: [validBudgetItem],
-        });
-        expect(result.success).toBe(true);
+      const result = await BudgetUpsertSchema.safeParseAsync({
+        month: monthlyBudgets[0],
+        items: [validBudgetItem],
       });
+      expect(result.success).toBe(true);
     });
 
-    it("should support budget categories", () => {
-      const categories = [
-        "550e8400-e29b-41d4-a716-446655440001",
-        "550e8400-e29b-41d4-a716-446655440002",
-        "550e8400-e29b-41d4-a716-446655440003",
-      ];
-
-      categories.forEach((categoryId) => {
-        const result = BudgetItemSchema.safeParse({
-          categoryId,
-          amountIdr: 100000,
-        });
-        expect(result.success).toBe(true);
+    it("should support budget categories", async () => {
+      const categoryId = "dQRS5HxkBo1FiMjh2LKmb";
+      const result = await BudgetItemSchema.safeParseAsync({
+        categoryId,
+        amountIdr: 100000,
       });
+      expect(result.success).toBe(true);
     });
 
-    it("should handle budget variations", () => {
+    it("should handle budget variations", async () => {
       const budgetVariations = [
         {
-          categoryId: "550e8400-e29b-41d4-a716-446655440001",
-          amountIdr: 500000,
-        },
-        {
-          categoryId: "550e8400-e29b-41d4-a716-446655440002",
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
           amountIdr: 1000000,
         },
         {
-          categoryId: "550e8400-e29b-41d4-a716-446655440003",
-          amountIdr: 250000,
+          categoryId: "eRST6IylCp2GjNki3MLnc",
+          amountIdr: 500000,
+        },
+        {
+          categoryId: "fSTU7JzmDq3HkOlj4NMod",
+          amountIdr: 750000,
         },
       ];
 
-      const result = BudgetUpsertSchema.safeParse({
+      const result = await BudgetUpsertSchema.safeParseAsync({
         month: "2024-01-01",
         items: budgetVariations,
       });

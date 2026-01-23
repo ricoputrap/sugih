@@ -1,15 +1,18 @@
 import { describe, it, expect } from "vitest";
 import {
   categories,
+  categoryTypeEnum,
   CategoryCreateSchema,
   CategoryUpdateSchema,
   CategoryIdSchema,
+  CategoryType,
 } from "./schema";
 
 // Test data
 const validCategoryData = {
   id: "550e8400-e29b-41d4-a716-446655440000",
   name: "Food & Dining",
+  type: "expense" as CategoryType,
   archived: false,
   created_at: new Date("2024-01-01T00:00:00Z"),
   updated_at: new Date("2024-01-01T00:00:00Z"),
@@ -17,10 +20,12 @@ const validCategoryData = {
 
 const validCategoryInput = {
   name: "Food & Dining",
+  type: "expense" as CategoryType,
 };
 
 const validCategoryUpdate = {
   name: "Updated Category Name",
+  type: "income" as CategoryType,
   archived: true,
 };
 
@@ -34,6 +39,7 @@ describe("Category PostgreSQL Schema Validation", () => {
     it("should have all expected columns", () => {
       expect(categories).toHaveProperty("id");
       expect(categories).toHaveProperty("name");
+      expect(categories).toHaveProperty("type");
       expect(categories).toHaveProperty("archived");
       expect(categories).toHaveProperty("created_at");
       expect(categories).toHaveProperty("updated_at");
@@ -58,6 +64,16 @@ describe("Category PostgreSQL Schema Validation", () => {
 
       it("should have unique constraint", () => {
         expect(categories.name).toBeDefined();
+      });
+    });
+
+    describe("type column", () => {
+      it("should be defined", () => {
+        expect(categories.type).toBeDefined();
+      });
+
+      it("should be an enum type", () => {
+        expect(categoryTypeEnum).toBeDefined();
       });
     });
 
@@ -115,9 +131,41 @@ describe("Category PostgreSQL Schema Validation", () => {
         expect(result.success).toBe(false);
       });
 
-      it("should accept optional fields", () => {
+      it("should reject missing type field", () => {
         const result = CategoryCreateSchema.safeParse({
           name: "Test Category",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should validate type field as income", () => {
+        const result = CategoryCreateSchema.safeParse({
+          name: "Salary",
+          type: "income",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate type field as expense", () => {
+        const result = CategoryCreateSchema.safeParse({
+          name: "Food",
+          type: "expense",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject invalid type value", () => {
+        const result = CategoryCreateSchema.safeParse({
+          name: "Test Category",
+          type: "invalid",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should require type field", () => {
+        const result = CategoryCreateSchema.safeParse({
+          name: "Test Category",
+          type: "expense",
         });
         expect(result.success).toBe(true);
       });
@@ -125,6 +173,7 @@ describe("Category PostgreSQL Schema Validation", () => {
       it("should validate name length", () => {
         const result = CategoryCreateSchema.safeParse({
           name: "a".repeat(255),
+          type: "expense",
         });
         expect(result.success).toBe(true);
       });
@@ -132,6 +181,7 @@ describe("Category PostgreSQL Schema Validation", () => {
       it("should reject overly long name", () => {
         const result = CategoryCreateSchema.safeParse({
           name: "a".repeat(256),
+          type: "expense",
         });
         expect(result.success).toBe(false);
       });
@@ -165,6 +215,29 @@ describe("Category PostgreSQL Schema Validation", () => {
         const result = CategoryUpdateSchema.safeParse({
           name: "New Name",
           archived: true,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept type field update", () => {
+        const result = CategoryUpdateSchema.safeParse({
+          type: "income",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject invalid type value", () => {
+        const result = CategoryUpdateSchema.safeParse({
+          type: "invalid",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should accept all fields including type", () => {
+        const result = CategoryUpdateSchema.safeParse({
+          name: "Updated Name",
+          type: "expense",
+          archived: false,
         });
         expect(result.success).toBe(true);
       });
@@ -265,6 +338,7 @@ describe("Category PostgreSQL Schema Validation", () => {
       const longName = "a".repeat(255);
       const result = CategoryCreateSchema.safeParse({
         name: longName,
+        type: "expense",
       });
       expect(result.success).toBe(true);
     });
@@ -286,7 +360,10 @@ describe("Category PostgreSQL Schema Validation", () => {
       ];
 
       specialNames.forEach((name) => {
-        const result = CategoryCreateSchema.safeParse({ name });
+        const result = CategoryCreateSchema.safeParse({
+          name,
+          type: "expense",
+        });
         expect(result.success).toBe(true);
       });
     });
@@ -301,17 +378,21 @@ describe("Category PostgreSQL Schema Validation", () => {
       ];
 
       unicodeNames.forEach((name) => {
-        const result = CategoryCreateSchema.safeParse({ name });
+        const result = CategoryCreateSchema.safeParse({
+          name,
+          type: "expense",
+        });
         expect(result.success).toBe(true);
       });
     });
   });
 
   describe("Backward Compatibility", () => {
-    it("should maintain same field names as SQLite version", () => {
+    it("should maintain same field names as SQLite version plus new type field", () => {
       const expectedFields = [
         "id",
         "name",
+        "type",
         "archived",
         "created_at",
         "updated_at",
@@ -322,11 +403,14 @@ describe("Category PostgreSQL Schema Validation", () => {
       });
     });
 
-    it("should maintain same validation rules", () => {
+    it("should maintain same validation rules with new type requirement", () => {
       const result = CategoryCreateSchema.safeParse({ name: "" });
       expect(result.success).toBe(false);
 
-      const result2 = CategoryCreateSchema.safeParse({ name: "Valid Name" });
+      const result2 = CategoryCreateSchema.safeParse({
+        name: "Valid Name",
+        type: "expense",
+      });
       expect(result2.success).toBe(true);
     });
   });
@@ -358,9 +442,58 @@ describe("Category PostgreSQL Schema Validation", () => {
     it("should generate valid PostgreSQL column definitions", () => {
       expect(categories.id).toBeDefined();
       expect(categories.name).toBeDefined();
+      expect(categories.type).toBeDefined();
       expect(categories.archived).toBeDefined();
       expect(categories.created_at).toBeDefined();
       expect(categories.updated_at).toBeDefined();
+    });
+  });
+
+  describe("Category Type Enum", () => {
+    it("should define category type enum", () => {
+      expect(categoryTypeEnum).toBeDefined();
+    });
+
+    it("should enforce income type", () => {
+      const result = CategoryCreateSchema.safeParse({
+        name: "Salary",
+        type: "income",
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.type).toBe("income");
+      }
+    });
+
+    it("should enforce expense type", () => {
+      const result = CategoryCreateSchema.safeParse({
+        name: "Food",
+        type: "expense",
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.type).toBe("expense");
+      }
+    });
+
+    it("should reject non-enum values", () => {
+      const result = CategoryCreateSchema.safeParse({
+        name: "Test",
+        type: "transfer",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("should provide clear error message for invalid type", () => {
+      const result = CategoryCreateSchema.safeParse({
+        name: "Test",
+        type: "invalid",
+      });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toContain("income");
+        expect(result.error.issues[0].message).toContain("expense");
+      }
     });
   });
 });

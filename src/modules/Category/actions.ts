@@ -22,11 +22,12 @@ import { unprocessableEntity } from "@/lib/http";
 export async function listCategories(): Promise<Category[]> {
   const db = getDb();
   const result = await db.execute(
-    sql`SELECT id, name, archived, created_at, updated_at FROM categories ORDER BY name ASC`,
+    sql`SELECT id, name, type, archived, created_at, updated_at FROM categories ORDER BY name ASC`,
   );
   return result.rows.map((row) => ({
     id: row.id as string,
     name: row.name as string,
+    type: row.type as "income" | "expense",
     archived: row.archived as boolean,
     created_at: row.created_at as Date,
     updated_at: row.updated_at as Date,
@@ -39,13 +40,14 @@ export async function listCategories(): Promise<Category[]> {
 export async function getCategoryById(id: string): Promise<Category | null> {
   const db = getDb();
   const result = await db.execute(
-    sql`SELECT id, name, archived, created_at, updated_at FROM categories WHERE id = ${id}`,
+    sql`SELECT id, name, type, archived, created_at, updated_at FROM categories WHERE id = ${id}`,
   );
   const row = result.rows[0];
   if (!row) return null;
   return {
     id: row.id as string,
     name: row.name as string,
+    type: row.type as "income" | "expense",
     archived: row.archived as boolean,
     created_at: row.created_at as Date,
     updated_at: row.updated_at as Date,
@@ -76,7 +78,7 @@ export async function createCategory(input: unknown): Promise<Category> {
     // Insert category with PostgreSQL timestamp
     const now = new Date();
     await db.execute(
-      sql`INSERT INTO categories (id, name, archived, created_at, updated_at) VALUES (${id}, ${validatedInput.name}, ${false}, ${now}, ${now})`,
+      sql`INSERT INTO categories (id, name, type, archived, created_at, updated_at) VALUES (${id}, ${validatedInput.name}, ${validatedInput.type}, ${false}, ${now}, ${now})`,
     );
 
     // Return created category
@@ -131,6 +133,10 @@ export async function updateCategory(
       updates.name = validatedInput.name;
     }
 
+    if (validatedInput.type !== undefined) {
+      updates.type = validatedInput.type;
+    }
+
     if (validatedInput.archived !== undefined) {
       updates.archived = validatedInput.archived;
     }
@@ -140,16 +146,37 @@ export async function updateCategory(
     }
 
     // Execute update with dynamic fields
-    const now = new Date();
 
     // Build and execute update based on which fields are present
-    if (updates.name !== undefined && updates.archived !== undefined) {
+    const now = new Date();
+
+    if (
+      updates.name !== undefined &&
+      updates.type !== undefined &&
+      updates.archived !== undefined
+    ) {
+      await db.execute(
+        sql`UPDATE categories SET name = ${updates.name}, type = ${updates.type}, archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
+    } else if (updates.name !== undefined && updates.type !== undefined) {
+      await db.execute(
+        sql`UPDATE categories SET name = ${updates.name}, type = ${updates.type}, updated_at = ${now} WHERE id = ${id}`,
+      );
+    } else if (updates.name !== undefined && updates.archived !== undefined) {
       await db.execute(
         sql`UPDATE categories SET name = ${updates.name}, archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
+      );
+    } else if (updates.type !== undefined && updates.archived !== undefined) {
+      await db.execute(
+        sql`UPDATE categories SET type = ${updates.type}, archived = ${updates.archived}, updated_at = ${now} WHERE id = ${id}`,
       );
     } else if (updates.name !== undefined) {
       await db.execute(
         sql`UPDATE categories SET name = ${updates.name}, updated_at = ${now} WHERE id = ${id}`,
+      );
+    } else if (updates.type !== undefined) {
+      await db.execute(
+        sql`UPDATE categories SET type = ${updates.type}, updated_at = ${now} WHERE id = ${id}`,
       );
     } else if (updates.archived !== undefined) {
       await db.execute(

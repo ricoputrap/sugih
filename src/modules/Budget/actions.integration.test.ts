@@ -29,6 +29,7 @@ describe("Budget Integration Tests", () => {
   async function createTestCategory() {
     const category = await createCategory({
       name: `Budget Category ${nanoid()}`,
+      type: "expense",
     });
     testCategoryIds.push(category.id);
     return category;
@@ -259,8 +260,14 @@ describe("Budget Integration Tests", () => {
     });
 
     it("should order budgets by category name", async () => {
-      const catA = await createCategory({ name: `Alpha ${nanoid()}` });
-      const catZ = await createCategory({ name: `Zebra ${nanoid()}` });
+      const catA = await createCategory({
+        name: `Alpha ${nanoid()}`,
+        type: "expense",
+      });
+      const catZ = await createCategory({
+        name: `Zebra ${nanoid()}`,
+        type: "expense",
+      });
       testCategoryIds.push(catA.id, catZ.id);
 
       const budgetZ = await createBudget({
@@ -574,6 +581,107 @@ describe("Budget Integration Tests", () => {
       await expect(copyBudgets(testMonth, testMonth)).rejects.toThrow(
         "different",
       );
+    });
+  });
+
+  describe("Budget Category Type Validation", () => {
+    it("should accept budget with expense category", async () => {
+      const expenseCategory = await createCategory({
+        name: `Expense Category ${nanoid()}`,
+        type: "expense",
+      });
+      testCategoryIds.push(expenseCategory.id);
+
+      const budget = await createBudget({
+        month: testMonth,
+        categoryId: expenseCategory.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(budget.id);
+
+      expect(budget.id).toBeDefined();
+      expect(budget.category_id).toBe(expenseCategory.id);
+
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should reject budget with income category", async () => {
+      const incomeCategory = await createCategory({
+        name: `Income Category ${nanoid()}`,
+        type: "income",
+      });
+      testCategoryIds.push(incomeCategory.id);
+
+      await expect(
+        createBudget({
+          month: testMonth,
+          categoryId: incomeCategory.id,
+          amountIdr: 1000000,
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("should reject upsertBudgets with income category", async () => {
+      const incomeCategory = await createCategory({
+        name: `Income Category ${nanoid()}`,
+        type: "income",
+      });
+      testCategoryIds.push(incomeCategory.id);
+
+      const { upsertBudgets } = await import("./actions");
+
+      await expect(
+        upsertBudgets({
+          month: testMonth,
+          items: [
+            {
+              categoryId: incomeCategory.id,
+              amountIdr: 500000,
+            },
+          ],
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("should accept upsertBudgets with all expense categories", async () => {
+      const expenseCategory1 = await createCategory({
+        name: `Expense Category 1 ${nanoid()}`,
+        type: "expense",
+      });
+      testCategoryIds.push(expenseCategory1.id);
+
+      const expenseCategory2 = await createCategory({
+        name: `Expense Category 2 ${nanoid()}`,
+        type: "expense",
+      });
+      testCategoryIds.push(expenseCategory2.id);
+
+      const { upsertBudgets } = await import("./actions");
+
+      const result = await upsertBudgets({
+        month: testMonth,
+        items: [
+          {
+            categoryId: expenseCategory1.id,
+            amountIdr: 500000,
+          },
+          {
+            categoryId: expenseCategory2.id,
+            amountIdr: 750000,
+          },
+        ],
+      });
+
+      expect(result.length).toBe(2);
+      result.forEach((budget) => {
+        testBudgetIds.push(budget.id);
+      });
+
+      for (const id of testBudgetIds) {
+        await cleanupTestBudget(id);
+      }
+      testBudgetIds.length = 0;
     });
   });
 });

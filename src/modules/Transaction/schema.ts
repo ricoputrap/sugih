@@ -7,6 +7,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { z } from "zod";
+import { getCategoryById } from "@/modules/Category/actions";
 
 // Drizzle schema for transaction events
 export const transactionEvents = pgTable(
@@ -76,45 +77,79 @@ export const postings = pgTable(
 );
 
 // Zod schemas for validation
-export const ExpenseCreateSchema = z.object({
-  occurredAt: z.coerce.date(),
-  walletId: z
-    .string()
-    .min(1, "Wallet ID is required")
-    .max(50, "Wallet ID too long"),
-  categoryId: z
-    .string()
-    .min(1, "Category ID is required")
-    .max(50, "Category ID too long"),
-  amountIdr: z
-    .number()
-    .int()
-    .min(100, "Amount must be at least 100 IDR (100 Rupiah)")
-    .positive("Amount must be positive (greater than 0)"),
-  note: z.string().optional(),
-  idempotencyKey: z.string().max(36).optional(),
-});
+export const ExpenseCreateSchema = z
+  .object({
+    occurredAt: z.coerce.date(),
+    walletId: z
+      .string()
+      .min(1, "Wallet ID is required")
+      .max(50, "Wallet ID too long"),
+    categoryId: z
+      .string()
+      .min(1, "Category ID is required")
+      .max(50, "Category ID too long"),
+    amountIdr: z
+      .number()
+      .int()
+      .min(100, "Amount must be at least 100 IDR (100 Rupiah)")
+      .positive("Amount must be positive (greater than 0)"),
+    note: z.string().optional(),
+    idempotencyKey: z.string().max(36).optional(),
+  })
+  .refine(
+    async (data) => {
+      const category = await getCategoryById(data.categoryId);
+      if (!category) {
+        return false;
+      }
+      return category.type === "expense";
+    },
+    {
+      message:
+        "Category must be an expense category. Income categories cannot be used for expenses.",
+      path: ["categoryId"],
+    },
+  );
 
-export const IncomeCreateSchema = z.object({
-  occurredAt: z.coerce.date(),
-  walletId: z
-    .string()
-    .min(1, "Wallet ID is required")
-    .max(50, "Wallet ID too long"),
-  categoryId: z
-    .string()
-    .min(1, "Category ID cannot be empty")
-    .max(50, "Category ID too long")
-    .optional(),
-  amountIdr: z
-    .number()
-    .int()
-    .min(100, "Amount must be at least 100 IDR (100 Rupiah)")
-    .positive("Amount must be positive (greater than 0)"),
-  note: z.string().optional(),
-  payee: z.string().optional(),
-  idempotencyKey: z.string().max(36).optional(),
-});
+export const IncomeCreateSchema = z
+  .object({
+    occurredAt: z.coerce.date(),
+    walletId: z
+      .string()
+      .min(1, "Wallet ID is required")
+      .max(50, "Wallet ID too long"),
+    categoryId: z
+      .string()
+      .min(1, "Category ID cannot be empty")
+      .max(50, "Category ID too long")
+      .optional(),
+    amountIdr: z
+      .number()
+      .int()
+      .min(100, "Amount must be at least 100 IDR (100 Rupiah)")
+      .positive("Amount must be positive (greater than 0)"),
+    note: z.string().optional(),
+    payee: z.string().optional(),
+    idempotencyKey: z.string().max(36).optional(),
+  })
+  .refine(
+    async (data) => {
+      // If no categoryId is provided, validation passes (category is optional for income)
+      if (!data.categoryId) {
+        return true;
+      }
+      const category = await getCategoryById(data.categoryId);
+      if (!category) {
+        return false;
+      }
+      return category.type === "income";
+    },
+    {
+      message:
+        "Category must be an income category. Expense categories cannot be used for income.",
+      path: ["categoryId"],
+    },
+  );
 
 export const TransferCreateSchema = z
   .object({
@@ -192,6 +227,7 @@ export const TransactionListQuerySchema = z.object({
     .optional(),
   walletId: z.string().min(1).max(50).optional(),
   categoryId: z.string().min(1).max(50).optional(),
+  categoryType: z.enum(["income", "expense"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });

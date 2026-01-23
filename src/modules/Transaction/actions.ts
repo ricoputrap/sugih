@@ -88,6 +88,16 @@ export async function listTransactions(
     paramIndex++;
   }
 
+  if (validatedQuery.categoryType) {
+    whereConditions.push(`EXISTS (
+      SELECT 1 FROM categories c2
+      WHERE c2.id = te.category_id
+      AND c2.type = $${paramIndex}
+    )`);
+    params.push(validatedQuery.categoryType);
+    paramIndex++;
+  }
+
   const whereClause = whereConditions.join(" AND ");
 
   // Get transaction events with category names using raw SQL
@@ -342,7 +352,14 @@ export async function createExpense(
 ): Promise<TransactionWithPostings> {
   const pool = getPool();
 
-  const validatedInput = ExpenseCreateSchema.parse(input);
+  try {
+    var validatedInput = await ExpenseCreateSchema.parseAsync(input);
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      throw unprocessableEntity("Invalid expense data", formatZodError(error));
+    }
+    throw error;
+  }
 
   // Check for idempotency
   if (validatedInput.idempotencyKey) {
@@ -369,14 +386,8 @@ export async function createExpense(
     throw new Error("Wallet not found or archived");
   }
 
-  // Verify category exists
-  const categories = await pool.query(
-    `SELECT id FROM categories WHERE id = $1`,
-    [validatedInput.categoryId],
-  );
-  if (categories.rows.length === 0) {
-    throw new Error("Category not found");
-  }
+  // Category type validation is handled in schema (ExpenseCreateSchema refinement)
+  // No additional validation needed here
 
   const eventId = nanoid();
   const postingId = nanoid();
@@ -442,7 +453,14 @@ export async function createIncome(
 ): Promise<TransactionWithPostings> {
   const pool = getPool();
 
-  const validatedInput = IncomeCreateSchema.parse(input);
+  try {
+    var validatedInput = await IncomeCreateSchema.parseAsync(input);
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      throw unprocessableEntity("Invalid income data", formatZodError(error));
+    }
+    throw error;
+  }
 
   // Check for idempotency
   if (validatedInput.idempotencyKey) {
@@ -469,16 +487,8 @@ export async function createIncome(
     throw new Error("Wallet not found or archived");
   }
 
-  // Verify category exists and is not archived (if provided)
-  if (validatedInput.categoryId) {
-    const categories = await pool.query(
-      `SELECT id FROM categories WHERE id = $1 AND archived = false`,
-      [validatedInput.categoryId],
-    );
-    if (categories.rows.length === 0) {
-      throw new Error("Category not found or archived");
-    }
-  }
+  // Category type validation is handled in schema (IncomeCreateSchema refinement)
+  // No additional validation needed here
 
   const eventId = nanoid();
   const postingId = nanoid();

@@ -7,6 +7,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { z } from "zod";
+import { getCategoryById } from "@/modules/Category/actions";
 
 // Type exports for TypeScript
 export type Budget = typeof budgets.$inferSelect;
@@ -49,14 +50,41 @@ export const BudgetMonthSchema = z
     "Month must be in YYYY-MM-01 format with valid month (01-12)",
   );
 
-export const BudgetItemSchema = z.object({
-  categoryId: z
-    .string()
-    .min(1, "Category ID is required")
-    .max(50, "Category ID too long"),
-  amountIdr: z.number().int().positive("Budget amount must be positive"),
-});
+/**
+ * Budget Item Schema
+ *
+ * Note: Budgets only work with expense categories.
+ * Income categories cannot be budgeted as budgets are meant for spending limits.
+ */
+export const BudgetItemSchema = z
+  .object({
+    categoryId: z
+      .string()
+      .min(1, "Category ID is required")
+      .max(50, "Category ID too long"),
+    amountIdr: z.number().int().positive("Budget amount must be positive"),
+  })
+  .refine(
+    async (data) => {
+      const category = await getCategoryById(data.categoryId);
+      if (!category) {
+        return false;
+      }
+      return category.type === "expense";
+    },
+    {
+      message:
+        "Budget category must be an expense category. Income categories cannot be budgeted.",
+      path: ["categoryId"],
+    },
+  );
 
+/**
+ * Budget Upsert Schema
+ *
+ * Validates budget creation/update requests.
+ * Ensures all budget items use expense categories only.
+ */
 export const BudgetUpsertSchema = z.object({
   month: BudgetMonthSchema,
   items: z
