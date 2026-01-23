@@ -14,6 +14,7 @@ import {
   getCategoryBreakdownData,
   getCategorySpendingTrendChartData,
   getDashboardData,
+  getDashboardRevampSummary,
   getDashboardSummary,
   getNetWorthTrendChartData,
   getRecentTransactions,
@@ -336,6 +337,191 @@ describe("Dashboard Integration Tests", () => {
       });
 
       expect(summary.period).toContain(" to ");
+    });
+  });
+
+  describe("Get Dashboard Revamp Summary", () => {
+    it("should return complete revamp summary data structure", async () => {
+      const summary = await getDashboardRevampSummary({});
+
+      // Check top-level structure
+      expect(summary).toHaveProperty("kpis");
+      expect(summary).toHaveProperty("latestTransactions");
+      expect(summary).toHaveProperty("categoryBreakdown");
+      expect(summary).toHaveProperty("timeSeries");
+      expect(summary).toHaveProperty("snapshots");
+    });
+
+    it("should return all 4 KPI cards with growth metrics", async () => {
+      const summary = await getDashboardRevampSummary({});
+
+      // Check all KPI cards exist
+      expect(summary.kpis).toHaveProperty("netWorth");
+      expect(summary.kpis).toHaveProperty("moneyLeftToSpend");
+      expect(summary.kpis).toHaveProperty("totalSpending");
+      expect(summary.kpis).toHaveProperty("totalSavings");
+
+      // Check KPI structure
+      const { netWorth } = summary.kpis;
+      expect(netWorth).toHaveProperty("title");
+      expect(netWorth).toHaveProperty("value");
+      expect(netWorth).toHaveProperty("growth");
+      expect(netWorth).toHaveProperty("period");
+
+      // Check growth metric structure
+      expect(netWorth.growth).toHaveProperty("value");
+      expect(netWorth.growth).toHaveProperty("label");
+      expect(netWorth.growth).toHaveProperty("isPositive");
+      expect(netWorth.growth).toHaveProperty("isNegative");
+      expect(netWorth.growth).toHaveProperty("isNeutral");
+
+      expect(typeof netWorth.value).toBe("number");
+      expect(typeof netWorth.growth.value).toBe("number");
+      expect(typeof netWorth.growth.label).toBe("string");
+    });
+
+    it("should return latest 5 transactions", async () => {
+      const summary = await getDashboardRevampSummary({});
+
+      expect(Array.isArray(summary.latestTransactions)).toBe(true);
+      expect(summary.latestTransactions.length).toBeLessThanOrEqual(5);
+
+      if (summary.latestTransactions.length > 0) {
+        const tx = summary.latestTransactions[0];
+        expect(tx).toHaveProperty("id");
+        expect(tx).toHaveProperty("type");
+        expect(tx).toHaveProperty("amount");
+        expect(tx).toHaveProperty("occurredAt");
+      }
+    });
+
+    it("should return category breakdown split by expenses and income", async () => {
+      const summary = await getDashboardRevampSummary({});
+
+      expect(summary.categoryBreakdown).toHaveProperty("expenses");
+      expect(summary.categoryBreakdown).toHaveProperty("income");
+      expect(Array.isArray(summary.categoryBreakdown.expenses)).toBe(true);
+      expect(Array.isArray(summary.categoryBreakdown.income)).toBe(true);
+
+      if (summary.categoryBreakdown.expenses.length > 0) {
+        const expense = summary.categoryBreakdown.expenses[0];
+        expect(expense).toHaveProperty("categoryId");
+        expect(expense).toHaveProperty("categoryName");
+        expect(expense).toHaveProperty("amount");
+        expect(expense).toHaveProperty("percentage");
+        expect(expense.percentage).toBeGreaterThanOrEqual(0);
+        expect(expense.percentage).toBeLessThanOrEqual(100);
+      }
+    });
+
+    it("should return time-series data for all insight tabs", async () => {
+      const summary = await getDashboardRevampSummary({});
+
+      expect(summary.timeSeries).toHaveProperty("netWorth");
+      expect(summary.timeSeries).toHaveProperty("spending");
+      expect(summary.timeSeries).toHaveProperty("income");
+      expect(summary.timeSeries).toHaveProperty("savings");
+
+      expect(Array.isArray(summary.timeSeries.netWorth)).toBe(true);
+      expect(Array.isArray(summary.timeSeries.spending)).toBe(true);
+      expect(Array.isArray(summary.timeSeries.income)).toBe(true);
+      expect(Array.isArray(summary.timeSeries.savings)).toBe(true);
+    });
+
+    it("should return wallet and savings snapshots for both periods", async () => {
+      const summary = await getDashboardRevampSummary({});
+
+      expect(summary.snapshots).toHaveProperty("currentWallets");
+      expect(summary.snapshots).toHaveProperty("currentSavings");
+      expect(summary.snapshots).toHaveProperty("previousWallets");
+      expect(summary.snapshots).toHaveProperty("previousSavings");
+
+      expect(Array.isArray(summary.snapshots.currentWallets)).toBe(true);
+      expect(Array.isArray(summary.snapshots.currentSavings)).toBe(true);
+
+      if (summary.snapshots.currentWallets.length > 0) {
+        const wallet = summary.snapshots.currentWallets[0];
+        expect(wallet).toHaveProperty("id");
+        expect(wallet).toHaveProperty("name");
+        expect(wallet).toHaveProperty("balance");
+        expect(typeof wallet.balance).toBe("number");
+      }
+    });
+
+    it("should handle date range preset", async () => {
+      const summary = await getDashboardRevampSummary({
+        dateRangePreset: "last_3_months",
+      });
+
+      expect(summary).toHaveProperty("kpis");
+      expect(summary.timeSeries.netWorth).toBeDefined();
+    });
+
+    it("should handle custom date range", async () => {
+      const now = new Date();
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+      const summary = await getDashboardRevampSummary({
+        from: threeMonthsAgo,
+        to: now,
+      });
+
+      expect(summary).toHaveProperty("kpis");
+      expect(summary.kpis.netWorth.value).toBeDefined();
+    });
+
+    it("should handle different period granularities", async () => {
+      const summaryDaily = await getDashboardRevampSummary({
+        period: "day",
+      });
+      const summaryWeekly = await getDashboardRevampSummary({
+        period: "week",
+      });
+      const summaryMonthly = await getDashboardRevampSummary({
+        period: "month",
+      });
+
+      expect(summaryDaily.timeSeries.spending).toBeDefined();
+      expect(summaryWeekly.timeSeries.spending).toBeDefined();
+      expect(summaryMonthly.timeSeries.spending).toBeDefined();
+    });
+
+    it("should ensure growth metrics have boolean flags set correctly", async () => {
+      const summary = await getDashboardRevampSummary({});
+
+      for (const kpiKey of Object.keys(summary.kpis)) {
+        const kpi = summary.kpis[kpiKey as keyof typeof summary.kpis];
+        const { growth } = kpi;
+
+        // Only one flag should be true
+        const flagCount = [
+          growth.isPositive,
+          growth.isNegative,
+          growth.isNeutral,
+        ].filter(Boolean).length;
+
+        expect(flagCount).toBe(1);
+
+        // Flags should match the value
+        if (growth.value > 0) {
+          expect(growth.isPositive).toBe(true);
+        } else if (growth.value < 0) {
+          expect(growth.isNegative).toBe(true);
+        } else {
+          expect(growth.isNeutral).toBe(true);
+        }
+      }
+    });
+
+    it("should return non-negative values for amounts", async () => {
+      const summary = await getDashboardRevampSummary({});
+
+      // Savings should always be non-negative
+      expect(summary.kpis.totalSavings.value).toBeGreaterThanOrEqual(0);
+
+      // Spending should be non-negative (absolute value)
+      expect(summary.kpis.totalSpending.value).toBeGreaterThanOrEqual(0);
     });
   });
 });

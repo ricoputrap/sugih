@@ -70,7 +70,7 @@ export function resolveDateRange(
   const now = options.now || new Date();
 
   switch (preset) {
-    case "lastWeek": {
+    case "last_week": {
       // Previous week (Mon-Sun)
       const lastWeek = subDays(now, 7);
       const start = startOfWeek(lastWeek, { weekStartsOn: 1 }); // Monday
@@ -81,7 +81,7 @@ export function resolveDateRange(
       };
     }
 
-    case "thisMonth": {
+    case "this_month": {
       // Current month from 1st to last day
       return {
         start: startOfMonth(now),
@@ -89,7 +89,7 @@ export function resolveDateRange(
       };
     }
 
-    case "lastMonth": {
+    case "last_month": {
       // Previous month from 1st to last day
       const lastMonth = subMonths(now, 1);
       return {
@@ -98,7 +98,7 @@ export function resolveDateRange(
       };
     }
 
-    case "last3Months": {
+    case "last_3_months": {
       // Last 3 months including current month
       const threeMonthsAgo = subMonths(now, 3);
       return {
@@ -107,7 +107,7 @@ export function resolveDateRange(
       };
     }
 
-    case "last6Months": {
+    case "last_6_months": {
       // Last 6 months including current month
       const sixMonthsAgo = subMonths(now, 6);
       return {
@@ -116,7 +116,7 @@ export function resolveDateRange(
       };
     }
 
-    case "thisYear": {
+    case "this_year": {
       // Current year from Jan 1st to Dec 31st
       return {
         start: startOfYear(now),
@@ -124,7 +124,7 @@ export function resolveDateRange(
       };
     }
 
-    case "lastYear": {
+    case "last_year": {
       // Previous year from Jan 1st to Dec 31st
       const lastYear = subYears(now, 1);
       return {
@@ -133,7 +133,7 @@ export function resolveDateRange(
       };
     }
 
-    case "allTime": {
+    case "all": {
       // All time from a reasonable past date to now
       // Using 10 years ago as a practical "beginning of time"
       const tenYearsAgo = subYears(now, 10);
@@ -178,21 +178,21 @@ export function getDateRangeDescription(
   const endStr = formatter.format(range.end);
 
   switch (preset) {
-    case "lastWeek":
+    case "last_week":
       return `Last week (${startStr} - ${endStr})`;
-    case "thisMonth":
+    case "this_month":
       return `This month (${startStr} - ${endStr})`;
-    case "lastMonth":
+    case "last_month":
       return `Last month (${startStr} - ${endStr})`;
-    case "last3Months":
+    case "last_3_months":
       return `Last 3 months (${startStr} - ${endStr})`;
-    case "last6Months":
+    case "last_6_months":
       return `Last 6 months (${startStr} - ${endStr})`;
-    case "thisYear":
+    case "this_year":
       return `This year (${startStr} - ${endStr})`;
-    case "lastYear":
+    case "last_year":
       return `Last year (${startStr} - ${endStr})`;
-    case "allTime":
+    case "all":
       return `All time (${startStr} - ${endStr})`;
     default: {
       const exhaustiveCheck: never = preset;

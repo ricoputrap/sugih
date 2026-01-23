@@ -44,14 +44,14 @@ describe("Dashboard Revamp Types", () => {
 
     it("should have all date range presets defined", () => {
       expect(DATE_RANGE_PRESETS).toEqual([
-        "lastWeek",
-        "thisMonth",
-        "lastMonth",
-        "last3Months",
-        "last6Months",
-        "thisYear",
-        "lastYear",
-        "allTime",
+        "last_week",
+        "this_month",
+        "last_month",
+        "last_3_months",
+        "last_6_months",
+        "this_year",
+        "last_year",
+        "all",
       ]);
       expect(DATE_RANGE_PRESETS).toHaveLength(8);
     });
@@ -119,14 +119,14 @@ describe("Dashboard Revamp Types", () => {
     });
 
     it("should have specific expected labels", () => {
-      expect(DATE_RANGE_PRESET_LABELS.lastWeek).toBe("Last Week");
-      expect(DATE_RANGE_PRESET_LABELS.thisMonth).toBe("This Month");
-      expect(DATE_RANGE_PRESET_LABELS.lastMonth).toBe("Last Month");
-      expect(DATE_RANGE_PRESET_LABELS.last3Months).toBe("Last 3 Months");
-      expect(DATE_RANGE_PRESET_LABELS.last6Months).toBe("Last 6 Months");
-      expect(DATE_RANGE_PRESET_LABELS.thisYear).toBe("This Year");
-      expect(DATE_RANGE_PRESET_LABELS.lastYear).toBe("Last Year");
-      expect(DATE_RANGE_PRESET_LABELS.allTime).toBe("All Time");
+      expect(DATE_RANGE_PRESET_LABELS.last_week).toBe("Last Week");
+      expect(DATE_RANGE_PRESET_LABELS.this_month).toBe("This Month");
+      expect(DATE_RANGE_PRESET_LABELS.last_month).toBe("Last Month");
+      expect(DATE_RANGE_PRESET_LABELS.last_3_months).toBe("Last 3 Months");
+      expect(DATE_RANGE_PRESET_LABELS.last_6_months).toBe("Last 6 Months");
+      expect(DATE_RANGE_PRESET_LABELS.this_year).toBe("This Year");
+      expect(DATE_RANGE_PRESET_LABELS.last_year).toBe("Last Year");
+      expect(DATE_RANGE_PRESET_LABELS.all).toBe("All Time");
     });
   });
 
@@ -204,14 +204,14 @@ describe("Dashboard Revamp Types", () => {
 
   describe("isDateRangePreset type guard", () => {
     it("should return true for valid date range presets", () => {
-      expect(isDateRangePreset("lastWeek")).toBe(true);
-      expect(isDateRangePreset("thisMonth")).toBe(true);
-      expect(isDateRangePreset("lastMonth")).toBe(true);
-      expect(isDateRangePreset("last3Months")).toBe(true);
-      expect(isDateRangePreset("last6Months")).toBe(true);
-      expect(isDateRangePreset("thisYear")).toBe(true);
-      expect(isDateRangePreset("lastYear")).toBe(true);
-      expect(isDateRangePreset("allTime")).toBe(true);
+      expect(isDateRangePreset("last_week")).toBe(true);
+      expect(isDateRangePreset("this_month")).toBe(true);
+      expect(isDateRangePreset("last_month")).toBe(true);
+      expect(isDateRangePreset("last_3_months")).toBe(true);
+      expect(isDateRangePreset("last_6_months")).toBe(true);
+      expect(isDateRangePreset("this_year")).toBe(true);
+      expect(isDateRangePreset("last_year")).toBe(true);
+      expect(isDateRangePreset("all")).toBe(true);
     });
 
     it("should return false for invalid values", () => {
@@ -257,7 +257,9 @@ describe("Dashboard Revamp Types", () => {
   describe("Exhaustiveness checks", () => {
     it("should ensure all insight tabs have corresponding labels", () => {
       const tabsSet = new Set(INSIGHT_TABS);
-      const labelsSet = new Set(Object.keys(INSIGHT_TAB_LABELS) as InsightTab[]);
+      const labelsSet = new Set(
+        Object.keys(INSIGHT_TAB_LABELS) as InsightTab[],
+      );
 
       expect(tabsSet.size).toBe(labelsSet.size);
       for (const tab of INSIGHT_TABS) {

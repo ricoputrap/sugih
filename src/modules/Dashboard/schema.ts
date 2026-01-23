@@ -123,3 +123,107 @@ export type PeriodGranularity = z.infer<typeof PeriodGranularitySchema>;
 export type CategorySpendingTrendQueryInput = z.infer<
   typeof CategorySpendingTrendQuerySchema
 >;
+
+// ============================================================================
+// DASHBOARD REVAMP TYPES
+// ============================================================================
+
+/**
+ * Growth metric with percentage and label
+ */
+export interface GrowthMetric {
+  value: number; // Percentage change
+  label: string; // Human-readable label
+  isPositive: boolean;
+  isNegative: boolean;
+  isNeutral: boolean;
+}
+
+/**
+ * KPI card data with growth information
+ */
+export interface KpiCardData {
+  title: string;
+  value: number;
+  growth: GrowthMetric;
+  period: string;
+}
+
+/**
+ * Wallet balance snapshot
+ */
+export interface WalletBalanceSnapshot {
+  id: string;
+  name: string;
+  balance: number;
+}
+
+/**
+ * Savings bucket balance snapshot
+ */
+export interface SavingsBucketBalanceSnapshot {
+  id: string;
+  name: string;
+  balance: number;
+}
+
+/**
+ * Dashboard revamp summary payload
+ * Contains all data needed for top KPI cards and charts
+ */
+export interface DashboardRevampSummary {
+  // KPI Cards (with growth metrics)
+  kpis: {
+    netWorth: KpiCardData;
+    moneyLeftToSpend: KpiCardData;
+    totalSpending: KpiCardData;
+    totalSavings: KpiCardData;
+  };
+
+  // Latest 5 transactions
+  latestTransactions: RecentTransaction[];
+
+  // Category breakdown for doughnut chart
+  categoryBreakdown: {
+    expenses: CategoryBreakdownData[];
+    income: CategoryBreakdownData[];
+  };
+
+  // Time-series data for insights charts (selected tab)
+  timeSeries: {
+    netWorth: NetWorthChartData[];
+    spending: CategorySpendingTrendChartData[];
+    income: CategorySpendingTrendChartData[];
+    savings: NetWorthChartData[]; // Reuse net worth structure but only savings
+  };
+
+  // Raw data for computations (if needed by client)
+  snapshots: {
+    currentWallets: WalletBalanceSnapshot[];
+    currentSavings: SavingsBucketBalanceSnapshot[];
+    previousWallets: WalletBalanceSnapshot[];
+    previousSavings: SavingsBucketBalanceSnapshot[];
+  };
+}
+
+/**
+ * Query schema for dashboard revamp data
+ */
+export const DashboardRevampQuerySchema = z.object({
+  // Date range for time-series charts
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+
+  // Period granularity for time-series
+  period: z.enum(["day", "week", "month"]).default("month"),
+
+  // Date range preset (if provided, overrides from/to)
+  dateRangePreset: DateRangePresetSchema.optional(),
+
+  // Which insight tab to load (for optimization)
+  insightTab: z.enum(["netWorth", "spending", "income", "savings"]).optional(),
+});
+
+export type DashboardRevampQueryInput = z.infer<
+  typeof DashboardRevampQuerySchema
+>;
