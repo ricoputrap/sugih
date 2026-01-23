@@ -60,6 +60,7 @@ const expenseSchema = z.object({
 const incomeSchema = z.object({
   occurredAt: z.date(),
   walletId: z.string().min(1, "Wallet is required"),
+  categoryId: z.string().optional(),
   amountIdr: z.coerce.number().positive("Amount must be positive"),
   note: z.string().optional(),
   payee: z.string().optional(),
@@ -140,6 +141,7 @@ export function AddTransactionDialog({
     defaultValues: {
       occurredAt: new Date(),
       walletId: "",
+      categoryId: "",
       amountIdr: 0,
       note: "",
       payee: "",
@@ -488,6 +490,34 @@ export function AddTransactionDialog({
                           {wallets.map((wallet) => (
                             <SelectItem key={wallet.id} value={wallet.id}>
                               {wallet.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={incomeForm.control}
+                  name="categoryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category (optional)</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category (optional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
