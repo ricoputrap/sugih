@@ -28,6 +28,9 @@ import {
 
 // Extended transaction type with postings
 export interface TransactionWithPostings extends TransactionEvent {
+  category_name?: string | null;
+  display_amount_idr?: number;
+  display_account?: string;
   postings: Posting[];
 }
 
@@ -466,6 +469,17 @@ export async function createIncome(
     throw new Error("Wallet not found or archived");
   }
 
+  // Verify category exists and is not archived (if provided)
+  if (validatedInput.categoryId) {
+    const categories = await pool.query(
+      `SELECT id FROM categories WHERE id = $1 AND archived = false`,
+      [validatedInput.categoryId],
+    );
+    if (categories.rows.length === 0) {
+      throw new Error("Category not found or archived");
+    }
+  }
+
   const eventId = nanoid();
   const postingId = nanoid();
   const now = new Date();
@@ -477,16 +491,17 @@ export async function createIncome(
     // Create transaction event
     await client.query(
       `INSERT INTO transaction_events (
-        id, occurred_at, type, note, payee,
+        id, occurred_at, type, note, payee, category_id,
         created_at, updated_at, idempotency_key
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         eventId,
         validatedInput.occurredAt,
         "income",
         validatedInput.note || null,
         validatedInput.payee || null,
+        validatedInput.categoryId || null,
         now,
         now,
         validatedInput.idempotencyKey || null,

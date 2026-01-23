@@ -101,6 +101,11 @@ export const IncomeCreateSchema = z.object({
     .string()
     .min(1, "Wallet ID is required")
     .max(50, "Wallet ID too long"),
+  categoryId: z
+    .string()
+    .min(1, "Category ID cannot be empty")
+    .max(50, "Category ID too long")
+    .optional(),
   amountIdr: z
     .number()
     .int()

@@ -12,19 +12,19 @@ The Transaction module provides a REST API for creating and listing financial tr
 
 ## Endpoints Summary
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/transactions` | List transactions with filtering |
-| POST | `/api/transactions` | **DEPRECATED** - Use specific endpoints |
-| POST | `/api/transactions/expense` | Create expense transaction |
-| POST | `/api/transactions/income` | Create income transaction |
-| POST | `/api/transactions/transfer` | Create transfer transaction |
-| POST | `/api/transactions/savings/contribute` | Create savings contribution |
-| POST | `/api/transactions/savings/withdraw` | Create savings withdrawal |
-| GET | `/api/transactions/[id]` | Get single transaction |
-| DELETE | `/api/transactions/[id]` | Soft delete transaction |
-| PATCH | `/api/transactions/[id]/restore` | Restore deleted transaction |
-| DELETE | `/api/transactions/[id]/permanent` | Permanently delete transaction |
+| Method | Endpoint                               | Description                             |
+| ------ | -------------------------------------- | --------------------------------------- |
+| GET    | `/api/transactions`                    | List transactions with filtering        |
+| POST   | `/api/transactions`                    | **DEPRECATED** - Use specific endpoints |
+| POST   | `/api/transactions/expense`            | Create expense transaction              |
+| POST   | `/api/transactions/income`             | Create income transaction               |
+| POST   | `/api/transactions/transfer`           | Create transfer transaction             |
+| POST   | `/api/transactions/savings/contribute` | Create savings contribution             |
+| POST   | `/api/transactions/savings/withdraw`   | Create savings withdrawal               |
+| GET    | `/api/transactions/[id]`               | Get single transaction                  |
+| DELETE | `/api/transactions/[id]`               | Soft delete transaction                 |
+| PATCH  | `/api/transactions/[id]/restore`       | Restore deleted transaction             |
+| DELETE | `/api/transactions/[id]/permanent`     | Permanently delete transaction          |
 
 ---
 
@@ -34,15 +34,15 @@ List transactions with optional filtering and pagination.
 
 ### Query Parameters
 
-| Parameter | Type | Description | Example |
-|-----------|------|-------------|---------|
-| `from` | string (ISO date) | Filter transactions from date | `2024-01-01` |
-| `to` | string (ISO date) | Filter transactions to date | `2024-01-31` |
-| `type` | string | Filter by transaction type | `expense` |
-| `walletId` | string | Filter by wallet ID | `wallet_123` |
-| `categoryId` | string | Filter by category ID (expense only) | `cat_456` |
-| `limit` | number | Number of results (1-100, default 50) | `25` |
-| `offset` | number | Pagination offset (default 0) | `50` |
+| Parameter    | Type              | Description                           | Example      |
+| ------------ | ----------------- | ------------------------------------- | ------------ |
+| `from`       | string (ISO date) | Filter transactions from date         | `2024-01-01` |
+| `to`         | string (ISO date) | Filter transactions to date           | `2024-01-31` |
+| `type`       | string            | Filter by transaction type            | `expense`    |
+| `walletId`   | string            | Filter by wallet ID                   | `wallet_123` |
+| `categoryId` | string            | Filter by category ID                 | `cat_456`    |
+| `limit`      | number            | Number of results (1-100, default 50) | `25`         |
+| `offset`     | number            | Pagination offset (default 0)         | `50`         |
 
 ### Request Example
 
@@ -140,6 +140,7 @@ Create a new income transaction.
   "amountIdr": 5000000,
   "note": "Monthly salary",
   "payee": "ACME Corp",
+  "categoryId": "cat_salary",
   "idempotencyKey": "inc_20240115_001"
 }
 ```
@@ -154,11 +155,20 @@ Create a new income transaction.
 
 - `note` (string): Transaction note/description
 - `payee` (string): Source of income
+- `categoryId` (string): Valid category ID (optional, for categorizing income)
 - `idempotencyKey` (string): Unique key to prevent duplicates
+
+### Error Responses
+
+- **400**: Invalid input, missing required fields, or archived wallet/category
+- **404**: Wallet or category not found
+- **409**: Duplicate idempotency key
+- **422**: Validation error
+- **500**: Database error
 
 ### Success Response (200)
 
-Returns the created transaction object.
+Returns the created transaction object with all fields populated, including `category_id` and `category_name` if a category was specified.
 
 ---
 
@@ -345,6 +355,7 @@ Use the specific endpoints listed above for better type safety and clearer API s
 All endpoints return consistent error responses:
 
 ### 400 Bad Request
+
 ```json
 {
   "error": {
@@ -360,6 +371,7 @@ All endpoints return consistent error responses:
 ```
 
 ### 404 Not Found
+
 ```json
 {
   "error": {
@@ -369,6 +381,7 @@ All endpoints return consistent error responses:
 ```
 
 ### 409 Conflict
+
 ```json
 {
   "error": {
@@ -378,6 +391,7 @@ All endpoints return consistent error responses:
 ```
 
 ### 422 Unprocessable Entity
+
 ```json
 {
   "error": {
@@ -393,6 +407,7 @@ All endpoints return consistent error responses:
 ```
 
 ### 500 Internal Server Error
+
 ```json
 {
   "error": {
@@ -418,13 +433,13 @@ All POST endpoints support idempotency keys to prevent duplicate transactions:
 
 Every transaction creates one or more postings (ledger entries):
 
-| Transaction Type | Postings | Description |
-|-----------------|----------|-------------|
-| **expense** | 1 | Wallet: -amount |
-| **income** | 1 | Wallet: +amount |
-| **transfer** | 2 | From wallet: -amount, To wallet: +amount |
-| **savings_contribution** | 2 | Wallet: -amount, Bucket: +amount |
-| **savings_withdrawal** | 2 | Bucket: -amount, Wallet: +amount |
+| Transaction Type         | Postings | Description                              |
+| ------------------------ | -------- | ---------------------------------------- |
+| **expense**              | 1        | Wallet: -amount                          |
+| **income**               | 1        | Wallet: +amount                          |
+| **transfer**             | 2        | From wallet: -amount, To wallet: +amount |
+| **savings_contribution** | 2        | Wallet: -amount, Bucket: +amount         |
+| **savings_withdrawal**   | 2        | Bucket: -amount, Wallet: +amount         |
 
 All postings are created atomically within a database transaction.
 
@@ -443,21 +458,25 @@ All postings are created atomically within a database transaction.
 ## Filtering Examples
 
 ### Get all expenses in January 2024
+
 ```
 GET /api/transactions?type=expense&from=2024-01-01&to=2024-01-31
 ```
 
 ### Get transactions for a specific wallet
+
 ```
 GET /api/transactions?walletId=wallet_main&limit=20
 ```
 
 ### Get savings contributions
+
 ```
 GET /api/transactions?type=savings_contribution
 ```
 
 ### Get recent transactions with pagination
+
 ```
 GET /api/transactions?limit=25&offset=0
 ```
@@ -467,6 +486,7 @@ GET /api/transactions?limit=25&offset=0
 ## Rate Limiting
 
 Currently no rate limiting is implemented. In production, consider adding:
+
 - Rate limiting per IP address
 - Request quotas per time period
 - Idempotency key validation limits
@@ -476,6 +496,7 @@ Currently no rate limiting is implemented. In production, consider adding:
 ## Authentication
 
 Currently no authentication is implemented. Future versions should add:
+
 - API key authentication
 - OAuth 2.0 support
 - User session validation
@@ -497,10 +518,10 @@ Currently no authentication is implemented. Future versions should add:
 ## Changelog
 
 ### v1.0.0 (2024-01-04)
+
 - Initial API implementation
 - Support for all transaction types
 - Individual endpoints per transaction type
 - List and detail endpoints
 - Soft delete functionality
 - Idempotency support
-```

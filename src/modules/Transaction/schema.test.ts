@@ -259,6 +259,47 @@ describe("Transaction PostgreSQL Schema Validation", () => {
         });
         expect(result.success).toBe(false);
       });
+
+      it("should accept income with no categoryId", () => {
+        const result = IncomeCreateSchema.safeParse({
+          occurredAt: validIncomeInput.occurredAt,
+          walletId: validIncomeInput.walletId,
+          amountIdr: validIncomeInput.amountIdr,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept income with valid categoryId", () => {
+        const result = IncomeCreateSchema.safeParse({
+          ...validIncomeInput,
+          categoryId: "cat_valid_123",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject income with empty string categoryId", () => {
+        const result = IncomeCreateSchema.safeParse({
+          ...validIncomeInput,
+          categoryId: "",
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toBe(
+            "Category ID cannot be empty",
+          );
+        }
+      });
+
+      it("should reject income with too-long categoryId", () => {
+        const result = IncomeCreateSchema.safeParse({
+          ...validIncomeInput,
+          categoryId: "a".repeat(51),
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toBe("Category ID too long");
+        }
+      });
     });
 
     describe("TransferCreateSchema", () => {
