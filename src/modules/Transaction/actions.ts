@@ -14,15 +14,20 @@ import { formatZodError } from "@/lib/zod";
 import {
   BulkDeleteTransactionsSchema,
   ExpenseCreateSchema,
+  ExpenseUpdateSchema,
   IncomeCreateSchema,
+  IncomeUpdateSchema,
   type Posting,
   SavingsContributeSchema,
+  SavingsContributeUpdateSchema,
   SavingsWithdrawSchema,
+  SavingsWithdrawUpdateSchema,
   type TransactionEvent,
   TransactionIdSchema,
   type TransactionListQueryInput,
   TransactionListQuerySchema,
   TransferCreateSchema,
+  TransferUpdateSchema,
   transactionEvents,
 } from "./schema";
 
@@ -1126,4 +1131,887 @@ export async function getTransactionStats(
   }
 
   return result;
+}
+
+/**
+ * Update an expense transaction
+ */
+export async function updateExpense(
+  id: string,
+  input: unknown,
+): Promise<TransactionWithPostings> {
+  const pool = getPool();
+
+  // Validate ID
+  TransactionIdSchema.parse({ id });
+
+  // Validate input
+  let validatedInput;
+  try {
+    validatedInput = await ExpenseUpdateSchema.parseAsync(input);
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      throw unprocessableEntity(
+        "Invalid expense update data",
+        formatZodError(error),
+      );
+    }
+    throw error;
+  }
+
+  // Get existing transaction
+  const existing = await getTransactionById(id);
+  if (!existing) {
+    throw new Error("Transaction not found");
+  }
+
+  // Verify it's an expense transaction
+  if (existing.type !== "expense") {
+    throw new Error("Transaction is not an expense");
+  }
+
+  // Verify not deleted
+  if (existing.deleted_at) {
+    throw new Error("Cannot update a deleted transaction");
+  }
+
+  // Verify wallet exists if being updated
+  if (validatedInput.walletId) {
+    const wallets = await pool.query(
+      `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+      [validatedInput.walletId],
+    );
+    if (wallets.rows.length === 0) {
+      throw new Error("Wallet not found or archived");
+    }
+  }
+
+  const now = new Date();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Update transaction event
+    const updateFields: string[] = [];
+    const updateParams: any[] = [];
+    let paramIndex = 1;
+
+    if (validatedInput.occurredAt !== undefined) {
+      updateFields.push(`occurred_at = $${paramIndex}`);
+      updateParams.push(validatedInput.occurredAt);
+      paramIndex++;
+    }
+
+    if (validatedInput.note !== undefined) {
+      updateFields.push(`note = $${paramIndex}`);
+      updateParams.push(validatedInput.note);
+      paramIndex++;
+    }
+
+    if (validatedInput.categoryId !== undefined) {
+      updateFields.push(`category_id = $${paramIndex}`);
+      updateParams.push(validatedInput.categoryId);
+      paramIndex++;
+    }
+
+    // Always update updated_at
+    updateFields.push(`updated_at = $${paramIndex}`);
+    updateParams.push(now);
+    paramIndex++;
+
+    // Add id as last param
+    updateParams.push(id);
+
+    if (updateFields.length > 1) {
+      // More than just updated_at
+      await client.query(
+        `UPDATE transaction_events SET ${updateFields.join(", ")} WHERE id = $${paramIndex}`,
+        updateParams,
+      );
+    }
+
+    // Update posting if wallet or amount changed
+    if (
+      validatedInput.walletId !== undefined ||
+      validatedInput.amountIdr !== undefined
+    ) {
+      const postingUpdateFields: string[] = [];
+      const postingUpdateParams: any[] = [];
+      let postingParamIndex = 1;
+
+      if (validatedInput.walletId !== undefined) {
+        postingUpdateFields.push(`wallet_id = $${postingParamIndex}`);
+        postingUpdateParams.push(validatedInput.walletId);
+        postingParamIndex++;
+      }
+
+      if (validatedInput.amountIdr !== undefined) {
+        // Expense is stored as negative amount
+        postingUpdateFields.push(`amount_idr = $${postingParamIndex}`);
+        postingUpdateParams.push(-validatedInput.amountIdr);
+        postingParamIndex++;
+      }
+
+      postingUpdateParams.push(id);
+
+      if (postingUpdateFields.length > 0) {
+        await client.query(
+          `UPDATE postings SET ${postingUpdateFields.join(", ")} WHERE event_id = $${postingParamIndex}`,
+          postingUpdateParams,
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    const result = await getTransactionById(id);
+    if (!result) {
+      throw new Error("Failed to retrieve updated transaction");
+    }
+
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Update an income transaction
+ */
+export async function updateIncome(
+  id: string,
+  input: unknown,
+): Promise<TransactionWithPostings> {
+  const pool = getPool();
+
+  // Validate ID
+  TransactionIdSchema.parse({ id });
+
+  // Validate input
+  let validatedInput;
+  try {
+    validatedInput = await IncomeUpdateSchema.parseAsync(input);
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      throw unprocessableEntity(
+        "Invalid income update data",
+        formatZodError(error),
+      );
+    }
+    throw error;
+  }
+
+  // Get existing transaction
+  const existing = await getTransactionById(id);
+  if (!existing) {
+    throw new Error("Transaction not found");
+  }
+
+  // Verify it's an income transaction
+  if (existing.type !== "income") {
+    throw new Error("Transaction is not an income");
+  }
+
+  // Verify not deleted
+  if (existing.deleted_at) {
+    throw new Error("Cannot update a deleted transaction");
+  }
+
+  // Verify wallet exists if being updated
+  if (validatedInput.walletId) {
+    const wallets = await pool.query(
+      `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+      [validatedInput.walletId],
+    );
+    if (wallets.rows.length === 0) {
+      throw new Error("Wallet not found or archived");
+    }
+  }
+
+  const now = new Date();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Update transaction event
+    const updateFields: string[] = [];
+    const updateParams: any[] = [];
+    let paramIndex = 1;
+
+    if (validatedInput.occurredAt !== undefined) {
+      updateFields.push(`occurred_at = $${paramIndex}`);
+      updateParams.push(validatedInput.occurredAt);
+      paramIndex++;
+    }
+
+    if (validatedInput.note !== undefined) {
+      updateFields.push(`note = $${paramIndex}`);
+      updateParams.push(validatedInput.note);
+      paramIndex++;
+    }
+
+    if (validatedInput.payee !== undefined) {
+      updateFields.push(`payee = $${paramIndex}`);
+      updateParams.push(validatedInput.payee);
+      paramIndex++;
+    }
+
+    if (validatedInput.categoryId !== undefined) {
+      updateFields.push(`category_id = $${paramIndex}`);
+      updateParams.push(validatedInput.categoryId);
+      paramIndex++;
+    }
+
+    // Always update updated_at
+    updateFields.push(`updated_at = $${paramIndex}`);
+    updateParams.push(now);
+    paramIndex++;
+
+    // Add id as last param
+    updateParams.push(id);
+
+    if (updateFields.length > 1) {
+      await client.query(
+        `UPDATE transaction_events SET ${updateFields.join(", ")} WHERE id = $${paramIndex}`,
+        updateParams,
+      );
+    }
+
+    // Update posting if wallet or amount changed
+    if (
+      validatedInput.walletId !== undefined ||
+      validatedInput.amountIdr !== undefined
+    ) {
+      const postingUpdateFields: string[] = [];
+      const postingUpdateParams: any[] = [];
+      let postingParamIndex = 1;
+
+      if (validatedInput.walletId !== undefined) {
+        postingUpdateFields.push(`wallet_id = $${postingParamIndex}`);
+        postingUpdateParams.push(validatedInput.walletId);
+        postingParamIndex++;
+      }
+
+      if (validatedInput.amountIdr !== undefined) {
+        // Income is stored as positive amount
+        postingUpdateFields.push(`amount_idr = $${postingParamIndex}`);
+        postingUpdateParams.push(validatedInput.amountIdr);
+        postingParamIndex++;
+      }
+
+      postingUpdateParams.push(id);
+
+      if (postingUpdateFields.length > 0) {
+        await client.query(
+          `UPDATE postings SET ${postingUpdateFields.join(", ")} WHERE event_id = $${postingParamIndex}`,
+          postingUpdateParams,
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    const result = await getTransactionById(id);
+    if (!result) {
+      throw new Error("Failed to retrieve updated transaction");
+    }
+
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Update a transfer transaction
+ */
+export async function updateTransfer(
+  id: string,
+  input: unknown,
+): Promise<TransactionWithPostings> {
+  const pool = getPool();
+
+  // Validate ID
+  TransactionIdSchema.parse({ id });
+
+  // Validate input
+  let validatedInput;
+  try {
+    validatedInput = TransferUpdateSchema.parse(input);
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      throw unprocessableEntity(
+        "Invalid transfer update data",
+        formatZodError(error),
+      );
+    }
+    throw error;
+  }
+
+  // Get existing transaction
+  const existing = await getTransactionById(id);
+  if (!existing) {
+    throw new Error("Transaction not found");
+  }
+
+  // Verify it's a transfer transaction
+  if (existing.type !== "transfer") {
+    throw new Error("Transaction is not a transfer");
+  }
+
+  // Verify not deleted
+  if (existing.deleted_at) {
+    throw new Error("Cannot update a deleted transaction");
+  }
+
+  // Get current postings to identify from/to
+  const currentFromPosting = existing.postings.find(
+    (p) => Number(p.amount_idr) < 0,
+  );
+  const currentToPosting = existing.postings.find(
+    (p) => Number(p.amount_idr) > 0,
+  );
+
+  if (!currentFromPosting || !currentToPosting) {
+    throw new Error("Invalid transfer transaction: missing postings");
+  }
+
+  // Get the wallet IDs to validate the different wallet check
+  const newFromWalletId =
+    validatedInput.fromWalletId ?? currentFromPosting.wallet_id;
+  const newToWalletId = validatedInput.toWalletId ?? currentToPosting.wallet_id;
+
+  // Validate wallets are different (even if only one is being updated)
+  if (newFromWalletId === newToWalletId) {
+    throw new Error("From and to wallets must be different");
+  }
+
+  // Verify from wallet exists if being updated
+  if (validatedInput.fromWalletId) {
+    const wallets = await pool.query(
+      `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+      [validatedInput.fromWalletId],
+    );
+    if (wallets.rows.length === 0) {
+      throw new Error("From wallet not found or archived");
+    }
+  }
+
+  // Verify to wallet exists if being updated
+  if (validatedInput.toWalletId) {
+    const wallets = await pool.query(
+      `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+      [validatedInput.toWalletId],
+    );
+    if (wallets.rows.length === 0) {
+      throw new Error("To wallet not found or archived");
+    }
+  }
+
+  const now = new Date();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Update transaction event
+    const updateFields: string[] = [];
+    const updateParams: any[] = [];
+    let paramIndex = 1;
+
+    if (validatedInput.occurredAt !== undefined) {
+      updateFields.push(`occurred_at = $${paramIndex}`);
+      updateParams.push(validatedInput.occurredAt);
+      paramIndex++;
+    }
+
+    if (validatedInput.note !== undefined) {
+      updateFields.push(`note = $${paramIndex}`);
+      updateParams.push(validatedInput.note);
+      paramIndex++;
+    }
+
+    // Always update updated_at
+    updateFields.push(`updated_at = $${paramIndex}`);
+    updateParams.push(now);
+    paramIndex++;
+
+    // Add id as last param
+    updateParams.push(id);
+
+    if (updateFields.length > 1) {
+      await client.query(
+        `UPDATE transaction_events SET ${updateFields.join(", ")} WHERE id = $${paramIndex}`,
+        updateParams,
+      );
+    }
+
+    // Update from posting if fromWallet or amount changed
+    if (
+      validatedInput.fromWalletId !== undefined ||
+      validatedInput.amountIdr !== undefined
+    ) {
+      const fromUpdateFields: string[] = [];
+      const fromUpdateParams: any[] = [];
+      let fromParamIndex = 1;
+
+      if (validatedInput.fromWalletId !== undefined) {
+        fromUpdateFields.push(`wallet_id = $${fromParamIndex}`);
+        fromUpdateParams.push(validatedInput.fromWalletId);
+        fromParamIndex++;
+      }
+
+      if (validatedInput.amountIdr !== undefined) {
+        // From posting has negative amount
+        fromUpdateFields.push(`amount_idr = $${fromParamIndex}`);
+        fromUpdateParams.push(-validatedInput.amountIdr);
+        fromParamIndex++;
+      }
+
+      fromUpdateParams.push(currentFromPosting.id);
+
+      if (fromUpdateFields.length > 0) {
+        await client.query(
+          `UPDATE postings SET ${fromUpdateFields.join(", ")} WHERE id = $${fromParamIndex}`,
+          fromUpdateParams,
+        );
+      }
+    }
+
+    // Update to posting if toWallet or amount changed
+    if (
+      validatedInput.toWalletId !== undefined ||
+      validatedInput.amountIdr !== undefined
+    ) {
+      const toUpdateFields: string[] = [];
+      const toUpdateParams: any[] = [];
+      let toParamIndex = 1;
+
+      if (validatedInput.toWalletId !== undefined) {
+        toUpdateFields.push(`wallet_id = $${toParamIndex}`);
+        toUpdateParams.push(validatedInput.toWalletId);
+        toParamIndex++;
+      }
+
+      if (validatedInput.amountIdr !== undefined) {
+        // To posting has positive amount
+        toUpdateFields.push(`amount_idr = $${toParamIndex}`);
+        toUpdateParams.push(validatedInput.amountIdr);
+        toParamIndex++;
+      }
+
+      toUpdateParams.push(currentToPosting.id);
+
+      if (toUpdateFields.length > 0) {
+        await client.query(
+          `UPDATE postings SET ${toUpdateFields.join(", ")} WHERE id = $${toParamIndex}`,
+          toUpdateParams,
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    const result = await getTransactionById(id);
+    if (!result) {
+      throw new Error("Failed to retrieve updated transaction");
+    }
+
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Update a savings contribution transaction
+ */
+export async function updateSavingsContribution(
+  id: string,
+  input: unknown,
+): Promise<TransactionWithPostings> {
+  const pool = getPool();
+
+  // Validate ID
+  TransactionIdSchema.parse({ id });
+
+  // Validate input
+  let validatedInput;
+  try {
+    validatedInput = SavingsContributeUpdateSchema.parse(input);
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      throw unprocessableEntity(
+        "Invalid savings contribution update data",
+        formatZodError(error),
+      );
+    }
+    throw error;
+  }
+
+  // Get existing transaction
+  const existing = await getTransactionById(id);
+  if (!existing) {
+    throw new Error("Transaction not found");
+  }
+
+  // Verify it's a savings contribution transaction
+  if (existing.type !== "savings_contribution") {
+    throw new Error("Transaction is not a savings contribution");
+  }
+
+  // Verify not deleted
+  if (existing.deleted_at) {
+    throw new Error("Cannot update a deleted transaction");
+  }
+
+  // Get current postings to identify wallet/bucket
+  const walletPosting = existing.postings.find((p) => p.wallet_id);
+  const bucketPosting = existing.postings.find((p) => p.savings_bucket_id);
+
+  if (!walletPosting || !bucketPosting) {
+    throw new Error(
+      "Invalid savings contribution transaction: missing postings",
+    );
+  }
+
+  // Verify wallet exists if being updated
+  if (validatedInput.walletId) {
+    const wallets = await pool.query(
+      `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+      [validatedInput.walletId],
+    );
+    if (wallets.rows.length === 0) {
+      throw new Error("Wallet not found or archived");
+    }
+  }
+
+  // Verify bucket exists if being updated
+  if (validatedInput.bucketId) {
+    const buckets = await pool.query(
+      `SELECT id FROM savings_buckets WHERE id = $1 AND archived = false`,
+      [validatedInput.bucketId],
+    );
+    if (buckets.rows.length === 0) {
+      throw new Error("Savings bucket not found or archived");
+    }
+  }
+
+  const now = new Date();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Update transaction event
+    const updateFields: string[] = [];
+    const updateParams: any[] = [];
+    let paramIndex = 1;
+
+    if (validatedInput.occurredAt !== undefined) {
+      updateFields.push(`occurred_at = $${paramIndex}`);
+      updateParams.push(validatedInput.occurredAt);
+      paramIndex++;
+    }
+
+    if (validatedInput.note !== undefined) {
+      updateFields.push(`note = $${paramIndex}`);
+      updateParams.push(validatedInput.note);
+      paramIndex++;
+    }
+
+    // Always update updated_at
+    updateFields.push(`updated_at = $${paramIndex}`);
+    updateParams.push(now);
+    paramIndex++;
+
+    // Add id as last param
+    updateParams.push(id);
+
+    if (updateFields.length > 1) {
+      await client.query(
+        `UPDATE transaction_events SET ${updateFields.join(", ")} WHERE id = $${paramIndex}`,
+        updateParams,
+      );
+    }
+
+    // Update wallet posting if wallet or amount changed
+    if (
+      validatedInput.walletId !== undefined ||
+      validatedInput.amountIdr !== undefined
+    ) {
+      const walletUpdateFields: string[] = [];
+      const walletUpdateParams: any[] = [];
+      let walletParamIndex = 1;
+
+      if (validatedInput.walletId !== undefined) {
+        walletUpdateFields.push(`wallet_id = $${walletParamIndex}`);
+        walletUpdateParams.push(validatedInput.walletId);
+        walletParamIndex++;
+      }
+
+      if (validatedInput.amountIdr !== undefined) {
+        // Wallet posting has negative amount (money leaving wallet)
+        walletUpdateFields.push(`amount_idr = $${walletParamIndex}`);
+        walletUpdateParams.push(-validatedInput.amountIdr);
+        walletParamIndex++;
+      }
+
+      walletUpdateParams.push(walletPosting.id);
+
+      if (walletUpdateFields.length > 0) {
+        await client.query(
+          `UPDATE postings SET ${walletUpdateFields.join(", ")} WHERE id = $${walletParamIndex}`,
+          walletUpdateParams,
+        );
+      }
+    }
+
+    // Update bucket posting if bucket or amount changed
+    if (
+      validatedInput.bucketId !== undefined ||
+      validatedInput.amountIdr !== undefined
+    ) {
+      const bucketUpdateFields: string[] = [];
+      const bucketUpdateParams: any[] = [];
+      let bucketParamIndex = 1;
+
+      if (validatedInput.bucketId !== undefined) {
+        bucketUpdateFields.push(`savings_bucket_id = $${bucketParamIndex}`);
+        bucketUpdateParams.push(validatedInput.bucketId);
+        bucketParamIndex++;
+      }
+
+      if (validatedInput.amountIdr !== undefined) {
+        // Bucket posting has positive amount (money entering bucket)
+        bucketUpdateFields.push(`amount_idr = $${bucketParamIndex}`);
+        bucketUpdateParams.push(validatedInput.amountIdr);
+        bucketParamIndex++;
+      }
+
+      bucketUpdateParams.push(bucketPosting.id);
+
+      if (bucketUpdateFields.length > 0) {
+        await client.query(
+          `UPDATE postings SET ${bucketUpdateFields.join(", ")} WHERE id = $${bucketParamIndex}`,
+          bucketUpdateParams,
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    const result = await getTransactionById(id);
+    if (!result) {
+      throw new Error("Failed to retrieve updated transaction");
+    }
+
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Update a savings withdrawal transaction
+ */
+export async function updateSavingsWithdrawal(
+  id: string,
+  input: unknown,
+): Promise<TransactionWithPostings> {
+  const pool = getPool();
+
+  // Validate ID
+  TransactionIdSchema.parse({ id });
+
+  // Validate input
+  let validatedInput;
+  try {
+    validatedInput = SavingsWithdrawUpdateSchema.parse(input);
+  } catch (error: any) {
+    if (error.name === "ZodError") {
+      throw unprocessableEntity(
+        "Invalid savings withdrawal update data",
+        formatZodError(error),
+      );
+    }
+    throw error;
+  }
+
+  // Get existing transaction
+  const existing = await getTransactionById(id);
+  if (!existing) {
+    throw new Error("Transaction not found");
+  }
+
+  // Verify it's a savings withdrawal transaction
+  if (existing.type !== "savings_withdrawal") {
+    throw new Error("Transaction is not a savings withdrawal");
+  }
+
+  // Verify not deleted
+  if (existing.deleted_at) {
+    throw new Error("Cannot update a deleted transaction");
+  }
+
+  // Get current postings to identify wallet/bucket
+  const walletPosting = existing.postings.find((p) => p.wallet_id);
+  const bucketPosting = existing.postings.find((p) => p.savings_bucket_id);
+
+  if (!walletPosting || !bucketPosting) {
+    throw new Error("Invalid savings withdrawal transaction: missing postings");
+  }
+
+  // Verify wallet exists if being updated
+  if (validatedInput.walletId) {
+    const wallets = await pool.query(
+      `SELECT id FROM wallets WHERE id = $1 AND archived = false`,
+      [validatedInput.walletId],
+    );
+    if (wallets.rows.length === 0) {
+      throw new Error("Wallet not found or archived");
+    }
+  }
+
+  // Verify bucket exists if being updated
+  if (validatedInput.bucketId) {
+    const buckets = await pool.query(
+      `SELECT id FROM savings_buckets WHERE id = $1 AND archived = false`,
+      [validatedInput.bucketId],
+    );
+    if (buckets.rows.length === 0) {
+      throw new Error("Savings bucket not found or archived");
+    }
+  }
+
+  const now = new Date();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Update transaction event
+    const updateFields: string[] = [];
+    const updateParams: any[] = [];
+    let paramIndex = 1;
+
+    if (validatedInput.occurredAt !== undefined) {
+      updateFields.push(`occurred_at = $${paramIndex}`);
+      updateParams.push(validatedInput.occurredAt);
+      paramIndex++;
+    }
+
+    if (validatedInput.note !== undefined) {
+      updateFields.push(`note = $${paramIndex}`);
+      updateParams.push(validatedInput.note);
+      paramIndex++;
+    }
+
+    // Always update updated_at
+    updateFields.push(`updated_at = $${paramIndex}`);
+    updateParams.push(now);
+    paramIndex++;
+
+    // Add id as last param
+    updateParams.push(id);
+
+    if (updateFields.length > 1) {
+      await client.query(
+        `UPDATE transaction_events SET ${updateFields.join(", ")} WHERE id = $${paramIndex}`,
+        updateParams,
+      );
+    }
+
+    // Update bucket posting if bucket or amount changed
+    if (
+      validatedInput.bucketId !== undefined ||
+      validatedInput.amountIdr !== undefined
+    ) {
+      const bucketUpdateFields: string[] = [];
+      const bucketUpdateParams: any[] = [];
+      let bucketParamIndex = 1;
+
+      if (validatedInput.bucketId !== undefined) {
+        bucketUpdateFields.push(`savings_bucket_id = $${bucketParamIndex}`);
+        bucketUpdateParams.push(validatedInput.bucketId);
+        bucketParamIndex++;
+      }
+
+      if (validatedInput.amountIdr !== undefined) {
+        // Bucket posting has negative amount (money leaving bucket)
+        bucketUpdateFields.push(`amount_idr = $${bucketParamIndex}`);
+        bucketUpdateParams.push(-validatedInput.amountIdr);
+        bucketParamIndex++;
+      }
+
+      bucketUpdateParams.push(bucketPosting.id);
+
+      if (bucketUpdateFields.length > 0) {
+        await client.query(
+          `UPDATE postings SET ${bucketUpdateFields.join(", ")} WHERE id = $${bucketParamIndex}`,
+          bucketUpdateParams,
+        );
+      }
+    }
+
+    // Update wallet posting if wallet or amount changed
+    if (
+      validatedInput.walletId !== undefined ||
+      validatedInput.amountIdr !== undefined
+    ) {
+      const walletUpdateFields: string[] = [];
+      const walletUpdateParams: any[] = [];
+      let walletParamIndex = 1;
+
+      if (validatedInput.walletId !== undefined) {
+        walletUpdateFields.push(`wallet_id = $${walletParamIndex}`);
+        walletUpdateParams.push(validatedInput.walletId);
+        walletParamIndex++;
+      }
+
+      if (validatedInput.amountIdr !== undefined) {
+        // Wallet posting has positive amount (money entering wallet)
+        walletUpdateFields.push(`amount_idr = $${walletParamIndex}`);
+        walletUpdateParams.push(validatedInput.amountIdr);
+        walletParamIndex++;
+      }
+
+      walletUpdateParams.push(walletPosting.id);
+
+      if (walletUpdateFields.length > 0) {
+        await client.query(
+          `UPDATE postings SET ${walletUpdateFields.join(", ")} WHERE id = $${walletParamIndex}`,
+          walletUpdateParams,
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    const result = await getTransactionById(id);
+    if (!result) {
+      throw new Error("Failed to retrieve updated transaction");
+    }
+
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }

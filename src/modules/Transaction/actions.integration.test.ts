@@ -20,6 +20,11 @@ import {
   getTransactionStats,
   listTransactions,
   restoreTransaction,
+  updateExpense,
+  updateIncome,
+  updateTransfer,
+  updateSavingsContribution,
+  updateSavingsWithdrawal,
 } from "./actions";
 import { postings, transactionEvents } from "./schema";
 
@@ -1034,6 +1039,708 @@ describe("Transaction Integration Tests", () => {
         (tx) => tx.id === incomeWithoutCategory.id,
       );
       expect(foundWithoutCategory).toBeUndefined();
+    });
+  });
+
+  describe("Update Expense", () => {
+    it("should update expense amount", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+          note: "Original expense",
+        }),
+      );
+
+      const updated = await updateExpense(expense.id, {
+        amountIdr: 75000,
+      });
+
+      expect(updated.display_amount_idr).toBe(75000);
+    });
+
+    it("should update expense note", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+          note: "Original note",
+        }),
+      );
+
+      const updated = await updateExpense(expense.id, {
+        note: "Updated note",
+      });
+
+      expect(updated.note).toBe("Updated note");
+    });
+
+    it("should update expense date", async () => {
+      const originalDate = new Date("2024-01-15");
+      const newDate = new Date("2024-02-20");
+
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: originalDate,
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+        }),
+      );
+
+      const updated = await updateExpense(expense.id, {
+        occurredAt: newDate,
+      });
+
+      expect(new Date(updated.occurred_at).toDateString()).toBe(
+        newDate.toDateString(),
+      );
+    });
+
+    it("should update expense wallet", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+        }),
+      );
+
+      const updated = await updateExpense(expense.id, {
+        walletId: testWallet2Id,
+      });
+
+      expect(updated.postings[0].wallet_id).toBe(testWallet2Id);
+    });
+
+    it("should update expense category", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+        }),
+      );
+
+      // Create another expense category
+      const newCategory = await createCategory({
+        name: `New Expense Category ${nanoid()}`,
+        type: "expense",
+      });
+
+      try {
+        const updated = await updateExpense(expense.id, {
+          categoryId: newCategory.id,
+        });
+
+        expect(updated.category_id).toBe(newCategory.id);
+      } finally {
+        await deleteCategory(newCategory.id);
+      }
+    });
+
+    it("should reject update with non-existent transaction", async () => {
+      await expect(
+        updateExpense("non-existent-id", { amountIdr: 50000 }),
+      ).rejects.toThrow("Transaction not found");
+    });
+
+    it("should reject update on deleted transaction", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+        }),
+      );
+
+      await deleteTransaction(expense.id);
+
+      await expect(
+        updateExpense(expense.id, { amountIdr: 75000 }),
+      ).rejects.toThrow("Cannot update a deleted transaction");
+    });
+
+    it("should reject update with archived wallet", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+        }),
+      );
+
+      await expect(
+        updateExpense(expense.id, { walletId: "non-existent-wallet" }),
+      ).rejects.toThrow("Wallet not found or archived");
+    });
+
+    it("should reject update with income category on expense", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+        }),
+      );
+
+      await expect(
+        updateExpense(expense.id, { categoryId: testIncomeCategoryId }),
+      ).rejects.toThrow();
+    });
+
+    it("should update multiple fields at once", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+          note: "Original",
+        }),
+      );
+
+      const newDate = new Date("2024-03-15");
+      const updated = await updateExpense(expense.id, {
+        amountIdr: 100000,
+        note: "Updated",
+        occurredAt: newDate,
+      });
+
+      expect(updated.display_amount_idr).toBe(100000);
+      expect(updated.note).toBe("Updated");
+      expect(new Date(updated.occurred_at).toDateString()).toBe(
+        newDate.toDateString(),
+      );
+    });
+
+    it("should set note to null when explicitly passing null", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+          note: "Has a note",
+        }),
+      );
+
+      const updated = await updateExpense(expense.id, {
+        note: null,
+      });
+
+      expect(updated.note).toBeNull();
+    });
+  });
+
+  describe("Update Income", () => {
+    it("should update income amount", async () => {
+      const income = trackTransaction(
+        await createIncome({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          amountIdr: 1000000,
+          note: "Original income",
+        }),
+      );
+
+      const updated = await updateIncome(income.id, {
+        amountIdr: 1500000,
+      });
+
+      expect(updated.display_amount_idr).toBe(1500000);
+    });
+
+    it("should update income payee", async () => {
+      const income = trackTransaction(
+        await createIncome({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          amountIdr: 1000000,
+          payee: "Original Employer",
+        }),
+      );
+
+      const updated = await updateIncome(income.id, {
+        payee: "New Employer",
+      });
+
+      expect(updated.payee).toBe("New Employer");
+    });
+
+    it("should update income category", async () => {
+      const income = trackTransaction(
+        await createIncome({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          amountIdr: 1000000,
+        }),
+      );
+
+      const updated = await updateIncome(income.id, {
+        categoryId: testIncomeCategoryId,
+      });
+
+      expect(updated.category_id).toBe(testIncomeCategoryId);
+    });
+
+    it("should remove income category by setting to null", async () => {
+      const income = trackTransaction(
+        await createIncome({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testIncomeCategoryId,
+          amountIdr: 1000000,
+        }),
+      );
+
+      const updated = await updateIncome(income.id, {
+        categoryId: null,
+      });
+
+      expect(updated.category_id).toBeNull();
+    });
+
+    it("should reject update with expense category on income", async () => {
+      const income = trackTransaction(
+        await createIncome({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          amountIdr: 1000000,
+        }),
+      );
+
+      await expect(
+        updateIncome(income.id, { categoryId: testExpenseCategoryId }),
+      ).rejects.toThrow();
+    });
+
+    it("should reject update on non-income transaction", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+        }),
+      );
+
+      await expect(
+        updateIncome(expense.id, { amountIdr: 100000 }),
+      ).rejects.toThrow("Transaction is not an income");
+    });
+
+    it("should update income wallet", async () => {
+      const income = trackTransaction(
+        await createIncome({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          amountIdr: 1000000,
+        }),
+      );
+
+      const updated = await updateIncome(income.id, {
+        walletId: testWallet2Id,
+      });
+
+      expect(updated.postings[0].wallet_id).toBe(testWallet2Id);
+    });
+  });
+
+  describe("Update Transfer", () => {
+    it("should update transfer amount", async () => {
+      const transfer = trackTransaction(
+        await createTransfer({
+          occurredAt: new Date(),
+          fromWalletId: testWalletId,
+          toWalletId: testWallet2Id,
+          amountIdr: 100000,
+        }),
+      );
+
+      const updated = await updateTransfer(transfer.id, {
+        amountIdr: 200000,
+      });
+
+      expect(updated.display_amount_idr).toBe(200000);
+    });
+
+    it("should update transfer note", async () => {
+      const transfer = trackTransaction(
+        await createTransfer({
+          occurredAt: new Date(),
+          fromWalletId: testWalletId,
+          toWalletId: testWallet2Id,
+          amountIdr: 100000,
+          note: "Original transfer",
+        }),
+      );
+
+      const updated = await updateTransfer(transfer.id, {
+        note: "Updated transfer note",
+      });
+
+      expect(updated.note).toBe("Updated transfer note");
+    });
+
+    it("should update transfer from wallet", async () => {
+      // Create a third wallet for this test
+      const wallet3 = await createWallet({
+        name: `Transfer Test Wallet ${nanoid()}`,
+        type: "bank",
+      });
+
+      const transfer = trackTransaction(
+        await createTransfer({
+          occurredAt: new Date(),
+          fromWalletId: testWalletId,
+          toWalletId: testWallet2Id,
+          amountIdr: 100000,
+        }),
+      );
+
+      const updated = await updateTransfer(transfer.id, {
+        fromWalletId: wallet3.id,
+      });
+
+      const fromPosting = updated.postings.find(
+        (p) => Number(p.amount_idr) < 0,
+      );
+      expect(fromPosting?.wallet_id).toBe(wallet3.id);
+
+      // Note: wallet3 cleanup is skipped because transfer still references it
+      // The afterEach cleanup will handle the transaction cleanup
+    });
+
+    it("should update transfer to wallet", async () => {
+      const wallet3 = await createWallet({
+        name: `Transfer Test Wallet ${nanoid()}`,
+        type: "bank",
+      });
+
+      const transfer = trackTransaction(
+        await createTransfer({
+          occurredAt: new Date(),
+          fromWalletId: testWalletId,
+          toWalletId: testWallet2Id,
+          amountIdr: 100000,
+        }),
+      );
+
+      const updated = await updateTransfer(transfer.id, {
+        toWalletId: wallet3.id,
+      });
+
+      const toPosting = updated.postings.find((p) => Number(p.amount_idr) > 0);
+      expect(toPosting?.wallet_id).toBe(wallet3.id);
+
+      // Note: wallet3 cleanup is skipped because transfer still references it
+      // The afterEach cleanup will handle the transaction cleanup
+    });
+
+    it("should reject update making from and to wallet the same", async () => {
+      const transfer = trackTransaction(
+        await createTransfer({
+          occurredAt: new Date(),
+          fromWalletId: testWalletId,
+          toWalletId: testWallet2Id,
+          amountIdr: 100000,
+        }),
+      );
+
+      await expect(
+        updateTransfer(transfer.id, {
+          toWalletId: testWalletId,
+        }),
+      ).rejects.toThrow("From and to wallets must be different");
+    });
+
+    it("should reject update on non-transfer transaction", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+        }),
+      );
+
+      await expect(
+        updateTransfer(expense.id, { amountIdr: 100000 }),
+      ).rejects.toThrow("Transaction is not a transfer");
+    });
+
+    it("should reject update with non-existent wallet", async () => {
+      const transfer = trackTransaction(
+        await createTransfer({
+          occurredAt: new Date(),
+          fromWalletId: testWalletId,
+          toWalletId: testWallet2Id,
+          amountIdr: 100000,
+        }),
+      );
+
+      await expect(
+        updateTransfer(transfer.id, { fromWalletId: "non-existent-wallet" }),
+      ).rejects.toThrow("From wallet not found or archived");
+    });
+  });
+
+  describe("Update Savings Contribution", () => {
+    it("should update savings contribution amount", async () => {
+      const contribution = trackTransaction(
+        await createSavingsContribution({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 500000,
+        }),
+      );
+
+      const updated = await updateSavingsContribution(contribution.id, {
+        amountIdr: 750000,
+      });
+
+      expect(updated.display_amount_idr).toBe(750000);
+    });
+
+    it("should update savings contribution note", async () => {
+      const contribution = trackTransaction(
+        await createSavingsContribution({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 500000,
+          note: "Original contribution",
+        }),
+      );
+
+      const updated = await updateSavingsContribution(contribution.id, {
+        note: "Updated contribution note",
+      });
+
+      expect(updated.note).toBe("Updated contribution note");
+    });
+
+    it("should update savings contribution wallet", async () => {
+      const contribution = trackTransaction(
+        await createSavingsContribution({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 500000,
+        }),
+      );
+
+      const updated = await updateSavingsContribution(contribution.id, {
+        walletId: testWallet2Id,
+      });
+
+      const walletPosting = updated.postings.find((p) => p.wallet_id);
+      expect(walletPosting?.wallet_id).toBe(testWallet2Id);
+    });
+
+    it("should update savings contribution bucket", async () => {
+      const bucket2 = await createSavingsBucket({
+        name: `Test Bucket 2 ${nanoid()}`,
+      });
+
+      const contribution = trackTransaction(
+        await createSavingsContribution({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 500000,
+        }),
+      );
+
+      const updated = await updateSavingsContribution(contribution.id, {
+        bucketId: bucket2.id,
+      });
+
+      const bucketPosting = updated.postings.find((p) => p.savings_bucket_id);
+      expect(bucketPosting?.savings_bucket_id).toBe(bucket2.id);
+
+      // Note: bucket2 cleanup is skipped because contribution still references it
+      // The afterEach cleanup will handle the transaction cleanup
+    });
+
+    it("should reject update on non-savings-contribution transaction", async () => {
+      const expense = trackTransaction(
+        await createExpense({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          categoryId: testExpenseCategoryId,
+          amountIdr: 50000,
+        }),
+      );
+
+      await expect(
+        updateSavingsContribution(expense.id, { amountIdr: 100000 }),
+      ).rejects.toThrow("Transaction is not a savings contribution");
+    });
+
+    it("should reject update with non-existent bucket", async () => {
+      const contribution = trackTransaction(
+        await createSavingsContribution({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 500000,
+        }),
+      );
+
+      await expect(
+        updateSavingsContribution(contribution.id, {
+          bucketId: "non-existent-bucket",
+        }),
+      ).rejects.toThrow("Savings bucket not found or archived");
+    });
+  });
+
+  describe("Update Savings Withdrawal", () => {
+    it("should update savings withdrawal amount", async () => {
+      const withdrawal = trackTransaction(
+        await createSavingsWithdrawal({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 200000,
+        }),
+      );
+
+      const updated = await updateSavingsWithdrawal(withdrawal.id, {
+        amountIdr: 300000,
+      });
+
+      expect(updated.display_amount_idr).toBe(300000);
+    });
+
+    it("should update savings withdrawal note", async () => {
+      const withdrawal = trackTransaction(
+        await createSavingsWithdrawal({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 200000,
+          note: "Original withdrawal",
+        }),
+      );
+
+      const updated = await updateSavingsWithdrawal(withdrawal.id, {
+        note: "Updated withdrawal note",
+      });
+
+      expect(updated.note).toBe("Updated withdrawal note");
+    });
+
+    it("should update savings withdrawal wallet", async () => {
+      const withdrawal = trackTransaction(
+        await createSavingsWithdrawal({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 200000,
+        }),
+      );
+
+      const updated = await updateSavingsWithdrawal(withdrawal.id, {
+        walletId: testWallet2Id,
+      });
+
+      const walletPosting = updated.postings.find((p) => p.wallet_id);
+      expect(walletPosting?.wallet_id).toBe(testWallet2Id);
+    });
+
+    it("should update savings withdrawal bucket", async () => {
+      const bucket2 = await createSavingsBucket({
+        name: `Test Bucket 2 ${nanoid()}`,
+      });
+
+      const withdrawal = trackTransaction(
+        await createSavingsWithdrawal({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 200000,
+        }),
+      );
+
+      const updated = await updateSavingsWithdrawal(withdrawal.id, {
+        bucketId: bucket2.id,
+      });
+
+      const bucketPosting = updated.postings.find((p) => p.savings_bucket_id);
+      expect(bucketPosting?.savings_bucket_id).toBe(bucket2.id);
+
+      // Note: bucket2 cleanup is skipped because withdrawal still references it
+      // The afterEach cleanup will handle the transaction cleanup
+    });
+
+    it("should reject update on non-savings-withdrawal transaction", async () => {
+      const contribution = trackTransaction(
+        await createSavingsContribution({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 500000,
+        }),
+      );
+
+      await expect(
+        updateSavingsWithdrawal(contribution.id, { amountIdr: 100000 }),
+      ).rejects.toThrow("Transaction is not a savings withdrawal");
+    });
+
+    it("should reject update with non-existent wallet", async () => {
+      const withdrawal = trackTransaction(
+        await createSavingsWithdrawal({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 200000,
+        }),
+      );
+
+      await expect(
+        updateSavingsWithdrawal(withdrawal.id, {
+          walletId: "non-existent-wallet",
+        }),
+      ).rejects.toThrow("Wallet not found or archived");
+    });
+
+    it("should update multiple fields at once", async () => {
+      const withdrawal = trackTransaction(
+        await createSavingsWithdrawal({
+          occurredAt: new Date(),
+          walletId: testWalletId,
+          bucketId: testBucketId,
+          amountIdr: 200000,
+          note: "Original",
+        }),
+      );
+
+      const newDate = new Date("2024-06-15");
+      const updated = await updateSavingsWithdrawal(withdrawal.id, {
+        amountIdr: 400000,
+        note: "Updated",
+        occurredAt: newDate,
+      });
+
+      expect(updated.display_amount_idr).toBe(400000);
+      expect(updated.note).toBe("Updated");
+      expect(new Date(updated.occurred_at).toDateString()).toBe(
+        newDate.toDateString(),
+      );
     });
   });
 });

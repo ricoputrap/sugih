@@ -4,8 +4,20 @@ import {
   deleteTransaction,
   restoreTransaction,
   permanentlyDeleteTransaction,
+  updateExpense,
+  updateIncome,
+  updateTransfer,
+  updateSavingsContribution,
+  updateSavingsWithdrawal,
 } from "@/modules/Transaction/actions";
-import { ok, badRequest, notFound, serverError, conflict } from "@/lib/http";
+import {
+  ok,
+  badRequest,
+  notFound,
+  serverError,
+  conflict,
+  unprocessableEntity,
+} from "@/lib/http";
 import { formatPostgresError } from "@/db/drizzle-client";
 import { withRouteLogging } from "@/lib/logging";
 
@@ -136,5 +148,122 @@ async function handleDelete(
 export const DELETE = withRouteLogging(handleDelete, {
   operation: "api.transactions.delete",
   logQuery: true, // Log action query param
+  logRouteParams: true,
+});
+
+/**
+ * PUT /api/transactions/[id]
+ * Update a transaction
+ *
+ * The transaction type cannot be changed.
+ * Routes to appropriate update action based on existing transaction type.
+ */
+async function handlePut(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+
+    // Parse request body
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return badRequest("Invalid JSON body");
+    }
+
+    // Reject any attempt to change transaction type
+    if (body.type !== undefined) {
+      return badRequest(
+        "Transaction type cannot be changed. Remove the 'type' field from your request.",
+      );
+    }
+
+    // Get existing transaction to determine type
+    const existing = await getTransactionById(id);
+    if (!existing) {
+      return notFound("Transaction not found");
+    }
+
+    // Check if transaction is deleted
+    if (existing.deleted_at) {
+      return conflict("Cannot update a deleted transaction");
+    }
+
+    // Route to appropriate update action based on type
+    let updated;
+    switch (existing.type) {
+      case "expense":
+        updated = await updateExpense(id, body);
+        break;
+      case "income":
+        updated = await updateIncome(id, body);
+        break;
+      case "transfer":
+        updated = await updateTransfer(id, body);
+        break;
+      case "savings_contribution":
+        updated = await updateSavingsContribution(id, body);
+        break;
+      case "savings_withdrawal":
+        updated = await updateSavingsWithdrawal(id, body);
+        break;
+      default:
+        return badRequest(`Unknown transaction type: ${existing.type}`);
+    }
+
+    return ok(updated);
+  } catch (error: any) {
+    // Handle validation errors (already formatted as Response)
+    if (error instanceof Response) {
+      return error;
+    }
+
+    // Handle Zod validation errors
+    if (error.status === 422) {
+      return error;
+    }
+
+    // Handle wallet/bucket validation errors (check before "not found" since it contains "not found")
+    if (error.message?.includes("archived")) {
+      return unprocessableEntity(error.message);
+    }
+
+    // Handle not found errors from update actions (transaction not found)
+    if (error.message?.includes("not found")) {
+      return notFound(error.message);
+    }
+
+    // Handle type mismatch errors
+    if (error.message?.includes("is not a")) {
+      return badRequest(error.message);
+    }
+
+    // Handle deleted transaction errors
+    if (error.message?.includes("deleted")) {
+      return conflict(error.message);
+    }
+
+    // Handle different wallet validation for transfers
+    if (error.message?.includes("must be different")) {
+      return unprocessableEntity(error.message);
+    }
+
+    // Handle PostgreSQL-specific errors
+    if (error.code) {
+      const formattedError = formatPostgresError(error);
+      console.error("PostgreSQL error:", formattedError);
+      return serverError("Database error");
+    }
+
+    console.error("Error updating transaction:", error);
+    return serverError("Failed to update transaction");
+  }
+}
+
+export const PUT = withRouteLogging(handlePut, {
+  operation: "api.transactions.update",
+  logBody: true,
   logRouteParams: true,
 });

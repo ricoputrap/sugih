@@ -10,6 +10,11 @@ import {
   TransactionListQuerySchema,
   TransactionIdSchema,
   BulkDeleteTransactionsSchema,
+  ExpenseUpdateSchema,
+  IncomeUpdateSchema,
+  TransferUpdateSchema,
+  SavingsContributeUpdateSchema,
+  SavingsWithdrawUpdateSchema,
 } from "./schema";
 
 // Mock the getCategoryById function
@@ -770,6 +775,400 @@ describe("Transaction PostgreSQL Schema Validation", () => {
     it("should be ready for drizzle-kit generate", () => {
       expect(transactionEvents).toBeDefined();
       expect(postings).toBeDefined();
+    });
+  });
+
+  describe("Update Schemas", () => {
+    describe("ExpenseUpdateSchema", () => {
+      it("should be defined", () => {
+        expect(ExpenseUpdateSchema).toBeDefined();
+      });
+
+      it("should validate partial update with only amount", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          amountIdr: 75000,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with only occurredAt", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          occurredAt: new Date("2024-02-01"),
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with only note", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          note: "Updated note",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with multiple fields", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          amountIdr: 75000,
+          note: "Updated lunch expense",
+          occurredAt: new Date("2024-02-01"),
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject empty update with no fields", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({});
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain(
+            "At least one field must be provided",
+          );
+        }
+      });
+
+      it("should reject negative amounts", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          amountIdr: -1000,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject zero amounts", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          amountIdr: 0,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject amounts below minimum", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          amountIdr: 50,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject empty walletId string", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          walletId: "",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject empty categoryId string", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          categoryId: "",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should allow null note", async () => {
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          note: null,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate expense category type on update", async () => {
+        // Mock returns income category for cat_ prefix
+        const result = await ExpenseUpdateSchema.safeParseAsync({
+          categoryId: "cat_income_123",
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(
+            result.error.issues.some((i) => i.path.includes("categoryId")),
+          ).toBe(true);
+        }
+      });
+    });
+
+    describe("IncomeUpdateSchema", () => {
+      it("should be defined", () => {
+        expect(IncomeUpdateSchema).toBeDefined();
+      });
+
+      it("should validate partial update with only amount", async () => {
+        const result = await IncomeUpdateSchema.safeParseAsync({
+          amountIdr: 150000,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with only payee", async () => {
+        const result = await IncomeUpdateSchema.safeParseAsync({
+          payee: "New Company",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with multiple fields", async () => {
+        const result = await IncomeUpdateSchema.safeParseAsync({
+          amountIdr: 2000000,
+          payee: "Updated Employer",
+          note: "Updated salary",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject empty update with no fields", async () => {
+        const result = await IncomeUpdateSchema.safeParseAsync({});
+        expect(result.success).toBe(false);
+      });
+
+      it("should allow null categoryId (remove category)", async () => {
+        const result = await IncomeUpdateSchema.safeParseAsync({
+          categoryId: null,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should allow null payee", async () => {
+        const result = await IncomeUpdateSchema.safeParseAsync({
+          payee: null,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject negative amounts", async () => {
+        const result = await IncomeUpdateSchema.safeParseAsync({
+          amountIdr: -5000,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should validate income category type on update", async () => {
+        // Default mock returns expense category, which should fail for income
+        mockGetCategoryById.mockResolvedValueOnce({
+          id: "exp_cat",
+          name: "Test Expense Category",
+          type: "expense",
+          created_at: new Date(),
+          updated_at: new Date(),
+        });
+        const result = await IncomeUpdateSchema.safeParseAsync({
+          categoryId: "exp_cat",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should accept valid income category on update", async () => {
+        mockGetCategoryById.mockResolvedValueOnce({
+          id: "inc_cat",
+          name: "Test Income Category",
+          type: "income",
+          created_at: new Date(),
+          updated_at: new Date(),
+        });
+        const result = await IncomeUpdateSchema.safeParseAsync({
+          categoryId: "inc_cat",
+        });
+        expect(result.success).toBe(true);
+      });
+    });
+
+    describe("TransferUpdateSchema", () => {
+      it("should be defined", () => {
+        expect(TransferUpdateSchema).toBeDefined();
+      });
+
+      it("should validate partial update with only amount", async () => {
+        const result = await TransferUpdateSchema.safeParseAsync({
+          amountIdr: 200000,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with only fromWalletId", async () => {
+        const result = await TransferUpdateSchema.safeParseAsync({
+          fromWalletId: "wallet_new_123",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with only toWalletId", async () => {
+        const result = await TransferUpdateSchema.safeParseAsync({
+          toWalletId: "wallet_new_456",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with multiple fields", async () => {
+        const result = await TransferUpdateSchema.safeParseAsync({
+          amountIdr: 300000,
+          note: "Updated transfer note",
+          occurredAt: new Date("2024-03-01"),
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject empty update with no fields", async () => {
+        const result = await TransferUpdateSchema.safeParseAsync({});
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject same fromWalletId and toWalletId", async () => {
+        const result = await TransferUpdateSchema.safeParseAsync({
+          fromWalletId: "same_wallet",
+          toWalletId: "same_wallet",
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(
+            result.error.issues.some((i) => i.path.includes("toWalletId")),
+          ).toBe(true);
+        }
+      });
+
+      it("should accept different fromWalletId and toWalletId", async () => {
+        const result = await TransferUpdateSchema.safeParseAsync({
+          fromWalletId: "wallet_a",
+          toWalletId: "wallet_b",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject negative amounts", async () => {
+        const result = await TransferUpdateSchema.safeParseAsync({
+          amountIdr: -10000,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject empty fromWalletId string", async () => {
+        const result = await TransferUpdateSchema.safeParseAsync({
+          fromWalletId: "",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject empty toWalletId string", async () => {
+        const result = await TransferUpdateSchema.safeParseAsync({
+          toWalletId: "",
+        });
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe("SavingsContributeUpdateSchema", () => {
+      it("should be defined", () => {
+        expect(SavingsContributeUpdateSchema).toBeDefined();
+      });
+
+      it("should validate partial update with only amount", async () => {
+        const result = await SavingsContributeUpdateSchema.safeParseAsync({
+          amountIdr: 500000,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with only walletId", async () => {
+        const result = await SavingsContributeUpdateSchema.safeParseAsync({
+          walletId: "new_wallet_123",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with only bucketId", async () => {
+        const result = await SavingsContributeUpdateSchema.safeParseAsync({
+          bucketId: "new_bucket_456",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with multiple fields", async () => {
+        const result = await SavingsContributeUpdateSchema.safeParseAsync({
+          amountIdr: 750000,
+          note: "Increased monthly savings",
+          occurredAt: new Date("2024-04-01"),
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject empty update with no fields", async () => {
+        const result = await SavingsContributeUpdateSchema.safeParseAsync({});
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject negative amounts", async () => {
+        const result = await SavingsContributeUpdateSchema.safeParseAsync({
+          amountIdr: -25000,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject empty bucketId string", async () => {
+        const result = await SavingsContributeUpdateSchema.safeParseAsync({
+          bucketId: "",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should allow null note", async () => {
+        const result = await SavingsContributeUpdateSchema.safeParseAsync({
+          note: null,
+        });
+        expect(result.success).toBe(true);
+      });
+    });
+
+    describe("SavingsWithdrawUpdateSchema", () => {
+      it("should be defined", () => {
+        expect(SavingsWithdrawUpdateSchema).toBeDefined();
+      });
+
+      it("should validate partial update with only amount", async () => {
+        const result = await SavingsWithdrawUpdateSchema.safeParseAsync({
+          amountIdr: 100000,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with only walletId", async () => {
+        const result = await SavingsWithdrawUpdateSchema.safeParseAsync({
+          walletId: "new_wallet_789",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with only bucketId", async () => {
+        const result = await SavingsWithdrawUpdateSchema.safeParseAsync({
+          bucketId: "new_bucket_012",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should validate partial update with multiple fields", async () => {
+        const result = await SavingsWithdrawUpdateSchema.safeParseAsync({
+          amountIdr: 150000,
+          note: "Updated withdrawal",
+          occurredAt: new Date("2024-05-01"),
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject empty update with no fields", async () => {
+        const result = await SavingsWithdrawUpdateSchema.safeParseAsync({});
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject negative amounts", async () => {
+        const result = await SavingsWithdrawUpdateSchema.safeParseAsync({
+          amountIdr: -50000,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject empty walletId string", async () => {
+        const result = await SavingsWithdrawUpdateSchema.safeParseAsync({
+          walletId: "",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should allow null note", async () => {
+        const result = await SavingsWithdrawUpdateSchema.safeParseAsync({
+          note: null,
+        });
+        expect(result.success).toBe(true);
+      });
     });
   });
 });

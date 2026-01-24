@@ -213,6 +213,215 @@ export const SavingsWithdrawSchema = z.object({
   idempotencyKey: z.string().max(36).optional(),
 });
 
+// Update schemas for editing existing transactions
+// All fields are optional to allow partial updates
+
+export const ExpenseUpdateSchema = z
+  .object({
+    occurredAt: z.coerce.date().optional(),
+    walletId: z
+      .string()
+      .min(1, "Wallet ID cannot be empty")
+      .max(50, "Wallet ID too long")
+      .optional(),
+    categoryId: z
+      .string()
+      .min(1, "Category ID cannot be empty")
+      .max(50, "Category ID too long")
+      .optional(),
+    amountIdr: z
+      .number()
+      .int()
+      .min(100, "Amount must be at least 100 IDR (100 Rupiah)")
+      .positive("Amount must be positive (greater than 0)")
+      .optional(),
+    note: z.string().nullable().optional(),
+  })
+  .refine(
+    (data) => {
+      // At least one field must be provided for an update
+      return Object.values(data).some((v) => v !== undefined);
+    },
+    {
+      message: "At least one field must be provided for update",
+    },
+  )
+  .refine(
+    async (data) => {
+      // Only validate category if it's being updated
+      if (!data.categoryId) {
+        return true;
+      }
+      const category = await getCategoryById(data.categoryId);
+      if (!category) {
+        return false;
+      }
+      return category.type === "expense";
+    },
+    {
+      message:
+        "Category must be an expense category. Income categories cannot be used for expenses.",
+      path: ["categoryId"],
+    },
+  );
+
+export const IncomeUpdateSchema = z
+  .object({
+    occurredAt: z.coerce.date().optional(),
+    walletId: z
+      .string()
+      .min(1, "Wallet ID cannot be empty")
+      .max(50, "Wallet ID too long")
+      .optional(),
+    categoryId: z
+      .string()
+      .min(1, "Category ID cannot be empty")
+      .max(50, "Category ID too long")
+      .nullable()
+      .optional(),
+    amountIdr: z
+      .number()
+      .int()
+      .min(100, "Amount must be at least 100 IDR (100 Rupiah)")
+      .positive("Amount must be positive (greater than 0)")
+      .optional(),
+    note: z.string().nullable().optional(),
+    payee: z.string().nullable().optional(),
+  })
+  .refine(
+    (data) => {
+      // At least one field must be provided for an update
+      return Object.values(data).some((v) => v !== undefined);
+    },
+    {
+      message: "At least one field must be provided for update",
+    },
+  )
+  .refine(
+    async (data) => {
+      // Only validate category if it's being updated and not null
+      if (data.categoryId === undefined || data.categoryId === null) {
+        return true;
+      }
+      const category = await getCategoryById(data.categoryId);
+      if (!category) {
+        return false;
+      }
+      return category.type === "income";
+    },
+    {
+      message:
+        "Category must be an income category. Expense categories cannot be used for income.",
+      path: ["categoryId"],
+    },
+  );
+
+export const TransferUpdateSchema = z
+  .object({
+    occurredAt: z.coerce.date().optional(),
+    fromWalletId: z
+      .string()
+      .min(1, "From wallet ID cannot be empty")
+      .max(50, "From wallet ID too long")
+      .optional(),
+    toWalletId: z
+      .string()
+      .min(1, "To wallet ID cannot be empty")
+      .max(50, "To wallet ID too long")
+      .optional(),
+    amountIdr: z
+      .number()
+      .int()
+      .min(100, "Amount must be at least 100 IDR (1 Rupiah)")
+      .positive("Amount must be positive (greater than 0)")
+      .optional(),
+    note: z.string().nullable().optional(),
+  })
+  .refine(
+    (data) => {
+      // At least one field must be provided for an update
+      return Object.values(data).some((v) => v !== undefined);
+    },
+    {
+      message: "At least one field must be provided for update",
+    },
+  )
+  .refine(
+    (data) => {
+      // If both wallets are provided, they must be different
+      if (data.fromWalletId && data.toWalletId) {
+        return data.fromWalletId !== data.toWalletId;
+      }
+      return true;
+    },
+    {
+      message: "From and to wallets must be different",
+      path: ["toWalletId"],
+    },
+  );
+
+export const SavingsContributeUpdateSchema = z
+  .object({
+    occurredAt: z.coerce.date().optional(),
+    walletId: z
+      .string()
+      .min(1, "Wallet ID cannot be empty")
+      .max(50, "Wallet ID too long")
+      .optional(),
+    bucketId: z
+      .string()
+      .min(1, "Bucket ID cannot be empty")
+      .max(50, "Bucket ID too long")
+      .optional(),
+    amountIdr: z
+      .number()
+      .int()
+      .min(100, "Amount must be at least 100 IDR (1 Rupiah)")
+      .positive("Amount must be positive (greater than 0)")
+      .optional(),
+    note: z.string().nullable().optional(),
+  })
+  .refine(
+    (data) => {
+      // At least one field must be provided for an update
+      return Object.values(data).some((v) => v !== undefined);
+    },
+    {
+      message: "At least one field must be provided for update",
+    },
+  );
+
+export const SavingsWithdrawUpdateSchema = z
+  .object({
+    occurredAt: z.coerce.date().optional(),
+    walletId: z
+      .string()
+      .min(1, "Wallet ID cannot be empty")
+      .max(50, "Wallet ID too long")
+      .optional(),
+    bucketId: z
+      .string()
+      .min(1, "Bucket ID cannot be empty")
+      .max(50, "Bucket ID too long")
+      .optional(),
+    amountIdr: z
+      .number()
+      .int()
+      .min(100, "Amount must be at least 100 IDR (1 Rupiah)")
+      .positive("Amount must be positive (greater than 0)")
+      .optional(),
+    note: z.string().nullable().optional(),
+  })
+  .refine(
+    (data) => {
+      // At least one field must be provided for an update
+      return Object.values(data).some((v) => v !== undefined);
+    },
+    {
+      message: "At least one field must be provided for update",
+    },
+  );
+
 export const TransactionListQuerySchema = z.object({
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
@@ -263,4 +472,15 @@ export type TransactionListQueryInput = z.infer<
 export type TransactionIdInput = z.infer<typeof TransactionIdSchema>;
 export type BulkDeleteTransactionsInput = z.infer<
   typeof BulkDeleteTransactionsSchema
+>;
+
+// Update input types
+export type ExpenseUpdateInput = z.infer<typeof ExpenseUpdateSchema>;
+export type IncomeUpdateInput = z.infer<typeof IncomeUpdateSchema>;
+export type TransferUpdateInput = z.infer<typeof TransferUpdateSchema>;
+export type SavingsContributeUpdateInput = z.infer<
+  typeof SavingsContributeUpdateSchema
+>;
+export type SavingsWithdrawUpdateInput = z.infer<
+  typeof SavingsWithdrawUpdateSchema
 >;

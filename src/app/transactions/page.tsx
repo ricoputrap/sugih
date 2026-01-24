@@ -31,12 +31,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TransactionTable } from "@/modules/Transaction/components/TransactionTable";
 import { AddTransactionDialog } from "@/modules/Transaction/components/AddTransactionDialog";
+import { EditTransactionDialog } from "@/modules/Transaction/components/EditTransactionDialog";
 import { toast } from "sonner";
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [transactionToEdit, setTransactionToEdit] = useState<any>(null);
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<
     string[]
   >([]);
@@ -128,6 +131,12 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchTransactions();
   }, [typeFilter, walletFilter, categoryFilter, fromDate, toDate]);
+
+  // Handle edit transaction
+  const handleEdit = (transaction: any) => {
+    setTransactionToEdit(transaction);
+    setIsEditDialogOpen(true);
+  };
 
   // Handle delete transaction
   const handleDelete = async (id: string) => {
@@ -430,6 +439,7 @@ export default function TransactionsPage() {
           <TransactionTable
             transactions={transactions}
             isLoading={isLoading}
+            onEdit={handleEdit}
             onDelete={handleDelete}
             onBulkDelete={handleBulkDelete}
             selectedIds={selectedTransactionIds}
@@ -446,6 +456,26 @@ export default function TransactionsPage() {
           toast.success("Transaction created successfully");
           fetchTransactions();
         }}
+        wallets={wallets}
+        categories={categories}
+        savingsBuckets={savingsBuckets}
+      />
+
+      {/* Edit Transaction Dialog */}
+      <EditTransactionDialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            setTransactionToEdit(null);
+          }
+        }}
+        onSuccess={() => {
+          toast.success("Transaction updated successfully");
+          fetchTransactions();
+          setTransactionToEdit(null);
+        }}
+        transaction={transactionToEdit}
         wallets={wallets}
         categories={categories}
         savingsBuckets={savingsBuckets}

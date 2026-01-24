@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -55,6 +55,7 @@ interface Transaction {
 interface TransactionTableProps {
   transactions: Transaction[];
   isLoading?: boolean;
+  onEdit?: (transaction: Transaction) => void;
   onDelete?: (id: string) => void;
   onBulkDelete?: (ids: string[]) => void;
   selectedIds?: string[];
@@ -80,6 +81,7 @@ const typeLabels: Record<Transaction["type"], string> = {
 export function TransactionTable({
   transactions,
   isLoading,
+  onEdit,
   onDelete,
   onBulkDelete,
   selectedIds: externalSelectedIds,
@@ -251,6 +253,10 @@ export function TransactionTable({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onEdit?.(transaction)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => onDelete?.(transaction.id)}
                       className="text-red-600"

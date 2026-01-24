@@ -7,6 +7,11 @@ vi.mock("@/modules/Transaction/actions", () => ({
   deleteTransaction: vi.fn(),
   restoreTransaction: vi.fn(),
   permanentlyDeleteTransaction: vi.fn(),
+  updateExpense: vi.fn(),
+  updateIncome: vi.fn(),
+  updateTransfer: vi.fn(),
+  updateSavingsContribution: vi.fn(),
+  updateSavingsWithdrawal: vi.fn(),
 }));
 
 // Mock the database client
@@ -47,18 +52,10 @@ vi.mock("@/lib/http", () => ({
   ),
   unprocessableEntity: vi.fn(
     (message, issues) =>
-      ({
+      new Response(JSON.stringify({ error: { message, issues } }), {
         status: 422,
-        statusText: "",
-        headers: { "content-type": "application/json" },
-        body: { error: { message, issues } },
-        bodyUsed: false,
-        ok: false,
-        redirected: false,
-        type: "default",
-        url: "",
-        json: () => Promise.resolve({ error: { message, issues } }),
-      }) as any,
+        headers: { "Content-Type": "application/json" },
+      }),
   ),
   serverError: vi.fn(
     (message, details) =>
@@ -69,26 +66,38 @@ vi.mock("@/lib/http", () => ({
   ),
 }));
 
-import { GET, DELETE } from "./route";
+import { GET, DELETE, PUT } from "./route";
 
 import {
   getTransactionById,
   deleteTransaction,
   restoreTransaction,
   permanentlyDeleteTransaction,
+  updateExpense,
+  updateIncome,
+  updateTransfer,
+  updateSavingsContribution,
+  updateSavingsWithdrawal,
 } from "@/modules/Transaction/actions";
 
 // Helper to create mock NextRequest
 function createMockRequest(
   method: string,
   url: string = "http://localhost:3000/api/transactions/txn1",
+  body?: any,
 ): NextRequest {
-  return new NextRequest(url, {
+  const options: RequestInit = {
     method,
     headers: {
       "Content-Type": "application/json",
     },
-  });
+  };
+
+  if (body !== undefined) {
+    options.body = JSON.stringify(body);
+  }
+
+  return new NextRequest(url, options);
 }
 
 // Helper to create mock params
@@ -650,6 +659,421 @@ describe("Transactions [id] API Routes", () => {
 
         const responseData = await response.json();
         expect(responseData.error.message).toBe("Custom error");
+      });
+    });
+  });
+
+  describe("PUT /api/transactions/[id]", () => {
+    describe("expense updates", () => {
+      it("should update an expense transaction", async () => {
+        const updatedExpense = {
+          ...mockExpenseTransaction,
+          note: "Updated expense note",
+          postings: [
+            { ...mockExpenseTransaction.postings[0], amount_idr: -75000 },
+          ],
+        };
+
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockExpenseTransaction as any,
+        );
+        vi.mocked(updateExpense).mockResolvedValue(updatedExpense as any);
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn1",
+          { amountIdr: 75000, note: "Updated expense note" },
+        );
+        const response = await PUT(request, createMockParams("txn1"));
+        const { status, data } = await parseResponse(response);
+
+        expect(status).toBe(200);
+        expect(updateExpense).toHaveBeenCalledWith("txn1", {
+          amountIdr: 75000,
+          note: "Updated expense note",
+        });
+      });
+
+      it("should update expense amount only", async () => {
+        const updatedExpense = {
+          ...mockExpenseTransaction,
+          postings: [
+            { ...mockExpenseTransaction.postings[0], amount_idr: -100000 },
+          ],
+        };
+
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockExpenseTransaction as any,
+        );
+        vi.mocked(updateExpense).mockResolvedValue(updatedExpense as any);
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn1",
+          { amountIdr: 100000 },
+        );
+        const response = await PUT(request, createMockParams("txn1"));
+        const { status } = await parseResponse(response);
+
+        expect(status).toBe(200);
+        expect(updateExpense).toHaveBeenCalledWith("txn1", {
+          amountIdr: 100000,
+        });
+      });
+    });
+
+    describe("income updates", () => {
+      it("should update an income transaction", async () => {
+        const updatedIncome = {
+          ...mockIncomeTransaction,
+          payee: "New Employer",
+        };
+
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockIncomeTransaction as any,
+        );
+        vi.mocked(updateIncome).mockResolvedValue(updatedIncome as any);
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn2",
+          { payee: "New Employer" },
+        );
+        const response = await PUT(request, createMockParams("txn2"));
+        const { status } = await parseResponse(response);
+
+        expect(status).toBe(200);
+        expect(updateIncome).toHaveBeenCalledWith("txn2", {
+          payee: "New Employer",
+        });
+      });
+
+      it("should allow setting categoryId to null for income", async () => {
+        const updatedIncome = {
+          ...mockIncomeTransaction,
+          category_id: null,
+        };
+
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockIncomeTransaction as any,
+        );
+        vi.mocked(updateIncome).mockResolvedValue(updatedIncome as any);
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn2",
+          { categoryId: null },
+        );
+        const response = await PUT(request, createMockParams("txn2"));
+        const { status } = await parseResponse(response);
+
+        expect(status).toBe(200);
+        expect(updateIncome).toHaveBeenCalledWith("txn2", { categoryId: null });
+      });
+    });
+
+    describe("transfer updates", () => {
+      it("should update a transfer transaction", async () => {
+        const updatedTransfer = {
+          ...mockTransferTransaction,
+          note: "Updated transfer",
+        };
+
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockTransferTransaction as any,
+        );
+        vi.mocked(updateTransfer).mockResolvedValue(updatedTransfer as any);
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn3",
+          { amountIdr: 200000, note: "Updated transfer" },
+        );
+        const response = await PUT(request, createMockParams("txn3"));
+        const { status } = await parseResponse(response);
+
+        expect(status).toBe(200);
+        expect(updateTransfer).toHaveBeenCalledWith("txn3", {
+          amountIdr: 200000,
+          note: "Updated transfer",
+        });
+      });
+    });
+
+    describe("savings contribution updates", () => {
+      it("should update a savings contribution transaction", async () => {
+        const mockSavingsContribution = {
+          id: "txn_savings_contrib",
+          occurred_at: new Date("2024-01-15T10:00:00Z"),
+          type: "savings_contribution" as const,
+          note: "Monthly savings",
+          payee: null,
+          category_id: null,
+          deleted_at: null,
+          created_at: new Date("2024-01-15T10:00:00Z"),
+          updated_at: new Date("2024-01-15T10:00:00Z"),
+          idempotency_key: null,
+          postings: [
+            {
+              id: "p1",
+              event_id: "txn_savings_contrib",
+              wallet_id: "wallet1",
+              savings_bucket_id: null,
+              amount_idr: -500000,
+              created_at: new Date(),
+            },
+            {
+              id: "p2",
+              event_id: "txn_savings_contrib",
+              wallet_id: null,
+              savings_bucket_id: "bucket1",
+              amount_idr: 500000,
+              created_at: new Date(),
+            },
+          ],
+        };
+
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockSavingsContribution as any,
+        );
+        vi.mocked(updateSavingsContribution).mockResolvedValue({
+          ...mockSavingsContribution,
+          note: "Updated savings",
+        } as any);
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn_savings_contrib",
+          { amountIdr: 750000, note: "Updated savings" },
+        );
+        const response = await PUT(
+          request,
+          createMockParams("txn_savings_contrib"),
+        );
+        const { status } = await parseResponse(response);
+
+        expect(status).toBe(200);
+        expect(updateSavingsContribution).toHaveBeenCalledWith(
+          "txn_savings_contrib",
+          {
+            amountIdr: 750000,
+            note: "Updated savings",
+          },
+        );
+      });
+    });
+
+    describe("savings withdrawal updates", () => {
+      it("should update a savings withdrawal transaction", async () => {
+        const mockSavingsWithdrawal = {
+          id: "txn_savings_withdraw",
+          occurred_at: new Date("2024-01-20T10:00:00Z"),
+          type: "savings_withdrawal" as const,
+          note: "Emergency withdrawal",
+          payee: null,
+          category_id: null,
+          deleted_at: null,
+          created_at: new Date("2024-01-20T10:00:00Z"),
+          updated_at: new Date("2024-01-20T10:00:00Z"),
+          idempotency_key: null,
+          postings: [
+            {
+              id: "p1",
+              event_id: "txn_savings_withdraw",
+              wallet_id: null,
+              savings_bucket_id: "bucket1",
+              amount_idr: -200000,
+              created_at: new Date(),
+            },
+            {
+              id: "p2",
+              event_id: "txn_savings_withdraw",
+              wallet_id: "wallet1",
+              savings_bucket_id: null,
+              amount_idr: 200000,
+              created_at: new Date(),
+            },
+          ],
+        };
+
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockSavingsWithdrawal as any,
+        );
+        vi.mocked(updateSavingsWithdrawal).mockResolvedValue({
+          ...mockSavingsWithdrawal,
+          note: "Updated withdrawal",
+        } as any);
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn_savings_withdraw",
+          { amountIdr: 300000 },
+        );
+        const response = await PUT(
+          request,
+          createMockParams("txn_savings_withdraw"),
+        );
+        const { status } = await parseResponse(response);
+
+        expect(status).toBe(200);
+        expect(updateSavingsWithdrawal).toHaveBeenCalledWith(
+          "txn_savings_withdraw",
+          {
+            amountIdr: 300000,
+          },
+        );
+      });
+    });
+
+    describe("error handling", () => {
+      it("should return 404 when transaction not found", async () => {
+        vi.mocked(getTransactionById).mockResolvedValue(null);
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/nonexistent",
+          { amountIdr: 50000 },
+        );
+        const response = await PUT(request, createMockParams("nonexistent"));
+        const { status, data } = await parseResponse(response);
+
+        expect(status).toBe(404);
+        expect(data.error.message).toBe("Transaction not found");
+      });
+
+      it("should return 409 when transaction is deleted", async () => {
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockDeletedTransaction as any,
+        );
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/deleted_txn",
+          { amountIdr: 50000 },
+        );
+        const response = await PUT(request, createMockParams("deleted_txn"));
+        const { status, data } = await parseResponse(response);
+
+        expect(status).toBe(409);
+        expect(data.error.message).toBe("Cannot update a deleted transaction");
+      });
+
+      it("should return 400 when trying to change transaction type", async () => {
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockExpenseTransaction as any,
+        );
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn1",
+          { type: "income", amountIdr: 50000 },
+        );
+        const response = await PUT(request, createMockParams("txn1"));
+        const { status, data } = await parseResponse(response);
+
+        expect(status).toBe(400);
+        expect(data.error.message).toContain(
+          "Transaction type cannot be changed",
+        );
+      });
+
+      it("should return 400 for invalid JSON body", async () => {
+        const request = new NextRequest(
+          "http://localhost:3000/api/transactions/txn1",
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: "invalid json{",
+          },
+        );
+        const response = await PUT(request, createMockParams("txn1"));
+        const { status, data } = await parseResponse(response);
+
+        expect(status).toBe(400);
+        expect(data.error.message).toBe("Invalid JSON body");
+      });
+
+      it("should return 422 when wallet not found or archived", async () => {
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockExpenseTransaction as any,
+        );
+        vi.mocked(updateExpense).mockRejectedValue(
+          new Error("Wallet not found or archived"),
+        );
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn1",
+          { walletId: "nonexistent_wallet" },
+        );
+        const response = await PUT(request, createMockParams("txn1"));
+        const { status, data } = await parseResponse(response);
+
+        expect(status).toBe(422);
+        expect(data.error.message).toBe("Wallet not found or archived");
+      });
+
+      it("should return 422 when transfer wallets must be different", async () => {
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockTransferTransaction as any,
+        );
+        vi.mocked(updateTransfer).mockRejectedValue(
+          new Error("From and to wallets must be different"),
+        );
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn3",
+          { toWalletId: "wallet1" },
+        );
+        const response = await PUT(request, createMockParams("txn3"));
+        const { status, data } = await parseResponse(response);
+
+        expect(status).toBe(422);
+        expect(data.error.message).toBe(
+          "From and to wallets must be different",
+        );
+      });
+
+      it("should return 500 on database error", async () => {
+        const pgError = {
+          code: "42P01",
+          message: "relation does not exist",
+        };
+
+        vi.mocked(getTransactionById).mockRejectedValue(pgError);
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn1",
+          { amountIdr: 50000 },
+        );
+        const response = await PUT(request, createMockParams("txn1"));
+        const { status, data } = await parseResponse(response);
+
+        expect(status).toBe(500);
+        expect(data.error.message).toBe("Database error");
+      });
+
+      it("should handle Response object errors", async () => {
+        const responseError = new Response(
+          JSON.stringify({ error: { message: "Validation failed" } }),
+          { status: 422 },
+        );
+
+        vi.mocked(getTransactionById).mockResolvedValue(
+          mockExpenseTransaction as any,
+        );
+        vi.mocked(updateExpense).mockRejectedValue(responseError);
+
+        const request = createMockRequest(
+          "PUT",
+          "http://localhost:3000/api/transactions/txn1",
+          { amountIdr: 50000 },
+        );
+        const response = await PUT(request, createMockParams("txn1"));
+
+        expect(response.status).toBe(422);
       });
     });
   });
