@@ -36,6 +36,9 @@ describe("Transaction Integration Tests", () => {
   let testExpenseCategoryId: string;
   let testBucketId: string;
   const testTransactionIds: string[] = [];
+  const testWalletIds: string[] = [];
+  const testCategoryIds: string[] = [];
+  const testBucketIds: string[] = [];
 
   /**
    * Helper function to track transaction creation and ensure cleanup
@@ -44,6 +47,30 @@ describe("Transaction Integration Tests", () => {
   const trackTransaction = (transaction: { id: string }) => {
     testTransactionIds.push(transaction.id);
     return transaction;
+  };
+
+  /**
+   * Helper to track extra wallets created in tests
+   */
+  const trackWallet = (wallet: { id: string }) => {
+    testWalletIds.push(wallet.id);
+    return wallet;
+  };
+
+  /**
+   * Helper to track extra categories created in tests
+   */
+  const trackCategory = (category: { id: string }) => {
+    testCategoryIds.push(category.id);
+    return category;
+  };
+
+  /**
+   * Helper to track extra buckets created in tests
+   */
+  const trackBucket = (bucket: { id: string }) => {
+    testBucketIds.push(bucket.id);
+    return bucket;
   };
 
   beforeEach(async () => {
@@ -110,6 +137,38 @@ describe("Transaction Integration Tests", () => {
     } catch (error) {
       console.error("Failed to cleanup postings:", error);
     }
+
+    // Clean up extra wallets created in tests
+    for (const id of testWalletIds) {
+      try {
+        await db.delete(postings).where(eq(postings.wallet_id, id));
+        await deleteWallet(id);
+      } catch (error) {
+        console.error("Failed to cleanup extra wallet:", error);
+      }
+    }
+    testWalletIds.length = 0;
+
+    // Clean up extra categories created in tests
+    for (const id of testCategoryIds) {
+      try {
+        await deleteCategory(id);
+      } catch (error) {
+        console.error("Failed to cleanup extra category:", error);
+      }
+    }
+    testCategoryIds.length = 0;
+
+    // Clean up extra buckets created in tests
+    for (const id of testBucketIds) {
+      try {
+        await db.delete(postings).where(eq(postings.savings_bucket_id, id));
+        await deleteSavingsBucket(id);
+      } catch (error) {
+        console.error("Failed to cleanup extra bucket:", error);
+      }
+    }
+    testBucketIds.length = 0;
 
     // Clean up test data (ignore errors if already deleted)
     try {
@@ -1129,20 +1188,18 @@ describe("Transaction Integration Tests", () => {
       );
 
       // Create another expense category
-      const newCategory = await createCategory({
-        name: `New Expense Category ${nanoid()}`,
-        type: "expense",
+      const newCategory = trackCategory(
+        await createCategory({
+          name: `New Expense Category ${nanoid()}`,
+          type: "expense",
+        }),
+      );
+
+      const updated = await updateExpense(expense.id, {
+        categoryId: newCategory.id,
       });
 
-      try {
-        const updated = await updateExpense(expense.id, {
-          categoryId: newCategory.id,
-        });
-
-        expect(updated.category_id).toBe(newCategory.id);
-      } finally {
-        await deleteCategory(newCategory.id);
-      }
+      expect(updated.category_id).toBe(newCategory.id);
     });
 
     it("should reject update with non-existent transaction", async () => {
@@ -1394,10 +1451,12 @@ describe("Transaction Integration Tests", () => {
 
     it("should update transfer from wallet", async () => {
       // Create a third wallet for this test
-      const wallet3 = await createWallet({
-        name: `Transfer Test Wallet ${nanoid()}`,
-        type: "bank",
-      });
+      const wallet3 = trackWallet(
+        await createWallet({
+          name: `Transfer Test Wallet ${nanoid()}`,
+          type: "bank",
+        }),
+      );
 
       const transfer = trackTransaction(
         await createTransfer({
@@ -1416,16 +1475,15 @@ describe("Transaction Integration Tests", () => {
         (p) => Number(p.amount_idr) < 0,
       );
       expect(fromPosting?.wallet_id).toBe(wallet3.id);
-
-      // Note: wallet3 cleanup is skipped because transfer still references it
-      // The afterEach cleanup will handle the transaction cleanup
     });
 
     it("should update transfer to wallet", async () => {
-      const wallet3 = await createWallet({
-        name: `Transfer Test Wallet ${nanoid()}`,
-        type: "bank",
-      });
+      const wallet3 = trackWallet(
+        await createWallet({
+          name: `Transfer Test Wallet ${nanoid()}`,
+          type: "bank",
+        }),
+      );
 
       const transfer = trackTransaction(
         await createTransfer({
@@ -1442,9 +1500,6 @@ describe("Transaction Integration Tests", () => {
 
       const toPosting = updated.postings.find((p) => Number(p.amount_idr) > 0);
       expect(toPosting?.wallet_id).toBe(wallet3.id);
-
-      // Note: wallet3 cleanup is skipped because transfer still references it
-      // The afterEach cleanup will handle the transaction cleanup
     });
 
     it("should reject update making from and to wallet the same", async () => {
@@ -1550,9 +1605,11 @@ describe("Transaction Integration Tests", () => {
     });
 
     it("should update savings contribution bucket", async () => {
-      const bucket2 = await createSavingsBucket({
-        name: `Test Bucket 2 ${nanoid()}`,
-      });
+      const bucket2 = trackBucket(
+        await createSavingsBucket({
+          name: `Test Bucket 2 ${nanoid()}`,
+        }),
+      );
 
       const contribution = trackTransaction(
         await createSavingsContribution({
@@ -1569,9 +1626,6 @@ describe("Transaction Integration Tests", () => {
 
       const bucketPosting = updated.postings.find((p) => p.savings_bucket_id);
       expect(bucketPosting?.savings_bucket_id).toBe(bucket2.id);
-
-      // Note: bucket2 cleanup is skipped because contribution still references it
-      // The afterEach cleanup will handle the transaction cleanup
     });
 
     it("should reject update on non-savings-contribution transaction", async () => {
@@ -1662,9 +1716,11 @@ describe("Transaction Integration Tests", () => {
     });
 
     it("should update savings withdrawal bucket", async () => {
-      const bucket2 = await createSavingsBucket({
-        name: `Test Bucket 2 ${nanoid()}`,
-      });
+      const bucket2 = trackBucket(
+        await createSavingsBucket({
+          name: `Test Bucket 2 ${nanoid()}`,
+        }),
+      );
 
       const withdrawal = trackTransaction(
         await createSavingsWithdrawal({
@@ -1681,9 +1737,6 @@ describe("Transaction Integration Tests", () => {
 
       const bucketPosting = updated.postings.find((p) => p.savings_bucket_id);
       expect(bucketPosting?.savings_bucket_id).toBe(bucket2.id);
-
-      // Note: bucket2 cleanup is skipped because withdrawal still references it
-      // The afterEach cleanup will handle the transaction cleanup
     });
 
     it("should reject update on non-savings-withdrawal transaction", async () => {
