@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   BudgetMonthSchema,
   BudgetItemSchema,
@@ -44,14 +44,6 @@ const validBudgetQuery = {
 describe("Budget PostgreSQL Schema Validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default mock: return an expense category
-    mockGetCategoryById.mockResolvedValue({
-      id: "dQRS5HxkBo1FiMjh2LKmb",
-      name: "Test Category",
-      type: "expense",
-      created_at: new Date(),
-      updated_at: new Date(),
-    });
   });
 
   describe("Schema Structure", () => {
