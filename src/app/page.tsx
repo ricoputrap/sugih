@@ -2,149 +2,237 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  CategorySpendingAreaChart,
-  NetWorthTrendChart,
-  CategoryBreakdownChart,
+  DashboardKpiCards,
+  DashboardInsights,
+  CategoryBreakdownDoughnut,
+  LatestTransactionsTable,
 } from "@/modules/Dashboard/components";
+import { DashboardChartControls } from "@/modules/Dashboard/components/DashboardChartControls";
+import { ChartVariantToggle } from "@/modules/Dashboard/components/ChartVariantToggle";
 import type {
   CategorySpendingTrendChartData,
-  DashboardData,
-  DashboardDateRangeInput,
-  DashboardSummary,
-  DateRangePreset,
   NetWorthChartData,
-  PeriodGranularity,
+  CategoryBreakdownData,
+  RecentTransaction,
+  KpiCardData,
 } from "@/modules/Dashboard/schema";
+import type {
+  Period,
+  DateRangePreset,
+  ChartVariant,
+  InsightTab,
+} from "@/modules/Dashboard/types";
+
+// Temporary mock data for KPI cards until API is updated
+const mockKpiData: {
+  netWorth: KpiCardData;
+  moneyLeftToSpend: KpiCardData;
+  totalSpending: KpiCardData;
+  totalSavings: KpiCardData;
+} = {
+  netWorth: {
+    title: "Total Net Worth",
+    value: 0,
+    growth: {
+      value: 0,
+      label: "vs last month",
+      isPositive: false,
+      isNegative: false,
+      isNeutral: true,
+    },
+    period: "Current",
+  },
+  moneyLeftToSpend: {
+    title: "Money Left to Spend",
+    value: 0,
+    growth: {
+      value: 0,
+      label: "this month",
+      isPositive: false,
+      isNegative: false,
+      isNeutral: true,
+    },
+    period: "This month",
+  },
+  totalSpending: {
+    title: "Total Spending",
+    value: 0,
+    growth: {
+      value: 0,
+      label: "vs last month",
+      isPositive: false,
+      isNegative: false,
+      isNeutral: true,
+    },
+    period: "This month",
+  },
+  totalSavings: {
+    title: "Total Savings",
+    value: 0,
+    growth: {
+      value: 0,
+      label: "all time",
+      isPositive: false,
+      isNegative: false,
+      isNeutral: true,
+    },
+    period: "All time",
+  },
+};
 
 export default function DashboardPage() {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
-    null,
-  );
+  // Data state
   const [categorySpendingTrend, setCategorySpendingTrend] = useState<
     CategorySpendingTrendChartData[]
   >([]);
   const [netWorthTrend, setNetWorthTrend] = useState<NetWorthChartData[]>([]);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [categoryBreakdown, setCategoryBreakdown] = useState<{
+    expenses: CategoryBreakdownData[];
+    income: CategoryBreakdownData[];
+  }>({ expenses: [], income: [] });
+  const [recentTransactions, setRecentTransactions] = useState<
+    RecentTransaction[]
+  >([]);
+  const [kpiData, setKpiData] = useState(mockKpiData);
+
+  // UI state
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Date range state (default to last 30 days)
-  const [dateRange, setDateRange] = useState<DashboardDateRangeInput>({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-    to: new Date(),
-  });
-
-  // Category spending chart filter state
-  const [categoryPeriod, setCategoryPeriod] =
-    useState<PeriodGranularity>("week");
-  const [categoryDateRangePreset, setCategoryDateRangePreset] =
+  // Chart controls state
+  const [period, setPeriod] = useState<Period>("monthly");
+  const [dateRangePreset, setDateRangePreset] =
     useState<DateRangePreset>("last_3_months");
+  const [chartVariant, setChartVariant] = useState<ChartVariant>("line");
+  const [selectedInsightTab, setSelectedInsightTab] =
+    useState<InsightTab>("netWorth");
 
-  // Fetch dashboard data with optional category filters
-  const fetchData = useCallback(
-    async (filters?: {
-      period?: PeriodGranularity;
-      dateRangePreset?: DateRangePreset;
-    }) => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  // Category breakdown filters
+  const [categoryType, setCategoryType] = useState<"expense" | "income">(
+    "expense",
+  );
+  const [categoryDateRange, setCategoryDateRange] =
+    useState<DateRangePreset>("this_month");
 
-        // Build query parameters
-        const params = new URLSearchParams();
-        if (dateRange.from) {
-          params.set("from", dateRange.from.toISOString());
-        }
-        if (dateRange.to) {
-          params.set("to", dateRange.to.toISOString());
-        }
+  // Fetch dashboard data
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-        // Add category chart filters
-        if (filters?.period) {
-          params.set("categoryPeriod", filters.period);
-        }
-        if (filters?.dateRangePreset) {
-          params.set("categoryDateRangePreset", filters.dateRangePreset);
-        }
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.set("period", period);
+      params.set("dateRangePreset", dateRangePreset);
 
-        // Fetch data from API
-        const response = await fetch(`/api/dashboard?${params.toString()}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
+      // Fetch data from API
+      const response = await fetch(`/api/dashboard?${params.toString()}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const data = result.data;
+
+      // Update state with API data
+      setCategorySpendingTrend(data.categorySpendingTrend || []);
+      setNetWorthTrend(data.netWorthTrend || []);
+      setRecentTransactions(data.recentTransactions || []);
+
+      // Map category breakdown
+      const expenses: CategoryBreakdownData[] =
+        data.categoryBreakdown
+          ?.filter((cat: CategoryBreakdownData) => cat.amount > 0)
+          .map((cat: CategoryBreakdownData) => ({
+            categoryId: cat.categoryId,
+            categoryName: cat.categoryName,
+            amount: cat.amount,
+            percentage: cat.percentage || 0,
+          })) || [];
+
+      setCategoryBreakdown({
+        expenses,
+        income: [], // TODO: Get income breakdown from API
+      });
+
+      // Update KPI data from summary if available
+      if (data.summary) {
+        setKpiData({
+          netWorth: {
+            title: "Total Net Worth",
+            value: data.summary.currentNetWorth || 0,
+            growth: {
+              value: 0,
+              label: "vs last month",
+              isPositive: false,
+              isNegative: false,
+              isNeutral: true,
+            },
+            period: "Current",
+          },
+          moneyLeftToSpend: {
+            title: "Money Left to Spend",
+            value: data.summary.moneyLeftToSpend || 0,
+            growth: {
+              value: 0,
+              label: "this month",
+              isPositive: false,
+              isNegative: false,
+              isNeutral: true,
+            },
+            period: "This month",
+          },
+          totalSpending: {
+            title: "Total Spending",
+            value: data.summary.totalSpending || 0,
+            growth: {
+              value: 0,
+              label: "vs last month",
+              isPositive: false,
+              isNegative: false,
+              isNeutral: true,
+            },
+            period: data.summary.period || "This month",
+          },
+          totalSavings: {
+            title: "Total Savings",
+            value: 0, // TODO: Get from API
+            growth: {
+              value: 0,
+              label: "all time",
+              isPositive: false,
+              isNegative: false,
+              isNeutral: true,
+            },
+            period: "All time",
           },
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        const data = result.data;
-
-        setDashboardData(data);
-        setCategorySpendingTrend(data.categorySpendingTrend || []);
-        setNetWorthTrend(data.netWorthTrend || []);
-        setSummary(data.summary);
-      } catch (err: unknown) {
-        console.error("Failed to fetch dashboard data:", err);
-        const message =
-          err instanceof Error ? err.message : "Failed to load dashboard data";
-        setError(message);
-      } finally {
-        setIsLoading(false);
       }
-    },
-    [dateRange],
-  );
+    } catch (err: unknown) {
+      console.error("Failed to fetch dashboard data:", err);
+      const message =
+        err instanceof Error ? err.message : "Failed to load dashboard data";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [period, dateRangePreset]);
 
-  // Handle category chart filter changes
-  const handleCategoryFilterChange = useCallback(
-    (params: {
-      period: PeriodGranularity;
-      dateRangePreset: DateRangePreset;
-    }) => {
-      setCategoryPeriod(params.period);
-      setCategoryDateRangePreset(params.dateRangePreset);
-      fetchData({
-        period: params.period,
-        dateRangePreset: params.dateRangePreset,
-      });
-    },
-    [fetchData],
-  );
-
-  // Fetch data on component mount and date range change
+  // Fetch data on mount and when filters change
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Format currency helper (fallback)
-  const formatCurrencyDisplay = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  // Handle date range changes
-  const _handleDateRangeChange = (newRange: DashboardDateRangeInput) => {
-    setDateRange(newRange);
-  };
-
   // Loading state
   if (isLoading) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
           <p className="text-muted-foreground">
@@ -152,51 +240,34 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Loading skeleton */}
+        {/* Loading KPI Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {["net-worth", "money-left", "total-spending", "total-income"].map(
-            (cardId) => (
-              <Card key={`skeleton-card-${cardId}`}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Loading...
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-8 w-20 bg-muted animate-pulse rounded mb-2" />
-                  <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-                </CardContent>
-              </Card>
-            ),
-          )}
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="rounded-lg border bg-card p-6 shadow-sm animate-pulse"
+            >
+              <div className="h-4 w-24 bg-muted rounded mb-3" />
+              <div className="h-8 w-32 bg-muted rounded mb-2" />
+              <div className="h-3 w-20 bg-muted rounded" />
+            </div>
+          ))}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Spending Trend</CardTitle>
-              <CardDescription>Loading spending data...</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[350px] flex items-center justify-center">
-              <div className="animate-pulse space-y-2 w-full">
-                <div className="h-4 w-24 bg-muted rounded mx-auto" />
-                <div className="h-40 w-full bg-muted rounded mt-4" />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Loading Insights */}
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <div className="h-[450px] flex items-center justify-center">
+            <div className="text-center space-y-2">
+              <div className="h-6 w-32 bg-muted rounded mx-auto animate-pulse" />
+              <div className="h-64 w-full bg-muted rounded animate-pulse mt-4" />
+            </div>
+          </div>
+        </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Net Worth Trend</CardTitle>
-              <CardDescription>Loading net worth data...</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[350px] flex items-center justify-center">
-              <div className="animate-pulse space-y-2 w-full">
-                <div className="h-4 w-24 bg-muted rounded mx-auto" />
-                <div className="h-40 w-full bg-muted rounded mt-4" />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Loading Third Row */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-lg border bg-card p-6 shadow-sm h-[400px] animate-pulse" />
+          <div className="rounded-lg border bg-card p-6 shadow-sm h-[400px] animate-pulse" />
         </div>
       </div>
     );
@@ -205,7 +276,7 @@ export default function DashboardPage() {
   // Error state
   if (error) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
           <p className="text-muted-foreground">
@@ -213,34 +284,26 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-destructive">
-              Error Loading Dashboard
-            </CardTitle>
-            <CardDescription>
-              There was an error loading your dashboard data.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">{error}</p>
-              <button
-                type="button"
-                onClick={() => fetchData()}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-              >
-                Try Again
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-lg border border-destructive bg-destructive/10 p-6">
+          <h3 className="text-lg font-semibold text-destructive mb-2">
+            Error Loading Dashboard
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">{error}</p>
+          <button
+            type="button"
+            onClick={() => fetchData()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 text-sm font-medium"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Header */}
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
         <p className="text-muted-foreground">
@@ -248,164 +311,75 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-sm font-medium">
-              Current Net Worth
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {summary
-                ? formatCurrencyDisplay(summary.currentNetWorth)
-                : "Rp 0"}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Wallets + Savings Buckets
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-sm font-medium">
-              Money Left to Spend
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {summary
-                ? formatCurrencyDisplay(summary.moneyLeftToSpend)
-                : "Rp 0"}
-            </div>
-            <p className="text-xs text-muted-foreground">This month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-sm font-medium">
-              Total Spending
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {summary ? formatCurrencyDisplay(summary.totalSpending) : "Rp 0"}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {summary ? summary.period : "This month"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {summary ? formatCurrencyDisplay(summary.totalIncome) : "Rp 0"}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {summary ? summary.period : "This month"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Category Spending Chart - Full Width */}
-      <CategorySpendingAreaChart
-        data={categorySpendingTrend}
-        isLoading={isLoading}
-        title="Category Spending Trends"
-        description="Track how spending in each category changes over time"
-        initialPeriod={categoryPeriod}
-        initialDateRangePreset={categoryDateRangePreset}
-        onFilterChange={handleCategoryFilterChange}
+      {/* KPI Cards */}
+      <DashboardKpiCards
+        netWorth={kpiData.netWorth}
+        moneyLeftToSpend={kpiData.moneyLeftToSpend}
+        totalSpending={kpiData.totalSpending}
+        totalSavings={kpiData.totalSavings}
       />
 
-      {/* Net Worth Chart */}
-      <NetWorthTrendChart
-        data={netWorthTrend}
-        isLoading={isLoading}
-        title="Net Worth Trend"
-        description="Your net worth progression over time"
-      />
-
-      {/* Category Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Category Breakdown</CardTitle>
-          <CardDescription>Spending by category this month</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <CategoryBreakdownChart
-            data={dashboardData?.categoryBreakdown}
-            formatCurrency={formatCurrencyDisplay}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Recent Transactions Preview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
-          <CardDescription>Your latest financial activity</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {dashboardData?.recentTransactions &&
-          dashboardData.recentTransactions.length > 0 ? (
-            <div className="space-y-4">
-              {dashboardData.recentTransactions.map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className="flex items-center justify-between border-b pb-3 last:border-b-0"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium capitalize">
-                        {transaction.type.replace("_", " ")}
-                      </span>
-                      {transaction.categoryName && (
-                        <span className="text-xs text-muted-foreground">
-                          • {transaction.categoryName}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(transaction.occurredAt).toLocaleDateString(
-                        "id-ID",
-                      )}
-                      {transaction.note && ` • ${transaction.note}`}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span
-                      className={`text-sm font-semibold ${
-                        transaction.type === "income"
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {transaction.type === "expense" ? "-" : "+"}
-                      {formatCurrencyDisplay(Math.abs(transaction.amount))}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-muted-foreground py-8">
-              <p className="text-sm">No transactions yet.</p>
-              <p className="text-xs mt-1">
-                Start by adding your first transaction.
+      {/* Financial Insights with Controls */}
+      <div className="rounded-lg border bg-card shadow-sm">
+        <div className="p-6 pb-0">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold">Financial Insights</h3>
+              <p className="text-sm text-muted-foreground">
+                Track your financial trends over time
               </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="flex items-center gap-3">
+              <ChartVariantToggle
+                value={chartVariant}
+                onChange={setChartVariant}
+              />
+            </div>
+          </div>
+
+          {/* Chart Controls */}
+          <div className="mb-4">
+            <DashboardChartControls
+              period={period}
+              dateRangePreset={dateRangePreset}
+              onPeriodChange={setPeriod}
+              onDateRangePresetChange={setDateRangePreset}
+            />
+          </div>
+        </div>
+
+        {/* Insights Charts with Tabs */}
+        <div className="px-6 pb-6">
+          <DashboardInsights
+            netWorthData={netWorthTrend}
+            spendingData={categorySpendingTrend}
+            incomeData={[]} // TODO: Get income data from API
+            savingsData={netWorthTrend} // Reuse for now
+            variant={chartVariant}
+            isLoading={isLoading}
+            defaultTab={selectedInsightTab}
+            onTabChange={setSelectedInsightTab}
+          />
+        </div>
+      </div>
+
+      {/* Third Row: Category Breakdown + Latest Transactions */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <CategoryBreakdownDoughnut
+          expenseData={categoryBreakdown.expenses}
+          incomeData={categoryBreakdown.income}
+          categoryType={categoryType}
+          dateRangePreset={categoryDateRange}
+          onCategoryTypeChange={setCategoryType}
+          onDateRangePresetChange={setCategoryDateRange}
+          isLoading={isLoading}
+        />
+
+        <LatestTransactionsTable
+          transactions={recentTransactions}
+          isLoading={isLoading}
+        />
+      </div>
     </div>
   );
 }
