@@ -11,9 +11,41 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
+import "@testing-library/jest-dom/vitest";
 import { DashboardRevampShell } from "./DashboardRevampShell";
+import type { CategoryBreakdownData, RecentTransaction } from "../schema";
 
 describe("DashboardRevampShell", () => {
+  const mockExpenseData: CategoryBreakdownData[] = [
+    { categoryId: "1", categoryName: "Food", amount: 500000, percentage: 50 },
+    {
+      categoryId: "2",
+      categoryName: "Transport",
+      amount: 300000,
+      percentage: 30,
+    },
+  ];
+
+  const mockIncomeData: CategoryBreakdownData[] = [
+    {
+      categoryId: "3",
+      categoryName: "Salary",
+      amount: 5000000,
+      percentage: 100,
+    },
+  ];
+
+  const mockTransactions: RecentTransaction[] = [
+    {
+      id: "1",
+      type: "expense",
+      amount: 50000,
+      occurredAt: new Date("2024-01-15T10:00:00Z"),
+      categoryName: "Food",
+      note: "Lunch",
+    },
+  ];
+
   it("renders the main shell container", () => {
     render(<DashboardRevampShell />);
 
@@ -44,7 +76,13 @@ describe("DashboardRevampShell", () => {
   });
 
   it("renders the third row section with category breakdown and transactions", () => {
-    render(<DashboardRevampShell />);
+    render(
+      <DashboardRevampShell
+        expenseData={mockExpenseData}
+        incomeData={mockIncomeData}
+        recentTransactions={mockTransactions}
+      />,
+    );
 
     const thirdRowSection = screen.getByTestId("third-row-section");
     expect(thirdRowSection).toBeInTheDocument();
@@ -73,5 +111,52 @@ describe("DashboardRevampShell", () => {
 
     const thirdRowSection = screen.getByTestId("third-row-section");
     expect(thirdRowSection).toHaveClass("grid", "gap-4", "md:grid-cols-2");
+  });
+
+  it("renders CategoryBreakdownDoughnut with correct props", () => {
+    render(
+      <DashboardRevampShell
+        expenseData={mockExpenseData}
+        incomeData={mockIncomeData}
+      />,
+    );
+
+    // CategoryBreakdownDoughnut should be rendered
+    expect(screen.getByText("Category Breakdown")).toBeInTheDocument();
+    expect(screen.getByLabelText("Select category type")).toBeInTheDocument();
+    expect(screen.getByLabelText("Select date range")).toBeInTheDocument();
+  });
+
+  it("renders LatestTransactionsTable with transactions data", () => {
+    render(<DashboardRevampShell recentTransactions={mockTransactions} />);
+
+    // LatestTransactionsTable should be rendered with data
+    expect(screen.getByText("Latest Transactions")).toBeInTheDocument();
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getByText("Food")).toBeInTheDocument();
+  });
+
+  it("passes loading state to child components", () => {
+    render(<DashboardRevampShell isLoading={true} />);
+
+    // Both components should show loading state
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.getByText("Loading transactions...")).toBeInTheDocument();
+  });
+
+  it("handles empty data gracefully", () => {
+    render(
+      <DashboardRevampShell
+        expenseData={[]}
+        incomeData={[]}
+        recentTransactions={[]}
+      />,
+    );
+
+    // Should show empty states
+    expect(
+      screen.getByText("No expense data for selected period"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("No transactions yet")).toBeInTheDocument();
   });
 });
