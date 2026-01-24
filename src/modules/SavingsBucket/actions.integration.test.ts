@@ -22,6 +22,9 @@ import { getPool, closeDb } from "@/db/drizzle-client";
 
 describe("Savings Bucket Integration Tests", () => {
   const testBucketIds: string[] = [];
+  const testEventIds: string[] = [];
+  const testPostingIds: string[] = [];
+  const testWalletIds: string[] = [];
 
   async function cleanupTestBucket(id: string) {
     const pool = getPool();
@@ -37,11 +40,61 @@ describe("Savings Bucket Integration Tests", () => {
     }
   }
 
+  async function cleanupTestEvent(id: string) {
+    const pool = getPool();
+    try {
+      // Clean up postings related to this event
+      await pool.query(`DELETE FROM postings WHERE event_id = $1`, [id]);
+      // Clean up transaction event
+      await pool.query(`DELETE FROM transaction_events WHERE id = $1`, [id]);
+    } catch (error) {
+      console.error("Cleanup error for event:", error);
+    }
+  }
+
+  async function cleanupTestWallet(id: string) {
+    const pool = getPool();
+    try {
+      // Clean up postings first
+      await pool.query(`DELETE FROM postings WHERE wallet_id = $1`, [id]);
+      // Clean up wallet
+      await pool.query(`DELETE FROM wallets WHERE id = $1`, [id]);
+    } catch (error) {
+      console.error("Cleanup error for wallet:", error);
+    }
+  }
+
   afterEach(async () => {
+    // Clean up postings first (they have foreign key references)
+    for (const id of testPostingIds) {
+      const pool = getPool();
+      try {
+        await pool.query(`DELETE FROM postings WHERE id = $1`, [id]);
+      } catch (error) {
+        console.error("Cleanup error for posting:", error);
+      }
+    }
+
+    // Clean up transaction events
+    for (const id of testEventIds) {
+      await cleanupTestEvent(id);
+    }
+
+    // Clean up savings buckets
     for (const id of testBucketIds) {
       await cleanupTestBucket(id);
     }
+
+    // Clean up test wallets (if any were created)
+    for (const id of testWalletIds) {
+      await cleanupTestWallet(id);
+    }
+
+    // Reset tracking arrays
     testBucketIds.length = 0;
+    testEventIds.length = 0;
+    testPostingIds.length = 0;
+    testWalletIds.length = 0;
   });
 
   afterAll(async () => {
@@ -256,10 +309,22 @@ describe("Savings Bucket Integration Tests", () => {
 
       // Create a posting for this bucket
       const pool = getPool();
-      const walletId = "cPRN4GwjAn0EhLig1KJla"; // Use existing wallet
+      const walletId = nanoid();
       const eventId = nanoid();
       const postingId = nanoid();
       const now = new Date();
+
+      // Track created IDs for cleanup
+      testWalletIds.push(walletId);
+      testEventIds.push(eventId);
+      testPostingIds.push(postingId);
+
+      // Create wallet first
+      await pool.query(
+        `INSERT INTO wallets (id, name, type, currency, archived, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [walletId, `Test Wallet ${nanoid()}`, "bank", "IDR", false, now, now],
+      );
 
       await pool.query(
         `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
@@ -301,12 +366,25 @@ describe("Savings Bucket Integration Tests", () => {
 
       // Create postings for this bucket
       const pool = getPool();
-      const walletId = "cPRN4GwjAn0EhLig1KJla"; // Use existing wallet
+      const walletId = nanoid();
       const now = new Date();
+
+      // Track IDs for cleanup
+      testWalletIds.push(walletId);
+
+      // Create wallet first
+      await pool.query(
+        `INSERT INTO wallets (id, name, type, currency, archived, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [walletId, `Test Wallet ${nanoid()}`, "bank", "IDR", false, now, now],
+      );
 
       // Income posting
       const eventId1 = nanoid();
       const postingId1 = nanoid();
+      testEventIds.push(eventId1);
+      testPostingIds.push(postingId1);
+
       await pool.query(
         `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
          VALUES ($1, $2, 'income', $3, $4)`,
@@ -321,6 +399,9 @@ describe("Savings Bucket Integration Tests", () => {
       // Expense posting
       const eventId2 = nanoid();
       const postingId2 = nanoid();
+      testEventIds.push(eventId2);
+      testPostingIds.push(postingId2);
+
       await pool.query(
         `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
          VALUES ($1, $2, 'expense', $3, $4)`,
@@ -347,10 +428,22 @@ describe("Savings Bucket Integration Tests", () => {
 
       // Create a deleted posting
       const pool = getPool();
-      const walletId = "cPRN4GwjAn0EhLig1KJla"; // Use existing wallet
+      const walletId = nanoid();
       const eventId = nanoid();
       const postingId = nanoid();
       const now = new Date();
+
+      // Track IDs for cleanup
+      testWalletIds.push(walletId);
+      testEventIds.push(eventId);
+      testPostingIds.push(postingId);
+
+      // Create wallet first
+      await pool.query(
+        `INSERT INTO wallets (id, name, type, currency, archived, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [walletId, `Test Wallet ${nanoid()}`, "bank", "IDR", false, now, now],
+      );
 
       await pool.query(
         `INSERT INTO transaction_events (id, occurred_at, type, deleted_at, created_at, updated_at)

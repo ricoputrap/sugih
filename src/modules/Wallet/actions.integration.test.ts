@@ -21,6 +21,8 @@ import { getPool, closeDb } from "@/db/drizzle-client";
 
 describe("Wallet Integration Tests", () => {
   const testWalletIds: string[] = [];
+  const testEventIds: string[] = [];
+  const testPostingIds: string[] = [];
 
   async function cleanupTestWallet(id: string) {
     const pool = getPool();
@@ -34,11 +36,27 @@ describe("Wallet Integration Tests", () => {
     }
   }
 
+  async function cleanupTestEvent(id: string) {
+    const pool = getPool();
+    try {
+      // Clean up postings related to this event
+      await pool.query(`DELETE FROM postings WHERE event_id = $1`, [id]);
+      // Clean up transaction event
+      await pool.query(`DELETE FROM transaction_events WHERE id = $1`, [id]);
+    } catch (error) {
+      console.error("Cleanup error for event:", error);
+    }
+  }
+
   async function createTestPosting(walletId: string, amount: number) {
     const pool = getPool();
     const eventId = nanoid();
     const postingId = nanoid();
     const now = new Date();
+
+    // Track IDs for cleanup
+    testEventIds.push(eventId);
+    testPostingIds.push(postingId);
 
     // Create transaction event
     await pool.query(
@@ -58,10 +76,30 @@ describe("Wallet Integration Tests", () => {
   }
 
   afterEach(async () => {
+    // Clean up postings first (they have foreign key references)
+    for (const id of testPostingIds) {
+      const pool = getPool();
+      try {
+        await pool.query(`DELETE FROM postings WHERE id = $1`, [id]);
+      } catch (error) {
+        console.error("Cleanup error for posting:", error);
+      }
+    }
+
+    // Clean up transaction events
+    for (const id of testEventIds) {
+      await cleanupTestEvent(id);
+    }
+
+    // Clean up wallets
     for (const id of testWalletIds) {
       await cleanupTestWallet(id);
     }
+
+    // Reset tracking arrays
     testWalletIds.length = 0;
+    testEventIds.length = 0;
+    testPostingIds.length = 0;
   });
 
   afterAll(async () => {
@@ -401,6 +439,8 @@ describe("Wallet Integration Tests", () => {
       const eventId = nanoid();
       const now = new Date();
 
+      testEventIds.push(eventId);
+
       await pool.query(
         `INSERT INTO transaction_events (id, occurred_at, type, deleted_at, created_at, updated_at)
          VALUES ($1, $2, 'expense', $3, $4, $5)`,
@@ -408,6 +448,8 @@ describe("Wallet Integration Tests", () => {
       );
 
       const postingId = nanoid();
+      testPostingIds.push(postingId);
+
       await pool.query(
         `INSERT INTO postings (id, event_id, wallet_id, amount_idr, created_at)
          VALUES ($1, $2, $3, $4, $5)`,
