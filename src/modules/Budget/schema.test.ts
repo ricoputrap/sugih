@@ -1,21 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
-  budgets,
   BudgetMonthSchema,
   BudgetItemSchema,
   BudgetUpsertSchema,
   BudgetQuerySchema,
   BudgetIdSchema,
 } from "./schema";
-
-// Mock the getCategoryById function
-vi.mock("@/modules/Category/actions", () => ({
-  getCategoryById: vi.fn(),
-}));
-
-import { getCategoryById } from "@/modules/Category/actions";
-
-const mockGetCategoryById = getCategoryById as ReturnType<typeof vi.fn>;
+import { budgets } from "./drizzle-schema";
 
 // Test data
 const validBudgetData = {

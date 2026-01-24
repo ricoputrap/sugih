@@ -35,7 +35,11 @@ export { resolveDateRange } from "./dateRange";
 export type { DateRange } from "./dateRange";
 
 // KPI utilities
-export { computeKpiSummary, formatGrowthLabel, computeGrowth } from "./kpis";
+export {
+  computeKpiSummary,
+  formatGrowthMetric,
+  computeGrowthPercentage,
+} from "./kpis";
 
 // Currency formatting (if exists, otherwise will be added)
 export function formatCurrency(value: number): string {

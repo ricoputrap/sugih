@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* Turbopack automatically respects 'use server' directives */
 };
 
 export default nextConfig;

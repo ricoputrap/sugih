@@ -153,7 +153,7 @@ export async function listTransactions(
       event_id: row.event_id as string,
       wallet_id: row.wallet_id as string | null,
       savings_bucket_id: row.savings_bucket_id as string | null,
-      amount_idr: row.amount_idr as bigint,
+      amount_idr: Number(row.amount_idr),
       created_at: row.created_at as Date,
       wallet_name: row.wallet_name as string | null,
       bucket_name: row.bucket_name as string | null,

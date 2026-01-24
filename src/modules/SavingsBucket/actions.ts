@@ -59,6 +59,7 @@ export async function getSavingsBucketById(
     archived: row.archived as boolean,
     created_at: row.created_at as Date | null,
     updated_at: row.updated_at as Date | null,
+    deleted_at: null,
   };
 }
 

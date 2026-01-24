@@ -195,8 +195,8 @@ export async function all<T = any>(
 ): Promise<T[]> {
   try {
     const pool = getPool();
-    const result = await pool.query<T>(sqlQuery, params);
-    return result.rows;
+    const result = await pool.query(sqlQuery, params);
+    return result.rows as T[];
   } catch (error) {
     console.error("Database query error (all):", {
       sql: sqlQuery,

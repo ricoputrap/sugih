@@ -1,3 +1,5 @@
+"use server";
+
 /**
  * Budget Actions
  *
@@ -158,7 +160,7 @@ export async function upsertBudgets(
     // Verify all categories exist and are not archived
     const categoryIds = validatedInput.items.map((item) => item.categoryId);
     const categoryCheck = await pool.query(
-      `SELECT id, name FROM categories WHERE id = ANY($1::text[]) AND archived = false`,
+      `SELECT id, name, type FROM categories WHERE id = ANY($1::text[]) AND archived = false`,
       [categoryIds],
     );
 
@@ -172,6 +174,16 @@ export async function upsertBudgets(
     if (missingCategories.length > 0) {
       throw new Error(
         `Categories not found or archived: ${missingCategories.join(", ")}`,
+      );
+    }
+
+    // Verify all categories are expense type
+    const incomeCategories = categoryCheck.rows.filter(
+      (c) => c.type !== "expense",
+    );
+    if (incomeCategories.length > 0) {
+      throw new Error(
+        `Budget categories must be expense type. Found income categories: ${incomeCategories.map((c) => c.name).join(", ")}`,
       );
     }
 

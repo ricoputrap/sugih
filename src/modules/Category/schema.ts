@@ -28,10 +28,12 @@ export const categories = pgTable("categories", {
 // Zod schemas for validation
 export const CategoryCreateSchema = z.object({
   name: z.string().min(1, "Name is required").max(255, "Name too long"),
-  type: z.enum(["income", "expense"], {
-    required_error: "Category type is required",
-    invalid_type_error: "Category type must be either 'income' or 'expense'",
-  }),
+  type: z
+    .enum(["income", "expense"])
+    .refine(
+      (val) => ["income", "expense"].includes(val),
+      "Category type must be either 'income' or 'expense'",
+    ),
 });
 
 export const CategoryUpdateSchema = z.object({
@@ -40,11 +42,7 @@ export const CategoryUpdateSchema = z.object({
     .min(1, "Name is required")
     .max(255, "Name too long")
     .optional(),
-  type: z
-    .enum(["income", "expense"], {
-      invalid_type_error: "Category type must be either 'income' or 'expense'",
-    })
-    .optional(),
+  type: z.enum(["income", "expense"]).optional(),
   archived: z.boolean().optional(),
 });
 

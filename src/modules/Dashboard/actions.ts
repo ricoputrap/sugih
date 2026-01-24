@@ -19,6 +19,7 @@ import { listTransactions } from "@/modules/Transaction/actions";
 import {
   type CategoryBreakdownData,
   type CategorySpendingTrendChartData,
+  type CategorySpendingTrendQueryInput,
   CategorySpendingTrendQuerySchema,
   type DashboardData,
   DashboardDateRangeSchema,
@@ -279,7 +280,7 @@ export async function getCategoryBreakdownData(
  * Formats data specifically for chart visualization with configurable granularity
  */
 export async function getCategorySpendingTrendChartData(
-  query: CategorySpendingTrendQueryInput = {},
+  query: Partial<CategorySpendingTrendQueryInput> = {},
 ): Promise<CategorySpendingTrendChartData[]> {
   try {
     const validatedQuery = CategorySpendingTrendQuerySchema.parse(query);
@@ -779,7 +780,7 @@ async function getIncomeTrendChartData(
  * Returns all data needed for the revamped dashboard with KPIs, growth metrics, and charts
  */
 export async function getDashboardRevampSummary(
-  query: DashboardRevampQueryInput = {},
+  query: Partial<DashboardRevampQueryInput> = {},
 ): Promise<DashboardRevampSummary> {
   try {
     const validatedQuery = DashboardRevampQuerySchema.parse(query);
