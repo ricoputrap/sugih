@@ -78,24 +78,40 @@ describe("Dashboard Integration Tests", () => {
   afterEach(async () => {
     const db = getDb();
 
-    // Clean up test transactions
-    for (const id of testTransactionIds) {
-      try {
-        await db.delete(postings).where(eq(postings.event_id, id));
-        await db.delete(transactionEvents).where(eq(transactionEvents.id, id));
-      } catch {}
-    }
-    testTransactionIds.length = 0;
-
-    // Clean up test data
     try {
+      // Delete all postings first (they reference transactions and wallets)
+      for (const id of testTransactionIds) {
+        await db.delete(postings).where(eq(postings.event_id, id));
+      }
+
+      // Delete all transaction events
+      for (const id of testTransactionIds) {
+        await db.delete(transactionEvents).where(eq(transactionEvents.id, id));
+      }
+      testTransactionIds.length = 0;
+
+      // Delete remaining postings associated with test wallets
       await db.delete(postings).where(eq(postings.wallet_id, testWalletId));
       await db.delete(postings).where(eq(postings.wallet_id, testWallet2Id));
+
+      // Delete postings associated with test savings bucket
+      await db
+        .delete(postings)
+        .where(eq(postings.savings_bucket_id, testBucketId));
+
+      // Delete wallets (this may cascade delete associated records)
       await deleteWallet(testWalletId);
       await deleteWallet(testWallet2Id);
+
+      // Delete category
       await deleteCategory(testCategoryId);
+
+      // Delete savings bucket
       await deleteSavingsBucket(testBucketId);
-    } catch {}
+    } catch (error) {
+      console.error("Error during test cleanup:", error);
+      throw error;
+    }
   });
 
   afterAll(async () => {
