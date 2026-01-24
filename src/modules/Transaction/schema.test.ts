@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   transactionEvents,
   postings,
@@ -111,6 +111,12 @@ describe("Transaction PostgreSQL Schema Validation", () => {
         updated_at: new Date(),
       };
     });
+  });
+
+  afterEach(() => {
+    // Clear all mocks after each test to ensure test isolation
+    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   describe("Schema Structure", () => {
