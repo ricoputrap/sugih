@@ -30,7 +30,7 @@ Revamp the dashboard to provide a concise overview of the user’s financial sit
 ### Step 1 — Baseline + wiring check (no functional changes)
 
 - [x] **Step 1**: Add a dashboard revamp "integration scaffolding" test that renders the dashboard route container (or dashboard module entry component) and asserts core sections exist (placeholders allowed).  
-      **AND** create/update a `DashboardRevampShell.test.tsx` near the dashboard entry component.
+       **AND** create/update a `DashboardRevampShell.test.tsx` near the dashboard entry component.
 
 **Proposed files (colocated)**
 
@@ -58,7 +58,7 @@ Revamp the dashboard to provide a concise overview of the user’s financial sit
 ### Step 3 — Date range resolution logic (preset → [from,to])
 
 - [x] **Step 3**: Implement a pure utility that converts `DateRangePreset` to `{ start: Date; end: Date }` (inclusive/exclusive documented) using `date-fns`, with deterministic "now" injection for testability.  
-      **AND** create unit tests for each preset (edge cases: month boundaries, year boundaries).
+       **AND** create unit tests for each preset (edge cases: month boundaries, year boundaries).
 
 **Proposed files**
 
@@ -119,7 +119,7 @@ Revamp the dashboard to provide a concise overview of the user’s financial sit
 ### Step 7 — UI: Top section cards (4 KPI cards)
 
 - [x] **Step 7**: Implement `DashboardKpiCards` component rendering the four cards with titles, values, and subtitle strings, using the action payload.  
-      **AND** add a component test verifying all titles render and values are formatted (mock payload).
+       **AND** add a component test verifying all titles render and values are formatted (mock payload).
 
 **Proposed files**
 
@@ -162,7 +162,7 @@ Revamp the dashboard to provide a concise overview of the user’s financial sit
 
 ### Step 10 — Net Worth Growth chart (multi-line + optional area)
 
-- [ ] **Step 10**: Implement `NetWorthGrowthChart` using Recharts:
+- [x] **Step 10**: Implement `NetWorthGrowthChart` using Recharts:
   - multiple lines per wallet + savings bucket
   - supports `ChartVariant` (line/area) via prop
   - uses period + range bucketing utilities
@@ -180,7 +180,7 @@ Revamp the dashboard to provide a concise overview of the user’s financial sit
 
 ### Step 11 — Spending Trends chart (category series)
 
-- [ ] **Step 11**: Implement `SpendingTrendsChart`:
+- [x] **Step 11**: Implement `SpendingTrendsChart`:
   - multiple series (each expense category)
   - period + range aware
   - supports ChartVariant  
@@ -197,7 +197,7 @@ Revamp the dashboard to provide a concise overview of the user’s financial sit
 
 ### Step 12 — Income Trends chart (category series)
 
-- [ ] **Step 12**: Implement `IncomeTrendsChart` analogous to spending.  
+- [x] **Step 12**: Implement `IncomeTrendsChart` analogous to spending.
       **AND** tests for shaping + component render.
 
 **Proposed files**
@@ -211,7 +211,7 @@ Revamp the dashboard to provide a concise overview of the user’s financial sit
 
 ### Step 13 — Savings Trends chart (bucket balances)
 
-- [ ] **Step 13**: Implement `SavingsTrendsChart`:
+- [x] **Step 13**: Implement `SavingsTrendsChart`:
   - series per savings bucket (balances)
   - period + range aware
   - supports ChartVariant  
@@ -228,8 +228,8 @@ Revamp the dashboard to provide a concise overview of the user’s financial sit
 
 ### Step 14 — Chart-type selector (line vs area)
 
-- [ ] **Step 14**: Add a chart-type selector control (if not existing) within the insights container, defaulting to line, with persistence per session (optional) via dashboard store.  
-      **AND** test that toggling changes rendered chart variant prop.
+- [x] **Step 14**: Add a chart-type selector control (if not existing) within the insights container, defaulting to line, with persistence per session (optional) via dashboard store.  
+       **AND** test that toggling changes rendered chart variant prop.
 
 **Proposed files**
 

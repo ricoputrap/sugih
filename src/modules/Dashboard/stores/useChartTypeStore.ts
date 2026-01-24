@@ -11,7 +11,7 @@ interface ChartTypeState {
 export const useChartTypeStore = create<ChartTypeState>()(
   persist(
     (set) => ({
-      chartType: "area",
+      chartType: "line",
       setChartType: (chartType) => set({ chartType }),
     }),
     {
