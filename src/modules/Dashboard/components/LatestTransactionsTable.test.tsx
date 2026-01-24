@@ -92,7 +92,9 @@ describe("LatestTransactionsTable", () => {
           id: String(i),
           type: "expense",
           amount: 10000 * (i + 1),
-          occurredAt: new Date(`2024-01-${i + 1}T10:00:00Z`),
+          occurredAt: new Date(
+            `2024-01-${String(i + 1).padStart(2, "0")}T10:00:00Z`,
+          ),
           categoryName: `Category ${i}`,
           note: `Note ${i}`,
         }),
@@ -246,8 +248,8 @@ describe("LatestTransactionsTable", () => {
 
       render(<LatestTransactionsTable transactions={transaction} />);
 
-      // Should format as IDR
-      expect(screen.getByText(/-Rp1\.500\.000/)).toBeInTheDocument();
+      // Should format as IDR with space separator (Rp 1.500.000)
+      expect(screen.getByText(/-Rp\s1\.500\.000/)).toBeInTheDocument();
     });
 
     it("should show minus sign for expenses", () => {
@@ -263,7 +265,7 @@ describe("LatestTransactionsTable", () => {
 
       render(<LatestTransactionsTable transactions={transaction} />);
 
-      expect(screen.getByText(/-Rp50\.000/)).toBeInTheDocument();
+      expect(screen.getByText(/-Rp\s50\.000/)).toBeInTheDocument();
     });
 
     it("should not show minus sign for income", () => {
@@ -280,7 +282,7 @@ describe("LatestTransactionsTable", () => {
       render(<LatestTransactionsTable transactions={transaction} />);
 
       // Should not have minus sign
-      const amountCell = screen.getByText(/Rp5\.000\.000/);
+      const amountCell = screen.getByText(/Rp\s5\.000\.000/);
       expect(amountCell.textContent).not.toContain("-");
     });
 

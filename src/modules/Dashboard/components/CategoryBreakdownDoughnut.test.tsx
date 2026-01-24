@@ -8,12 +8,33 @@
  * Tests for the category breakdown doughnut chart component with filters
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { CategoryBreakdownDoughnut } from "./CategoryBreakdownDoughnut";
 import type { CategoryBreakdownData } from "../schema";
+
+// Polyfill for pointer capture and scroll behavior in jsdom environment
+beforeAll(() => {
+  if (typeof Element !== "undefined") {
+    if (!Element.prototype.hasPointerCapture) {
+      Element.prototype.hasPointerCapture = vi.fn(() => false);
+      Element.prototype.setPointerCapture = vi.fn();
+      Element.prototype.releasePointerCapture = vi.fn();
+    }
+    if (!Element.prototype.scrollIntoView) {
+      Element.prototype.scrollIntoView = vi.fn();
+    }
+  }
+  // Mock HTMLElement scroll behavior
+  if (typeof HTMLElement !== "undefined") {
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    if (!HTMLElement.prototype.scroll) {
+      HTMLElement.prototype.scroll = vi.fn();
+    }
+  }
+});
 
 describe("CategoryBreakdownDoughnut", () => {
   const mockExpenseData: CategoryBreakdownData[] = [
@@ -71,7 +92,7 @@ describe("CategoryBreakdownDoughnut", () => {
       render(<CategoryBreakdownDoughnut expenseData={mockExpenseData} />);
 
       // Total should be 500000 + 300000 + 200000 = 1000000
-      expect(screen.getByText(/Rp1\.000\.000/)).toBeInTheDocument();
+      expect(screen.getByText(/Rp\s1\.000\.000/)).toBeInTheDocument();
     });
 
     it("should render filters in header", () => {
@@ -266,7 +287,13 @@ describe("CategoryBreakdownDoughnut", () => {
       render(<CategoryBreakdownDoughnut expenseData={dataWithZeros} />);
 
       // Total should only include Food (500000)
-      expect(screen.getByText(/Rp500\.000/)).toBeInTheDocument();
+      // Use a more specific selector to avoid matching legend items
+      const totalElement = screen.getByText((content, element) => {
+        return (
+          element?.tagName.toLowerCase() === "p" && /Rp\s500\.000/.test(content)
+        );
+      });
+      expect(totalElement).toBeInTheDocument();
     });
 
     it("should group small categories when maxCategories is exceeded", () => {
@@ -289,7 +316,13 @@ describe("CategoryBreakdownDoughnut", () => {
 
       // Should have 5 categories + Other group
       // Total = (10+9+8+7+6+5+4+3+2+1) * 100000 = 5500000
-      expect(screen.getByText(/Rp5\.500\.000/)).toBeInTheDocument();
+      const totalElement = screen.getByText((content, element) => {
+        return (
+          element?.tagName.toLowerCase() === "p" &&
+          /Rp\s5\.500\.000/.test(content)
+        );
+      });
+      expect(totalElement).toBeInTheDocument();
     });
   });
 
@@ -304,7 +337,13 @@ describe("CategoryBreakdownDoughnut", () => {
       );
 
       expect(screen.getByText("Total Expenses")).toBeInTheDocument();
-      expect(screen.getByText(/Rp1\.000\.000/)).toBeInTheDocument();
+      const expenseTotal = screen.getByText((content, element) => {
+        return (
+          element?.tagName.toLowerCase() === "p" &&
+          /Rp\s1\.000\.000/.test(content)
+        );
+      });
+      expect(expenseTotal).toBeInTheDocument();
 
       rerender(
         <CategoryBreakdownDoughnut
@@ -316,7 +355,13 @@ describe("CategoryBreakdownDoughnut", () => {
 
       expect(screen.getByText("Total Income")).toBeInTheDocument();
       // Income total: 5000000 + 1250000 = 6250000
-      expect(screen.getByText(/Rp6\.250\.000/)).toBeInTheDocument();
+      const incomeTotal = screen.getByText((content, element) => {
+        return (
+          element?.tagName.toLowerCase() === "p" &&
+          /Rp\s6\.250\.000/.test(content)
+        );
+      });
+      expect(incomeTotal).toBeInTheDocument();
     });
   });
 
