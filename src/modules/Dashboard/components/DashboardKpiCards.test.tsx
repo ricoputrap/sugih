@@ -23,11 +23,11 @@ describe("DashboardKpiCards", () => {
       title: "Total Net Worth",
       value: 10000000,
       growth: {
-        value: 15.5,
-        label: "+15.5% from last month",
-        isPositive: true,
+        value: 0,
+        label: "Total Wallets + Savings",
+        isPositive: false,
         isNegative: false,
-        isNeutral: false,
+        isNeutral: true,
       },
       period: "All time",
     } as KpiCardData,
@@ -103,7 +103,7 @@ describe("DashboardKpiCards", () => {
     const customFormatter = (amount: number) => `$${amount.toFixed(2)}`;
 
     render(
-      <DashboardKpiCards {...mockKpiData} formatCurrency={customFormatter} />
+      <DashboardKpiCards {...mockKpiData} formatCurrency={customFormatter} />,
     );
 
     const values = screen.getAllByTestId("kpi-value");
@@ -137,16 +137,25 @@ describe("DashboardKpiCards", () => {
   it("displays neutral growth indicator with muted color", () => {
     render(<DashboardKpiCards {...mockKpiData} />);
 
-    const neutralGrowth = screen.getByTestId("growth-neutral");
-    expect(neutralGrowth).toBeInTheDocument();
-    expect(neutralGrowth).toHaveClass("text-muted-foreground");
-    expect(neutralGrowth.textContent).toBe("No change from last month");
+    const neutralGrowths = screen.getAllByTestId("growth-neutral");
+    expect(neutralGrowths.length).toBeGreaterThan(0);
+
+    // Check that all neutral growths have muted color
+    for (const growth of neutralGrowths) {
+      expect(growth).toHaveClass("text-muted-foreground");
+    }
+
+    // Check that "No change from last month" is displayed (Total Savings)
+    expect(screen.getByText("No change from last month")).toBeInTheDocument();
+
+    // Check that "Total Wallets + Savings" is displayed (Net Worth)
+    expect(screen.getByText("Total Wallets + Savings")).toBeInTheDocument();
   });
 
   it("displays growth labels correctly", () => {
     render(<DashboardKpiCards {...mockKpiData} />);
 
-    expect(screen.getByText("+15.5% from last month")).toBeInTheDocument();
+    expect(screen.getByText("Total Wallets + Savings")).toBeInTheDocument();
     expect(screen.getByText("-10.2% from last month")).toBeInTheDocument();
     expect(screen.getByText("+5% from last month")).toBeInTheDocument();
     expect(screen.getByText("No change from last month")).toBeInTheDocument();
@@ -156,14 +165,21 @@ describe("DashboardKpiCards", () => {
     render(<DashboardKpiCards {...mockKpiData} />);
 
     const container = screen.getByTestId("dashboard-kpi-cards");
-    expect(container).toHaveClass("grid", "gap-4", "md:grid-cols-2", "lg:grid-cols-4");
+    expect(container).toHaveClass(
+      "grid",
+      "gap-4",
+      "md:grid-cols-2",
+      "lg:grid-cols-4",
+    );
   });
 
   it("renders card with correct test IDs", () => {
     render(<DashboardKpiCards {...mockKpiData} />);
 
     expect(screen.getByTestId("kpi-card-total-net-worth")).toBeInTheDocument();
-    expect(screen.getByTestId("kpi-card-money-left-to-spend")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("kpi-card-money-left-to-spend"),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("kpi-card-total-spending")).toBeInTheDocument();
     expect(screen.getByTestId("kpi-card-total-savings")).toBeInTheDocument();
   });
@@ -221,6 +237,28 @@ describe("DashboardKpiCards", () => {
     // Should have at least one of each type
     expect(screen.getAllByTestId("growth-positive").length).toBeGreaterThan(0);
     expect(screen.getByTestId("growth-negative")).toBeInTheDocument();
-    expect(screen.getByTestId("growth-neutral")).toBeInTheDocument();
+    expect(screen.getAllByTestId("growth-neutral").length).toBeGreaterThan(0);
+  });
+
+  it("renders Net Worth KPI with descriptive label instead of growth percentage", () => {
+    render(<DashboardKpiCards {...mockKpiData} />);
+
+    // Net Worth card should exist
+    const netWorthCard = screen.getByTestId("kpi-card-total-net-worth");
+    expect(netWorthCard).toBeInTheDocument();
+
+    // Title should be "Total Net Worth"
+    expect(screen.getByText("Total Net Worth")).toBeInTheDocument();
+
+    // NEW behavior: growth label shows descriptive text
+    expect(screen.getByText("Total Wallets + Savings")).toBeInTheDocument();
+
+    // Growth should be neutral (muted color, not green/red)
+    const neutralGrowths = screen.getAllByTestId("growth-neutral");
+    const netWorthGrowth = neutralGrowths.find((el) =>
+      el.textContent?.includes("Total Wallets + Savings"),
+    );
+    expect(netWorthGrowth).toBeDefined();
+    expect(netWorthGrowth).toHaveClass("text-muted-foreground");
   });
 });

@@ -396,6 +396,32 @@ describe("Dashboard Integration Tests", () => {
       expect(typeof netWorth.growth.label).toBe("string");
     });
 
+    it("should return Net Worth KPI with descriptive label (not growth percentage)", async () => {
+      const summary = await getDashboardRevampSummary({});
+
+      const { netWorth } = summary.kpis;
+
+      // Verify Net Worth KPI structure
+      expect(netWorth.title).toBe("Total Net Worth");
+      expect(netWorth.period).toBe("All time");
+
+      // NEW behavior: growth label shows descriptive text "Total Wallets + Savings"
+      expect(netWorth.growth.label).toBe("Total Wallets + Savings");
+
+      // Verify growth metric has correct structure
+      expect(netWorth.growth).toHaveProperty("value");
+      expect(netWorth.growth).toHaveProperty("label");
+      expect(netWorth.growth).toHaveProperty("isPositive");
+      expect(netWorth.growth).toHaveProperty("isNegative");
+      expect(netWorth.growth).toHaveProperty("isNeutral");
+
+      // Growth should be neutral (not showing actual growth)
+      expect(netWorth.growth.value).toBe(0);
+      expect(netWorth.growth.isNeutral).toBe(true);
+      expect(netWorth.growth.isPositive).toBe(false);
+      expect(netWorth.growth.isNegative).toBe(false);
+    });
+
     it("should return latest 5 transactions", async () => {
       const summary = await getDashboardRevampSummary({});
 

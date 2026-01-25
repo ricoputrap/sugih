@@ -170,7 +170,8 @@ export function computeGrowthPercentage(
     return currentValue > 0 ? 100 : -100;
   }
 
-  const growth = ((currentValue - previousValue) / Math.abs(previousValue)) * 100;
+  const growth =
+    ((currentValue - previousValue) / Math.abs(previousValue)) * 100;
   // Round to 1 decimal place
   return Math.round(growth * 10) / 10;
 }
@@ -322,7 +323,13 @@ export function computeKpiSummary(input: KpiSummaryInput): KpiSummary {
     netWorth: {
       title: "Total Net Worth",
       value: currentNetWorth,
-      growth: formatGrowthMetric(currentNetWorth, previousNetWorth),
+      growth: {
+        value: 0,
+        label: "Total Wallets + Savings",
+        isPositive: false,
+        isNegative: false,
+        isNeutral: true,
+      },
       period: "All time",
     },
     moneyLeftToSpend: {

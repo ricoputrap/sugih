@@ -69,7 +69,9 @@ function KpiCard({
   formatCurrency: (amount: number) => string;
 }) {
   return (
-    <Card data-testid={`kpi-card-${data.title.toLowerCase().replace(/\s+/g, "-")}`}>
+    <Card
+      data-testid={`kpi-card-${data.title.toLowerCase().replace(/\s+/g, "-")}`}
+    >
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">{data.title}</CardTitle>
       </CardHeader>

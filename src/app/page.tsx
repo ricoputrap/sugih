@@ -35,12 +35,12 @@ const mockKpiData: {
     value: 0,
     growth: {
       value: 0,
-      label: "vs last month",
+      label: "Total Wallets + Savings",
       isPositive: false,
       isNegative: false,
       isNeutral: true,
     },
-    period: "Current",
+    period: "All time",
   },
   moneyLeftToSpend: {
     title: "Money Left to Spend",
@@ -125,13 +125,16 @@ export default function DashboardPage() {
       params.set("period", period);
       params.set("dateRangePreset", dateRangePreset);
 
-      // Fetch data from API
-      const response = await fetch(`/api/dashboard?${params.toString()}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
+      // Fetch data from revamp API
+      const response = await fetch(
+        `/api/dashboard/revamp?${params.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -140,78 +143,34 @@ export default function DashboardPage() {
       const result = await response.json();
       const data = result.data;
 
-      // Update state with API data
-      setCategorySpendingTrend(data.categorySpendingTrend || []);
-      setNetWorthTrend(data.netWorthTrend || []);
-      setRecentTransactions(data.recentTransactions || []);
+      // Update state with API data from revamp summary
+      if (data.timeSeries) {
+        setNetWorthTrend(data.timeSeries.netWorth || []);
+      }
+
+      if (data.timeSeries?.spending) {
+        setCategorySpendingTrend(data.timeSeries.spending || []);
+      }
+
+      if (data.latestTransactions) {
+        setRecentTransactions(data.latestTransactions || []);
+      }
 
       // Map category breakdown
-      const expenses: CategoryBreakdownData[] =
-        data.categoryBreakdown
-          ?.filter((cat: CategoryBreakdownData) => cat.amount > 0)
-          .map((cat: CategoryBreakdownData) => ({
-            categoryId: cat.categoryId,
-            categoryName: cat.categoryName,
-            amount: cat.amount,
-            percentage: cat.percentage || 0,
-          })) || [];
+      if (data.categoryBreakdown) {
+        setCategoryBreakdown({
+          expenses: data.categoryBreakdown.expenses || [],
+          income: data.categoryBreakdown.income || [],
+        });
+      }
 
-      setCategoryBreakdown({
-        expenses,
-        income: [], // TODO: Get income breakdown from API
-      });
-
-      // Update KPI data from summary if available
-      if (data.summary) {
+      // Use KPI data directly from API (includes correct labels and growth metrics)
+      if (data.kpis) {
         setKpiData({
-          netWorth: {
-            title: "Total Net Worth",
-            value: data.summary.currentNetWorth || 0,
-            growth: {
-              value: 0,
-              label: "vs last month",
-              isPositive: false,
-              isNegative: false,
-              isNeutral: true,
-            },
-            period: "Current",
-          },
-          moneyLeftToSpend: {
-            title: "Money Left to Spend",
-            value: data.summary.moneyLeftToSpend || 0,
-            growth: {
-              value: 0,
-              label: "this month",
-              isPositive: false,
-              isNegative: false,
-              isNeutral: true,
-            },
-            period: "This month",
-          },
-          totalSpending: {
-            title: "Total Spending",
-            value: data.summary.totalSpending || 0,
-            growth: {
-              value: 0,
-              label: "vs last month",
-              isPositive: false,
-              isNegative: false,
-              isNeutral: true,
-            },
-            period: data.summary.period || "This month",
-          },
-          totalSavings: {
-            title: "Total Savings",
-            value: 0, // TODO: Get from API
-            growth: {
-              value: 0,
-              label: "all time",
-              isPositive: false,
-              isNegative: false,
-              isNeutral: true,
-            },
-            period: "All time",
-          },
+          netWorth: data.kpis.netWorth,
+          moneyLeftToSpend: data.kpis.moneyLeftToSpend,
+          totalSpending: data.kpis.totalSpending,
+          totalSavings: data.kpis.totalSavings,
         });
       }
     } catch (err: unknown) {

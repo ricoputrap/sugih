@@ -364,11 +364,14 @@ describe("KPI Computation Utilities", () => {
       expect(summary.totalSavings.value).toBe(13000);
     });
 
-    it("should compute net worth growth correctly", () => {
+    it("should use descriptive label for net worth (not growth percentage)", () => {
       const summary = computeKpiSummary(baseInput);
-      // Current: 19000, Previous: 16900, Growth: ~12.4%
-      expect(summary.netWorth.growth.value).toBeCloseTo(12.4, 0);
-      expect(summary.netWorth.growth.isPositive).toBe(true);
+      // Net Worth should show "Total Wallets + Savings" instead of percentage growth
+      expect(summary.netWorth.growth.label).toBe("Total Wallets + Savings");
+      expect(summary.netWorth.growth.value).toBe(0);
+      expect(summary.netWorth.growth.isNeutral).toBe(true);
+      expect(summary.netWorth.growth.isPositive).toBe(false);
+      expect(summary.netWorth.growth.isNegative).toBe(false);
     });
 
     it("should compute money left to spend growth correctly", () => {
@@ -470,6 +473,8 @@ describe("KPI Computation Utilities", () => {
 
       const summary = computeKpiSummary(input);
       expect(summary.netWorth.value).toBe(-5000);
+      // Label should still be "Total Wallets + Savings" regardless of value
+      expect(summary.netWorth.growth.label).toBe("Total Wallets + Savings");
     });
 
     it("should maintain precision for decimal values", () => {
