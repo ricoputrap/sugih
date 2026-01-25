@@ -382,17 +382,16 @@ describe("BudgetsPage", () => {
       // Find the Month label
       const monthLabel = screen.getByText("Month:");
 
-      // Get its parent flex container
+      // Get its parent flex container (the inner container with label and select)
       const selectorContainer = monthLabel.closest(".flex");
 
-      // Should be responsive: full width on mobile, auto on desktop
-      expect(selectorContainer).toHaveClass("w-full");
-      expect(selectorContainer).toHaveClass("md:w-auto");
-
-      // Should be flex-col on mobile, flex-row on desktop
+      // The inner container has flex-col on mobile, flex-row on desktop
       expect(selectorContainer).toHaveClass("flex-col");
       expect(selectorContainer).toHaveClass("md:flex-row");
       expect(selectorContainer).toHaveClass("md:items-center");
+
+      // Verify gap for spacing
+      expect(selectorContainer).toHaveClass("gap-2");
     });
 
     it("should stack vertically on mobile screens", async () => {

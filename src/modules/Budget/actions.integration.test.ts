@@ -16,7 +16,6 @@ import {
   deleteBudget,
   getBudgetSummary,
   copyBudgets,
-  upsertBudgets,
 } from "./actions";
 import { createCategory, deleteCategory } from "@/modules/Category/actions";
 import { getPool, closeDb } from "@/db/drizzle-client";
@@ -622,68 +621,6 @@ describe("Budget Integration Tests", () => {
         }),
       ).rejects.toThrow();
     });
-
-    it("should reject upsertBudgets with income category", async () => {
-      const incomeCategory = await createCategory({
-        name: `Income Category ${nanoid()}`,
-        type: "income",
-      });
-      testCategoryIds.push(incomeCategory.id);
-
-      const { upsertBudgets } = await import("./actions");
-
-      await expect(
-        upsertBudgets({
-          month: testMonth,
-          items: [
-            {
-              categoryId: incomeCategory.id,
-              amountIdr: 500000,
-            },
-          ],
-        }),
-      ).rejects.toThrow();
-    });
-
-    it("should accept upsertBudgets with all expense categories", async () => {
-      const expenseCategory1 = await createCategory({
-        name: `Expense Category 1 ${nanoid()}`,
-        type: "expense",
-      });
-      testCategoryIds.push(expenseCategory1.id);
-
-      const expenseCategory2 = await createCategory({
-        name: `Expense Category 2 ${nanoid()}`,
-        type: "expense",
-      });
-      testCategoryIds.push(expenseCategory2.id);
-
-      const { upsertBudgets } = await import("./actions");
-
-      const result = await upsertBudgets({
-        month: testMonth,
-        items: [
-          {
-            categoryId: expenseCategory1.id,
-            amountIdr: 500000,
-          },
-          {
-            categoryId: expenseCategory2.id,
-            amountIdr: 750000,
-          },
-        ],
-      });
-
-      expect(result.length).toBe(2);
-      result.forEach((budget) => {
-        testBudgetIds.push(budget.id);
-      });
-
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      testBudgetIds.length = 0;
-    });
   });
 
   describe("Budget Note Field", () => {
@@ -841,72 +778,6 @@ describe("Budget Integration Tests", () => {
 
       // Cleanup
       await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
-    });
-
-    it("should upsert budgets with notes", async () => {
-      const category = await createTestCategory();
-
-      const result = await upsertBudgets({
-        month: testMonth,
-        items: [
-          {
-            categoryId: category.id,
-            amountIdr: 1500000,
-            note: "Upserted note",
-          },
-        ],
-      });
-
-      expect(result.length).toBe(1);
-      expect(result[0].note).toBe("Upserted note");
-      testBudgetIds.push(result[0].id);
-
-      // Verify note is persisted
-      const retrieved = await getBudgetById(result[0].id);
-      expect(retrieved?.note).toBe("Upserted note");
-
-      // Cleanup
-      await cleanupTestBudget(result[0].id);
-      testBudgetIds.length = 0;
-    });
-
-    it("should update note via upsertBudgets", async () => {
-      const category = await createTestCategory();
-
-      // First upsert with initial note
-      const result1 = await upsertBudgets({
-        month: testMonth,
-        items: [
-          {
-            categoryId: category.id,
-            amountIdr: 1000000,
-            note: "Initial note",
-          },
-        ],
-      });
-      testBudgetIds.push(result1[0].id);
-
-      // Second upsert with updated note
-      const result2 = await upsertBudgets({
-        month: testMonth,
-        items: [
-          {
-            categoryId: category.id,
-            amountIdr: 1000000,
-            note: "Updated note",
-          },
-        ],
-      });
-
-      expect(result2[0].note).toBe("Updated note");
-
-      // Verify note is updated
-      const retrieved = await getBudgetById(result1[0].id);
-      expect(retrieved?.note).toBe("Updated note");
-
-      // Cleanup
-      await cleanupTestBudget(result1[0].id);
       testBudgetIds.length = 0;
     });
   });

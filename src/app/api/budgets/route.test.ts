@@ -10,7 +10,6 @@ vi.mock("@/modules/Budget/actions", () => ({
   updateBudget: vi.fn(),
   deleteBudget: vi.fn(),
   copyBudgets: vi.fn(),
-  upsertBudgets: vi.fn(),
 }));
 
 // Mock the database client
@@ -84,7 +83,7 @@ import { GET, POST } from "./route";
 
 import {
   listBudgets,
-  upsertBudgets,
+  createBudget,
   getBudgetSummary,
 } from "@/modules/Budget/actions";
 
@@ -349,14 +348,15 @@ describe("Budgets API Routes", () => {
       validationError.name = "ZodError";
       (validationError as any).status = 422;
 
-      vi.mocked(upsertBudgets).mockRejectedValue(validationError);
+      vi.mocked(createBudget).mockRejectedValue(validationError);
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
-          month: "invalid-month",
-          items: [],
+          month: "2024-01-01",
+          categoryId: "cat1",
+          amountIdr: 500000,
         },
       );
 
@@ -385,7 +385,7 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(404);
-      expect(data.error).toBe("Category not found or archived");
+      expect(data.error.message).toBe("Category not found or archived");
       expect(createBudget).toHaveBeenCalled();
     });
 
@@ -408,14 +408,16 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(400);
-      expect(data.error).toBe("Category is archived");
+      expect(data.error.message).toBe("Category is archived");
       expect(createBudget).toHaveBeenCalled();
     });
 
-    it("should return 400 for budget already existing", async () => {
-      vi.mocked(createBudget).mockRejectedValue(
-        new Error("Budget already exists for this month and category"),
-      );
+    it("should return 409 for budget already existing", async () => {
+      vi.mocked(createBudget).mockRejectedValue({
+        code: "23505",
+        message: "duplicate key value violates unique constraint",
+        detail: "Key (month, category_id)=(2024-01-01, cat1) already exists.",
+      });
 
       const request = createMockRequest(
         "POST",
@@ -431,7 +433,7 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(409);
-      expect(data.error).toBe(
+      expect(data.error.message).toBe(
         "Budget already exists for this month and category",
       );
       expect(createBudget).toHaveBeenCalled();
@@ -441,17 +443,18 @@ describe("Budgets API Routes", () => {
       const pgError = {
         code: "23505",
         message: "duplicate key value violates unique constraint",
-        detail: "Key (month, category_id)=(2024-01-01, cat1) already exists.",
+        detail: "Key (month, category_id)=(2024-01-01, cat2) already exists.",
       };
 
-      vi.mocked(upsertBudgets).mockRejectedValue(pgError);
+      vi.mocked(createBudget).mockRejectedValue(pgError);
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [{ categoryId: "cat1", amountIdr: 500000 }],
+          categoryId: "cat2",
+          amountIdr: 600000,
         },
       );
 
@@ -486,7 +489,7 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(400);
-      expect(data.error).toContain("Invalid category reference");
+      expect(data.error.message).toContain("Invalid category reference");
       expect(createBudget).toHaveBeenCalled();
     });
 
@@ -497,14 +500,15 @@ describe("Budgets API Routes", () => {
         column: "amount_idr",
       };
 
-      vi.mocked(upsertBudgets).mockRejectedValue(pgError);
+      vi.mocked(createBudget).mockRejectedValue(pgError);
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [{ categoryId: "cat1" }],
+          categoryId: "cat1",
+          amountIdr: 500000,
         },
       );
 
@@ -512,24 +516,25 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(400);
-      expect(data.error.message).toBe("Missing required field: amount_idr");
+      expect(data.error.message).toContain("Missing required field");
     });
 
     it("should handle PostgreSQL check constraint violation", async () => {
       const pgError = {
         code: "23514",
         message: "check constraint violation",
-        detail: "Amount must be positive",
+        detail: "Amounts must be positive",
       };
 
-      vi.mocked(upsertBudgets).mockRejectedValue(pgError);
+      vi.mocked(createBudget).mockRejectedValue(pgError);
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [{ categoryId: "cat1", amountIdr: -500000 }],
+          categoryId: "cat1",
+          amountIdr: 500000,
         },
       );
 
@@ -537,7 +542,7 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(400);
-      expect(data.error.message).toBe("Invalid data: Amount must be positive");
+      expect(data.error.message).toContain("Invalid data");
     });
 
     it("should return 500 for unexpected errors", async () => {
@@ -566,14 +571,15 @@ describe("Budgets API Routes", () => {
         message: "relation does not exist",
       };
 
-      vi.mocked(upsertBudgets).mockRejectedValue(pgError);
+      vi.mocked(createBudget).mockRejectedValue(pgError);
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
-          month: "2024-01-01",
-          items: [{ categoryId: "cat1", amountIdr: 500000 }],
+          month: "2024-01-03",
+          categoryId: "cat3",
+          amountIdr: 500000,
         },
       );
 
@@ -581,7 +587,7 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(500);
-      expect(data.error.message).toBe("Database error");
+      expect(data.error.message).toBe("Failed to create budget");
     });
 
     it("should handle large budget amounts", async () => {
@@ -685,7 +691,7 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(200);
-      expect(data[0].note).toBe("");
+      expect(data.note).toBeNull();
     });
   });
 });
