@@ -1,6 +1,16 @@
 "use client";
 
+import {
+  AlertCircle,
+  CheckCircle2,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,18 +19,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  MoreHorizontal,
-  Trash2,
-  Pencil,
-  AlertCircle,
-  CheckCircle2,
-} from "lucide-react";
-import { BudgetWithCategory } from "../schema";
-import { BudgetSummaryItem } from "../types";
-import { toast } from "sonner";
+import type { BudgetWithCategory } from "../schema";
+import type { BudgetSummaryItem } from "../types";
+import { formatCurrency, formatPercentage } from "../utils/formatters";
+
+import { CircularProgress } from "./CircularProgress";
 
 interface BudgetCardGridProps {
   budgets: BudgetWithCategory[];
@@ -37,8 +40,8 @@ interface BudgetCardGridProps {
 
 /**
  * BudgetCardGrid Component
- * Displays budgets as a responsive grid of cards
- * Each card shows category, amounts, progress bar, and status badge
+ * Displays budgets as a responsive grid of cards with circular progress indicators
+ * Each card shows a circular progress on the left and stats on the right
  */
 export function BudgetCardGrid({
   budgets,
@@ -69,8 +72,10 @@ export function BudgetCardGrid({
       setActionLoading(id);
       await onDelete(id);
       toast.success(`Budget for "${categoryName}" deleted successfully`);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete budget");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to delete budget";
+      toast.error(errorMessage);
     } finally {
       setActionLoading(null);
     }
@@ -80,15 +85,6 @@ export function BudgetCardGrid({
     if (onEdit) {
       onEdit(budget);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   const getStatusBadge = (percentUsed: number) => {
@@ -119,16 +115,6 @@ export function BudgetCardGrid({
     }
   };
 
-  const getProgressBarColor = (percentUsed: number) => {
-    if (percentUsed > 100) {
-      return "bg-red-500";
-    } else if (percentUsed >= 80) {
-      return "bg-orange-500";
-    } else {
-      return "bg-green-500";
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -139,9 +125,9 @@ export function BudgetCardGrid({
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
+          {Array.from({ length: 3 }).map(() => (
             <div
-              key={i}
+              key={Math.random()}
               className="rounded-lg border bg-card p-6 space-y-4 animate-pulse"
             >
               <div className="flex items-center justify-between">
@@ -170,6 +156,8 @@ export function BudgetCardGrid({
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+            role="img"
+            aria-label="No budgets icon"
           >
             <path
               strokeLinecap="round"
@@ -228,31 +216,23 @@ export function BudgetCardGrid({
         </div>
       )}
 
-      {/* Budget Cards Grid */}
+      {/* Budget Cards Grid - New Horizontal Layout */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {budgets.map((budget) => {
           const categorySummary = summaryMap.get(budget.category_id);
           const percentUsed = categorySummary?.percentUsed || 0;
-          const spent = categorySummary?.spentAmount || 0;
           const remaining = categorySummary?.remaining || budget.amount_idr;
 
           return (
             <div
               key={budget.id}
-              className="rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden"
+              className="rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col"
             >
-              {/* Card Header with Category and Menu */}
-              <div className="flex items-center justify-between p-6 pb-4 border-b">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg leading-tight">
-                    {budget.category_name || "Unknown Category"}
-                  </h3>
-                  {!budget.category_name && (
-                    <p className="text-xs text-red-500 mt-1">
-                      Category not found
-                    </p>
-                  )}
-                </div>
+              {/* Card Header with Menu */}
+              <div className="flex items-center justify-between px-4 py-2 border-b">
+                <h3 className="font-semibold text-base leading-tight flex-1">
+                  {budget.category_name || "Unknown Category"}
+                </h3>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -292,76 +272,87 @@ export function BudgetCardGrid({
                 </DropdownMenu>
               </div>
 
-              {/* Card Body with Amounts and Progress */}
-              <div className="p-6 space-y-4">
-                {/* Budget Amounts */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Budget:</span>
-                    <span className="font-medium">
-                      {formatCurrency(budget.amount_idr)}
-                    </span>
-                  </div>
-                  {summary && (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Spent:</span>
-                        <span className="font-medium">
-                          {formatCurrency(spent)}
-                        </span>
-                      </div>
-                      <div
-                        className={`flex justify-between ${
-                          remaining < 0 ? "text-red-600 font-medium" : ""
-                        }`}
-                      >
-                        <span className="text-muted-foreground">Remaining:</span>
-                        <span className="font-medium">
-                          {formatCurrency(remaining)}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Progress Bar */}
+              {/* Card Body with Horizontal Layout */}
+              <div className="p-4 flex-1 flex gap-4">
+                {/* Left: Circular Progress */}
                 {summary && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        Usage
-                      </span>
-                      <span className="text-xs font-medium">
-                        {percentUsed.toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${getProgressBarColor(percentUsed)} rounded-full transition-all`}
-                        style={{
-                          width: `${Math.min(percentUsed, 100)}%`,
-                        }}
+                  <div className="flex-shrink-0 flex items-center justify-center">
+                    <div className="relative w-24 h-24">
+                      <CircularProgress
+                        percentage={percentUsed}
+                        centerContent={
+                          <div className="text-center">
+                            <div className="text-xs font-medium text-muted-foreground">
+                              Spent
+                            </div>
+                            <div className="text-sm font-bold">
+                              {formatPercentage(percentUsed, 0)}
+                            </div>
+                          </div>
+                        }
+                        size={100}
+                        radius={40}
+                        strokeWidth={5}
                       />
                     </div>
                   </div>
                 )}
 
-                {/* Status Badge */}
-                {summary && (
-                  <div className="pt-2">
-                    {getStatusBadge(percentUsed)}
+                {/* Right: Stats Section */}
+                <div className="flex-1 flex flex-col justify-between">
+                  <div className="space-y-2 text-sm">
+                    {summary && (
+                      <>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Remaining
+                          </p>
+                          <p
+                            className={`font-semibold ${
+                              remaining < 0 ? "text-red-600" : ""
+                            }`}
+                          >
+                            {formatCurrency(remaining)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Total Budget
+                          </p>
+                          <p className="font-medium text-xs">
+                            {formatCurrency(budget.amount_idr)}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                    {!summary && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Budget</p>
+                        <p className="font-semibold">
+                          {formatCurrency(budget.amount_idr)}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
 
-                {/* Note */}
-                {budget.note && (
-                  <div className="pt-4 border-t">
-                    <p className="text-xs text-muted-foreground line-clamp-2" title={budget.note}>
-                      📝 {budget.note}
-                    </p>
-                  </div>
-                )}
+                  {/* Status Badge */}
+                  {summary && (
+                    <div className="pt-2">{getStatusBadge(percentUsed)}</div>
+                  )}
+                </div>
               </div>
+
+              {/* Note Section */}
+              {budget.note && (
+                <div className="px-4 py-3 border-t bg-muted/30">
+                  <p
+                    className="text-xs text-muted-foreground line-clamp-2"
+                    title={budget.note}
+                  >
+                    📝 {budget.note}
+                  </p>
+                </div>
+              )}
             </div>
           );
         })}

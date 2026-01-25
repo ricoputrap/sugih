@@ -219,9 +219,13 @@ describe("BudgetCardGrid", () => {
         />,
       );
 
-      expect(screen.getByText("Total Budget")).toBeInTheDocument();
+      // Summary cards at top
+      const summaryCards = screen.getAllByText("Total Budget");
+      expect(summaryCards.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText("Total Spent")).toBeInTheDocument();
-      expect(screen.getByText("Remaining")).toBeInTheDocument();
+      // Remaining appears in multiple places (summary card + card)
+      const remainingElements = screen.getAllByText("Remaining");
+      expect(remainingElements.length).toBeGreaterThanOrEqual(1);
     });
 
     it("should display spent and remaining on card when summary available", () => {
@@ -292,8 +296,10 @@ describe("BudgetCardGrid", () => {
         />,
       );
 
-      expect(screen.getByText("75.0%")).toBeInTheDocument();
-      expect(screen.getByText("Usage")).toBeInTheDocument();
+      // The new circular progress displays percentage as "75%"
+      expect(screen.getByText("75%")).toBeInTheDocument();
+      // Usage label no longer present in new horizontal layout
+      expect(screen.queryByText("Usage")).not.toBeInTheDocument();
     });
   });
 
@@ -477,9 +483,7 @@ describe("BudgetCardGrid", () => {
         />,
       );
 
-      const gridElement = container.querySelector(
-        ".grid.gap-4",
-      );
+      const gridElement = container.querySelector(".grid.gap-4");
       expect(gridElement).toBeInTheDocument();
     });
   });
