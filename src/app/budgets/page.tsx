@@ -18,9 +18,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BudgetTable } from "@/modules/Budget/components/BudgetTable";
+import { BudgetCardGrid } from "@/modules/Budget/components/BudgetCardGrid";
+import { ViewToggle } from "@/modules/Budget/components/ViewToggle";
 import { BudgetDialogForm } from "@/modules/Budget/components/BudgetDialogForm";
 import { CopyResultModal } from "@/modules/Budget/components/CopyResultModal";
 import { BudgetWithCategory } from "@/modules/Budget/schema";
+import { BudgetViewMode } from "@/modules/Budget/types";
 import { toast } from "sonner";
 
 interface BudgetSummary {
@@ -48,6 +51,7 @@ export default function BudgetsPage() {
     useState<BudgetWithCategory | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [viewMode, setViewMode] = useState<BudgetViewMode>("list");
   const [copyResultModalOpen, setCopyResultModalOpen] = useState(false);
   const [copyResult, setCopyResult] = useState<{
     created: BudgetWithCategory[];
@@ -89,6 +93,14 @@ export default function BudgetsPage() {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     setSelectedMonth(`${year}-${month}-01`);
+
+    // Load view preference from localStorage
+    const savedViewMode = localStorage.getItem(
+      "budgetViewMode",
+    ) as BudgetViewMode | null;
+    if (savedViewMode === "list" || savedViewMode === "grid") {
+      setViewMode(savedViewMode);
+    }
   }, []);
 
   // Fetch budgets when month changes
@@ -98,6 +110,12 @@ export default function BudgetsPage() {
       fetchBudgetSummary();
     }
   }, [selectedMonth]);
+
+  // Save view preference to localStorage
+  const handleViewModeChange = (mode: BudgetViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("budgetViewMode", mode);
+  };
 
   // Fetch budgets for selected month
   const fetchBudgets = async () => {
@@ -331,7 +349,7 @@ export default function BudgetsPage() {
         </div>
       </div>
 
-      {/* Budgets Table with Month Selector */}
+      {/* Budgets Table/Grid with Month Selector and View Toggle */}
       <Card>
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -342,35 +360,52 @@ export default function BudgetsPage() {
                 : "Select a month to view budget details"}
             </CardDescription>
           </div>
-          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-            <label className="text-sm font-medium text-muted-foreground">
-              Month:
-            </label>
-            <Select value={selectedMonth} onValueChange={handleMonthChange}>
-              <SelectTrigger
-                className="w-full md:w-48"
-                data-testid="month-select"
-              >
-                <SelectValue placeholder="Select a month" />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:gap-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <label className="text-sm font-medium text-muted-foreground">
+                Month:
+              </label>
+              <Select value={selectedMonth} onValueChange={handleMonthChange}>
+                <SelectTrigger
+                  className="w-full md:w-48"
+                  data-testid="month-select"
+                >
+                  <SelectValue placeholder="Select a month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <ViewToggle
+              value={viewMode}
+              onChange={handleViewModeChange}
+              data-testid="view-toggle"
+            />
           </div>
         </CardHeader>
         <CardContent>
-          <BudgetTable
-            budgets={budgets}
-            summary={summary || undefined}
-            onEdit={handleEditClick}
-            onDelete={handleDeleteBudget}
-            isLoading={isLoading || isSummaryLoading}
-          />
+          {viewMode === "list" ? (
+            <BudgetTable
+              budgets={budgets}
+              summary={summary || undefined}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteBudget}
+              isLoading={isLoading || isSummaryLoading}
+            />
+          ) : (
+            <BudgetCardGrid
+              budgets={budgets}
+              summary={summary || undefined}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteBudget}
+              isLoading={isLoading || isSummaryLoading}
+            />
+          )}
         </CardContent>
       </Card>
 
