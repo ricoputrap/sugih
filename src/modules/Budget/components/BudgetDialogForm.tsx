@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
   BudgetUpsertSchema,
@@ -48,6 +49,7 @@ interface BudgetDialogFormProps {
     month: string;
     categoryId: string;
     amountIdr: number;
+    note?: string | null;
   }) => Promise<void>;
   isLoading?: boolean;
   mode: "create" | "edit";
@@ -57,6 +59,7 @@ interface BudgetDialogFormProps {
     category_id: string;
     category_name?: string;
     amount_idr: number;
+    note?: string | null;
   } | null;
 }
 
@@ -84,6 +87,7 @@ export function BudgetDialogForm({
     month: string;
     categoryId: string;
     amountIdr: number;
+    note?: string | null;
   }>({
     resolver: zodResolver(
       BudgetItemSchema.extend({
@@ -94,6 +98,7 @@ export function BudgetDialogForm({
       month: initialData?.month || getCurrentMonthFirst(),
       categoryId: initialData?.category_id || "",
       amountIdr: initialData?.amount_idr || 0,
+      note: initialData?.note || "",
     },
   });
 
@@ -130,6 +135,7 @@ export function BudgetDialogForm({
         month: initialData?.month || getCurrentMonthFirst(),
         categoryId: initialData?.category_id || "",
         amountIdr: initialData?.amount_idr || 0,
+        note: initialData?.note || "",
       });
     }
   }, [open, initialData, form]);
@@ -138,9 +144,15 @@ export function BudgetDialogForm({
     month: string;
     categoryId: string;
     amountIdr: number;
+    note?: string | null;
   }) => {
     try {
-      await onSubmit(values);
+      // Convert empty string to null for note field
+      const submitValues = {
+        ...values,
+        note: values.note && values.note.trim() !== "" ? values.note : null,
+      };
+      await onSubmit(submitValues);
       form.reset();
       onOpenChange(false);
       toast.success(`Budget ${isEditing ? "updated" : "created"} successfully`);
@@ -307,6 +319,34 @@ export function BudgetDialogForm({
                     />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Note Field */}
+            <FormField
+              control={form.control}
+              name="note"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Note (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Add a note to describe this budget allocation..."
+                      data-testid="budget-form-note"
+                      className="resize-none"
+                      rows={3}
+                      maxLength={500}
+                      {...field}
+                      value={field.value || ""}
+                    />
+                  </FormControl>
+                  <div className="flex justify-between items-center">
+                    <FormMessage />
+                    <span className="text-xs text-muted-foreground">
+                      {(field.value || "").length}/500
+                    </span>
+                  </div>
                 </FormItem>
               )}
             />

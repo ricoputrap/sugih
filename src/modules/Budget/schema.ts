@@ -48,8 +48,9 @@ export const BudgetItemSchema = z.object({
   note: z
     .string()
     .max(500, "Note must be 500 characters or less")
-    .optional()
-    .nullable(),
+    .transform((val) => (val === "" ? null : val))
+    .nullable()
+    .optional(),
 });
 
 /**

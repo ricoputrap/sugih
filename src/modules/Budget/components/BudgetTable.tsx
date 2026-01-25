@@ -285,7 +285,6 @@ export function BudgetTable({
                   <TableHead>Usage</TableHead>
                 </>
               )}
-              <TableHead>Last Updated</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -299,13 +298,19 @@ export function BudgetTable({
               return (
                 <TableRow key={budget.id}>
                   <TableCell className="font-medium">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col gap-1">
                       <span>{budget.category_name || "Unknown Category"}</span>
                       {!budget.category_name && (
                         <span className="text-xs text-red-500">
                           Category not found
                         </span>
                       )}
+                      <span
+                        className="text-xs text-muted-foreground font-normal line-clamp-2"
+                        title={budget.note || "No note"}
+                      >
+                        {budget.note || "—"}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>{formatCurrency(budget.amount_idr)}</TableCell>
@@ -329,9 +334,6 @@ export function BudgetTable({
                       </TableCell>
                     </>
                   )}
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(budget.updated_at)}
-                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

@@ -151,6 +151,7 @@ export default function BudgetsPage() {
     month: string;
     categoryId: string;
     amountIdr: number;
+    note?: string | null;
   }) => {
     try {
       const response = await fetch("/api/budgets", {
@@ -160,8 +161,13 @@ export default function BudgetsPage() {
         },
         body: JSON.stringify({
           month: values.month,
-          categoryId: values.categoryId,
-          amountIdr: values.amountIdr,
+          items: [
+            {
+              categoryId: values.categoryId,
+              amountIdr: values.amountIdr,
+              note: values.note,
+            },
+          ],
         }),
       });
 
@@ -181,6 +187,7 @@ export default function BudgetsPage() {
     month: string;
     categoryId: string;
     amountIdr: number;
+    note?: string | null;
   }) => {
     if (!selectedBudget) return;
 
@@ -192,6 +199,7 @@ export default function BudgetsPage() {
         },
         body: JSON.stringify({
           amountIdr: values.amountIdr,
+          note: values.note,
         }),
       });
 

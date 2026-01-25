@@ -12,7 +12,7 @@ config();
 export default defineConfig({
   test: {
     globals: true,
-    environment: "node",
+    environment: "jsdom",
     testTimeout: 10000,
     hookTimeout: 10000,
     include: ["**/*.test.ts", "**/*.test.tsx"],
