@@ -161,13 +161,9 @@ export default function BudgetsPage() {
         },
         body: JSON.stringify({
           month: values.month,
-          items: [
-            {
-              categoryId: values.categoryId,
-              amountIdr: values.amountIdr,
-              note: values.note,
-            },
-          ],
+          categoryId: values.categoryId,
+          amountIdr: values.amountIdr,
+          note: values.note,
         }),
       });
 

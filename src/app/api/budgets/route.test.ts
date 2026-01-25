@@ -303,19 +303,16 @@ describe("Budgets API Routes", () => {
   });
 
   describe("POST /api/budgets", () => {
-    it("should create/update budgets for a month", async () => {
-      const mockResult = [mockBudget1, mockBudget2];
-      vi.mocked(upsertBudgets).mockResolvedValue(mockResult);
+    it("should create a budget", async () => {
+      vi.mocked(createBudget).mockResolvedValue(mockBudget1);
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [
-            { categoryId: "cat1", amountIdr: 500000 },
-            { categoryId: "cat2", amountIdr: 200000 },
-          ],
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 500000,
         },
       );
 
@@ -323,32 +320,12 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(200);
-      expect(data).toEqual(mockResult);
-      expect(upsertBudgets).toHaveBeenCalledWith({
+      expect(data).toEqual(mockBudget1);
+      expect(createBudget).toHaveBeenCalledWith({
         month: "2024-01-01",
-        items: [
-          { categoryId: "cat1", amountIdr: 500000 },
-          { categoryId: "cat2", amountIdr: 200000 },
-        ],
+        categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+        amountIdr: 500000,
       });
-    });
-
-    it("should handle single budget item", async () => {
-      vi.mocked(upsertBudgets).mockResolvedValue([mockBudget1]);
-
-      const request = createMockRequest(
-        "POST",
-        "http://localhost:3000/api/budgets",
-        {
-          month: "2024-01-01",
-          items: [{ categoryId: "cat1", amountIdr: 500000 }],
-        },
-      );
-
-      const response = await POST(request);
-      const { status } = await parseResponse(response);
-
-      expect(status).toBe(200);
     });
 
     it("should return 400 for invalid JSON body", async () => {
@@ -390,8 +367,8 @@ describe("Budgets API Routes", () => {
     });
 
     it("should return 404 when categories not found", async () => {
-      vi.mocked(upsertBudgets).mockRejectedValue(
-        new Error("Categories not found or archived: cat999"),
+      vi.mocked(createBudget).mockRejectedValue(
+        new Error("Category not found or archived"),
       );
 
       const request = createMockRequest(
@@ -399,7 +376,8 @@ describe("Budgets API Routes", () => {
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [{ categoryId: "cat999", amountIdr: 500000 }],
+          categoryId: "cat999",
+          amountIdr: 500000,
         },
       );
 
@@ -407,11 +385,12 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(404);
-      expect(data.error.message).toContain("not found");
+      expect(data.error).toBe("Category not found or archived");
+      expect(createBudget).toHaveBeenCalled();
     });
 
     it("should return 400 for archived categories", async () => {
-      vi.mocked(upsertBudgets).mockRejectedValue(
+      vi.mocked(createBudget).mockRejectedValue(
         new Error("Category is archived"),
       );
 
@@ -420,7 +399,8 @@ describe("Budgets API Routes", () => {
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [{ categoryId: "cat1", amountIdr: 500000 }],
+          categoryId: "cat1",
+          amountIdr: 500000,
         },
       );
 
@@ -428,12 +408,13 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(400);
-      expect(data.error.message).toContain("archived");
+      expect(data.error).toBe("Category is archived");
+      expect(createBudget).toHaveBeenCalled();
     });
 
-    it("should return 400 for duplicate category IDs", async () => {
-      vi.mocked(upsertBudgets).mockRejectedValue(
-        new Error("Duplicate category IDs in budget items"),
+    it("should return 400 for budget already existing", async () => {
+      vi.mocked(createBudget).mockRejectedValue(
+        new Error("Budget already exists for this month and category"),
       );
 
       const request = createMockRequest(
@@ -441,18 +422,19 @@ describe("Budgets API Routes", () => {
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [
-            { categoryId: "cat1", amountIdr: 500000 },
-            { categoryId: "cat1", amountIdr: 300000 },
-          ],
+          categoryId: "cat1",
+          amountIdr: 500000,
         },
       );
 
       const response = await POST(request);
       const { status, data } = await parseResponse(response);
 
-      expect(status).toBe(400);
-      expect(data.error.message).toContain("Duplicate category");
+      expect(status).toBe(409);
+      expect(data.error).toBe(
+        "Budget already exists for this month and category",
+      );
+      expect(createBudget).toHaveBeenCalled();
     });
 
     it("should handle PostgreSQL unique constraint violation", async () => {
@@ -483,21 +465,20 @@ describe("Budgets API Routes", () => {
     });
 
     it("should handle PostgreSQL foreign key violation", async () => {
-      const pgError = {
+      vi.mocked(createBudget).mockRejectedValue({
         code: "23503",
         message: "foreign key violation",
         detail:
           "Key (category_id)=(invalid) is not present in table categories",
-      };
-
-      vi.mocked(upsertBudgets).mockRejectedValue(pgError);
+      });
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [{ categoryId: "invalid", amountIdr: 500000 }],
+          categoryId: "invalid",
+          amountIdr: 500000,
         },
       );
 
@@ -505,7 +486,8 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(400);
-      expect(data.error.message).toContain("Invalid category reference:");
+      expect(data.error).toContain("Invalid category reference");
+      expect(createBudget).toHaveBeenCalled();
     });
 
     it("should handle PostgreSQL not-null violation", async () => {
@@ -559,22 +541,23 @@ describe("Budgets API Routes", () => {
     });
 
     it("should return 500 for unexpected errors", async () => {
-      vi.mocked(upsertBudgets).mockRejectedValue(new Error("Unexpected error"));
+      vi.mocked(createBudget).mockRejectedValue(new Error("Unexpected error"));
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [{ categoryId: "cat1", amountIdr: 500000 }],
+          categoryId: "cat1",
+          amountIdr: 500000,
         },
       );
 
       const response = await POST(request);
-      const { status, data } = await parseResponse(response);
+      const { status } = await parseResponse(response);
 
       expect(status).toBe(500);
-      expect(data.error.message).toBe("Failed to upsert budgets");
+      expect(createBudget).toHaveBeenCalled();
     });
 
     it("should handle other PostgreSQL errors gracefully", async () => {
@@ -607,14 +590,15 @@ describe("Budgets API Routes", () => {
         amount_idr: 999999999999,
       };
 
-      vi.mocked(upsertBudgets).mockResolvedValue([largeBudget]);
+      vi.mocked(createBudget).mockResolvedValue(largeBudget);
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [{ categoryId: "cat1", amountIdr: 999999999999 }],
+          categoryId: "cat1",
+          amountIdr: 999999999999,
         },
       );
 
@@ -624,58 +608,21 @@ describe("Budgets API Routes", () => {
       expect(status).toBe(200);
     });
 
-    it("should handle multiple budget items", async () => {
-      const mockBudgets = [
-        mockBudget1,
-        mockBudget2,
-        {
-          id: "budget3",
-          month: "2024-01-01",
-          category_id: "cat3",
-          amount_idr: 300000,
-          created_at: "2024-01-01T00:00:00.000Z",
-          updated_at: "2024-01-01T00:00:00.000Z",
-          category_name: "Entertainment",
-        },
-      ];
-
-      vi.mocked(upsertBudgets).mockResolvedValue(mockBudgets);
-
-      const request = createMockRequest(
-        "POST",
-        "http://localhost:3000/api/budgets",
-        {
-          month: "2024-01-01",
-          items: [
-            { categoryId: "cat1", amountIdr: 500000 },
-            { categoryId: "cat2", amountIdr: 200000 },
-            { categoryId: "cat3", amountIdr: 300000 },
-          ],
-        },
-      );
-
-      const response = await POST(request);
-      const { status, data } = await parseResponse(response);
-
-      expect(status).toBe(200);
-      expect(data).toHaveLength(3);
-    });
-
     it("should create budget with note field", async () => {
       const mockBudgetWithNote = {
         ...mockBudget1,
         note: "Apartment only",
       };
-      vi.mocked(upsertBudgets).mockResolvedValue([mockBudgetWithNote]);
+      vi.mocked(createBudget).mockResolvedValue(mockBudgetWithNote);
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [
-            { categoryId: "cat1", amountIdr: 500000, note: "Apartment only" },
-          ],
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 500000,
+          note: "Apartment only",
         },
       );
 
@@ -683,12 +630,12 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(200);
-      expect(data[0].note).toBe("Apartment only");
-      expect(upsertBudgets).toHaveBeenCalledWith({
+      expect(data.note).toBe("Apartment only");
+      expect(createBudget).toHaveBeenCalledWith({
         month: "2024-01-01",
-        items: [
-          { categoryId: "cat1", amountIdr: 500000, note: "Apartment only" },
-        ],
+        categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+        amountIdr: 500000,
+        note: "Apartment only",
       });
     });
 
@@ -697,14 +644,15 @@ describe("Budgets API Routes", () => {
         ...mockBudget1,
         note: null,
       };
-      vi.mocked(upsertBudgets).mockResolvedValue([mockBudgetNoNote]);
+      vi.mocked(createBudget).mockResolvedValue(mockBudgetNoNote);
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [{ categoryId: "cat1", amountIdr: 500000 }],
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 500000,
         },
       );
 
@@ -712,22 +660,24 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(200);
-      expect(data[0].note).toBeNull();
+      expect(data.note).toBeNull();
     });
 
     it("should handle empty string note", async () => {
       const mockBudgetEmptyNote = {
         ...mockBudget1,
-        note: "",
+        note: null,
       };
-      vi.mocked(upsertBudgets).mockResolvedValue([mockBudgetEmptyNote]);
+      vi.mocked(createBudget).mockResolvedValue(mockBudgetEmptyNote);
 
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/api/budgets",
         {
           month: "2024-01-01",
-          items: [{ categoryId: "cat1", amountIdr: 500000, note: "" }],
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 500000,
+          note: "",
         },
       );
 

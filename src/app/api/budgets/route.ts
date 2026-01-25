@@ -1,12 +1,13 @@
 import { NextRequest } from "next/server";
 import {
   listBudgets,
-  upsertBudgets,
+  createBudget,
   getBudgetSummary,
 } from "@/modules/Budget/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
 import { formatPostgresError } from "@/db/drizzle-client";
 import { withRouteLogging } from "@/lib/logging";
+import { BudgetCreateSchema } from "@/modules/Budget/schema";
 
 /**
  * GET /api/budgets
@@ -70,7 +71,8 @@ export const GET = withRouteLogging(handleGet, {
  * {
  *   month: "YYYY-MM-01",
  *   categoryId: string,
- *   amountIdr: number
+ *   amountIdr: number,
+ *   note?: string | null
  * }
  */
 async function handlePost(request: NextRequest) {
@@ -83,8 +85,11 @@ async function handlePost(request: NextRequest) {
       return badRequest("Invalid JSON body");
     }
 
-    const budgets = await upsertBudgets(body);
-    return ok(budgets);
+    // Validate request body
+    const validatedBody = BudgetCreateSchema.parse(body);
+
+    const budget = await createBudget(validatedBody);
+    return ok(budget);
   } catch (error: any) {
     console.error("Error creating budget:", error);
 
@@ -105,11 +110,6 @@ async function handlePost(request: NextRequest) {
 
     // Handle archived category errors
     if (error.message?.includes("archived")) {
-      return badRequest(error.message);
-    }
-
-    // Handle duplicate category IDs in budget items
-    if (error.message?.includes("Duplicate category IDs in budget items")) {
       return badRequest(error.message);
     }
 
@@ -140,7 +140,7 @@ async function handlePost(request: NextRequest) {
       return serverError("Database error");
     }
 
-    return serverError("Failed to upsert budgets");
+    return serverError("Failed to create budget");
   }
 }
 

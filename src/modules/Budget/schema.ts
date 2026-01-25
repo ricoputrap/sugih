@@ -66,6 +66,23 @@ export const BudgetUpsertSchema = z.object({
     .min(1, "At least one budget item is required"),
 });
 
+/**
+ * Budget Create Schema
+ *
+ * Validates single budget creation requests.
+ */
+export const BudgetCreateSchema = z.object({
+  month: BudgetMonthSchema,
+  categoryId: z.string().min(1, "Category ID is required"),
+  amountIdr: z.number().int().positive("Budget amount must be positive"),
+  note: z
+    .string()
+    .max(500, "Note must be 500 characters or less")
+    .transform((val) => (val === "" ? null : val))
+    .nullable()
+    .optional(),
+});
+
 export const BudgetQuerySchema = z.object({
   month: BudgetMonthSchema.optional(),
 });
