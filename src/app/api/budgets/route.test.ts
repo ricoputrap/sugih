@@ -660,5 +660,82 @@ describe("Budgets API Routes", () => {
       expect(status).toBe(200);
       expect(data).toHaveLength(3);
     });
+
+    it("should create budget with note field", async () => {
+      const mockBudgetWithNote = {
+        ...mockBudget1,
+        note: "Apartment only",
+      };
+      vi.mocked(upsertBudgets).mockResolvedValue([mockBudgetWithNote]);
+
+      const request = createMockRequest(
+        "POST",
+        "http://localhost:3000/api/budgets",
+        {
+          month: "2024-01-01",
+          items: [
+            { categoryId: "cat1", amountIdr: 500000, note: "Apartment only" },
+          ],
+        },
+      );
+
+      const response = await POST(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data[0].note).toBe("Apartment only");
+      expect(upsertBudgets).toHaveBeenCalledWith({
+        month: "2024-01-01",
+        items: [
+          { categoryId: "cat1", amountIdr: 500000, note: "Apartment only" },
+        ],
+      });
+    });
+
+    it("should create budget without note (null)", async () => {
+      const mockBudgetNoNote = {
+        ...mockBudget1,
+        note: null,
+      };
+      vi.mocked(upsertBudgets).mockResolvedValue([mockBudgetNoNote]);
+
+      const request = createMockRequest(
+        "POST",
+        "http://localhost:3000/api/budgets",
+        {
+          month: "2024-01-01",
+          items: [{ categoryId: "cat1", amountIdr: 500000 }],
+        },
+      );
+
+      const response = await POST(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data[0].note).toBeNull();
+    });
+
+    it("should handle empty string note", async () => {
+      const mockBudgetEmptyNote = {
+        ...mockBudget1,
+        note: "",
+      };
+      vi.mocked(upsertBudgets).mockResolvedValue([mockBudgetEmptyNote]);
+
+      const request = createMockRequest(
+        "POST",
+        "http://localhost:3000/api/budgets",
+        {
+          month: "2024-01-01",
+          items: [{ categoryId: "cat1", amountIdr: 500000, note: "" }],
+        },
+      );
+
+      const response = await POST(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data[0].note).toBe("");
+    });
   });
 });

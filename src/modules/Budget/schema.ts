@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Re-export Drizzle table schema for drizzle-kit
+export * from "./drizzle-schema";
+
 // Type exports for TypeScript
 export type BudgetCreateInput = z.infer<typeof BudgetUpsertSchema>;
 export type BudgetQueryInput = z.infer<typeof BudgetQuerySchema>;
@@ -12,6 +15,7 @@ export interface Budget {
   month: string;
   category_id: string;
   amount_idr: number;
+  note?: string | null;
   created_at: Date | null;
   updated_at: Date | null;
 }
@@ -41,6 +45,11 @@ export const BudgetItemSchema = z.object({
     .min(1, "Category ID is required")
     .max(50, "Category ID too long"),
   amountIdr: z.number().int().positive("Budget amount must be positive"),
+  note: z
+    .string()
+    .max(500, "Note must be 500 characters or less")
+    .optional()
+    .nullable(),
 });
 
 /**

@@ -16,6 +16,7 @@ import {
   deleteBudget,
   getBudgetSummary,
   copyBudgets,
+  upsertBudgets,
 } from "./actions";
 import { createCategory, deleteCategory } from "@/modules/Category/actions";
 import { getPool, closeDb } from "@/db/drizzle-client";
@@ -681,6 +682,231 @@ describe("Budget Integration Tests", () => {
       for (const id of testBudgetIds) {
         await cleanupTestBudget(id);
       }
+      testBudgetIds.length = 0;
+    });
+  });
+
+  describe("Budget Note Field", () => {
+    it("should create budget with note", async () => {
+      const category = await createTestCategory();
+      const budget = await createBudget({
+        month: testMonth,
+        categoryId: category.id,
+        amountIdr: 1000000,
+        note: "Apartment only",
+      });
+      testBudgetIds.push(budget.id);
+
+      expect(budget.note).toBe("Apartment only");
+
+      // Verify note is persisted
+      const retrieved = await getBudgetById(budget.id);
+      expect(retrieved?.note).toBe("Apartment only");
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should create budget without note (null)", async () => {
+      const category = await createTestCategory();
+      const budget = await createBudget({
+        month: testMonth,
+        categoryId: category.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(budget.id);
+
+      expect(budget.note).toBeNull();
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should update budget to add note", async () => {
+      const category = await createTestCategory();
+      const budget = await createBudget({
+        month: testMonth,
+        categoryId: category.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(budget.id);
+
+      const updated = await updateBudget(
+        budget.id,
+        1000000,
+        "Apartment, Water, and Electricity",
+      );
+
+      expect(updated.note).toBe("Apartment, Water, and Electricity");
+
+      // Verify note is persisted
+      const retrieved = await getBudgetById(budget.id);
+      expect(retrieved?.note).toBe("Apartment, Water, and Electricity");
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should update budget to remove note (set to null)", async () => {
+      const category = await createTestCategory();
+      const budget = await createBudget({
+        month: testMonth,
+        categoryId: category.id,
+        amountIdr: 1000000,
+        note: "Initial note",
+      });
+      testBudgetIds.push(budget.id);
+
+      const updated = await updateBudget(budget.id, 1000000, null);
+
+      expect(updated.note).toBeNull();
+
+      // Verify note is removed
+      const retrieved = await getBudgetById(budget.id);
+      expect(retrieved?.note).toBeNull();
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should preserve note when updating amount only", async () => {
+      const category = await createTestCategory();
+      const budget = await createBudget({
+        month: testMonth,
+        categoryId: category.id,
+        amountIdr: 1000000,
+        note: "My note",
+      });
+      testBudgetIds.push(budget.id);
+
+      // Update without passing note (undefined)
+      const updated = await updateBudget(budget.id, 2000000);
+
+      expect(updated.amount_idr).toBe(2000000);
+      expect(updated.note).toBe("My note");
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should copy budgets with notes preserved", async () => {
+      const category = await createTestCategory();
+      const budget = await createBudget({
+        month: testMonth,
+        categoryId: category.id,
+        amountIdr: 1000000,
+        note: "Note to copy",
+      });
+      testBudgetIds.push(budget.id);
+
+      const result = await copyBudgets(testMonth, testMonth2);
+
+      expect(result.created.length).toBe(1);
+      expect(result.created[0].note).toBe("Note to copy");
+      testBudgetIds.push(result.created[0].id);
+
+      // Verify note in destination
+      const copiedBudgets = await getBudgetsByMonth(testMonth2);
+      const copiedBudget = copiedBudgets.find(
+        (b) => b.category_id === category.id,
+      );
+      expect(copiedBudget?.note).toBe("Note to copy");
+
+      // Cleanup
+      for (const id of testBudgetIds) {
+        await cleanupTestBudget(id);
+      }
+      testBudgetIds.length = 0;
+    });
+
+    it("should list budgets with notes", async () => {
+      const category = await createTestCategory();
+      const budget = await createBudget({
+        month: testMonth,
+        categoryId: category.id,
+        amountIdr: 1000000,
+        note: "Listed note",
+      });
+      testBudgetIds.push(budget.id);
+
+      const budgets = await listBudgets({ month: testMonth });
+      const found = budgets.find((b) => b.id === budget.id);
+
+      expect(found?.note).toBe("Listed note");
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should upsert budgets with notes", async () => {
+      const category = await createTestCategory();
+
+      const result = await upsertBudgets({
+        month: testMonth,
+        items: [
+          {
+            categoryId: category.id,
+            amountIdr: 1500000,
+            note: "Upserted note",
+          },
+        ],
+      });
+
+      expect(result.length).toBe(1);
+      expect(result[0].note).toBe("Upserted note");
+      testBudgetIds.push(result[0].id);
+
+      // Verify note is persisted
+      const retrieved = await getBudgetById(result[0].id);
+      expect(retrieved?.note).toBe("Upserted note");
+
+      // Cleanup
+      await cleanupTestBudget(result[0].id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should update note via upsertBudgets", async () => {
+      const category = await createTestCategory();
+
+      // First upsert with initial note
+      const result1 = await upsertBudgets({
+        month: testMonth,
+        items: [
+          {
+            categoryId: category.id,
+            amountIdr: 1000000,
+            note: "Initial note",
+          },
+        ],
+      });
+      testBudgetIds.push(result1[0].id);
+
+      // Second upsert with updated note
+      const result2 = await upsertBudgets({
+        month: testMonth,
+        items: [
+          {
+            categoryId: category.id,
+            amountIdr: 1000000,
+            note: "Updated note",
+          },
+        ],
+      });
+
+      expect(result2[0].note).toBe("Updated note");
+
+      // Verify note is updated
+      const retrieved = await getBudgetById(result1[0].id);
+      expect(retrieved?.note).toBe("Updated note");
+
+      // Cleanup
+      await cleanupTestBudget(result1[0].id);
       testBudgetIds.length = 0;
     });
   });

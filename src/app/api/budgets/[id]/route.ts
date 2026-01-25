@@ -55,11 +55,12 @@ export const GET = withRouteLogging(handleGet, {
 
 /**
  * PATCH /api/budgets/[id]
- * Update a budget amount
+ * Update a budget amount and/or note
  *
  * Body:
  * {
  *   amountIdr: number (positive integer)
+ *   note?: string | null (optional, max 500 chars)
  * }
  */
 async function handlePatch(
@@ -77,7 +78,7 @@ async function handlePatch(
       return badRequest("Invalid JSON body");
     }
 
-    const { amountIdr } = body;
+    const { amountIdr, note } = body;
 
     if (amountIdr === undefined) {
       return badRequest("amountIdr is required");
@@ -87,7 +88,17 @@ async function handlePatch(
       return badRequest("amountIdr must be a positive integer");
     }
 
-    const budget = await updateBudget(id, amountIdr);
+    // Validate note if provided
+    if (
+      note !== undefined &&
+      note !== null &&
+      typeof note === "string" &&
+      note.length > 500
+    ) {
+      return badRequest("Note must be 500 characters or less");
+    }
+
+    const budget = await updateBudget(id, amountIdr, note);
     return ok(budget);
   } catch (error: any) {
     // Handle validation errors (already formatted as Response)

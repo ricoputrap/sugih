@@ -232,6 +232,64 @@ describe("Budget PostgreSQL Schema Validation", () => {
         });
         expect(result.success).toBe(true);
       });
+
+      it("should accept valid note", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 1000000,
+          note: "Apartment only",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept empty note", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 1000000,
+          note: "",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept null note", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 1000000,
+          note: null,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept undefined note (optional)", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 1000000,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject note exceeding 500 characters", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 1000000,
+          note: "a".repeat(501),
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toBe(
+            "Note must be 500 characters or less",
+          );
+        }
+      });
+
+      it("should accept note with exactly 500 characters", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 1000000,
+          note: "a".repeat(500),
+        });
+        expect(result.success).toBe(true);
+      });
     });
 
     describe("BudgetUpsertSchema", () => {

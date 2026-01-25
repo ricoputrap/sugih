@@ -52,11 +52,11 @@ export async function listBudgets(
 
     if (validatedQuery.month) {
       result = await db.execute(
-        sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.month = ${validatedQuery.month} ORDER BY c.name ASC`,
+        sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.note, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.month = ${validatedQuery.month} ORDER BY c.name ASC`,
       );
     } else {
       result = await db.execute(
-        sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id ORDER BY b.month DESC, c.name ASC`,
+        sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.note, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id ORDER BY b.month DESC, c.name ASC`,
       );
     }
 
@@ -65,6 +65,7 @@ export async function listBudgets(
       month: row.month as string,
       category_id: row.category_id as string,
       amount_idr: row.amount_idr as number,
+      note: row.note as string | null,
       created_at: row.created_at as Date | null,
       updated_at: row.updated_at as Date | null,
       category_name: row.category_name as string,
@@ -89,7 +90,7 @@ export async function getBudgetById(
     BudgetIdSchema.parse({ id });
 
     const result = await db.execute(
-      sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.id = ${id}`,
+      sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.note, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.id = ${id}`,
     );
 
     const row = result.rows[0];
@@ -100,6 +101,7 @@ export async function getBudgetById(
       month: row.month as string,
       category_id: row.category_id as string,
       amount_idr: row.amount_idr as number,
+      note: row.note as string | null,
       created_at: row.created_at as Date | null,
       updated_at: row.updated_at as Date | null,
       category_name: row.category_name as string,
@@ -124,7 +126,7 @@ export async function getBudgetsByMonth(
     BudgetMonthSchema.parse(month);
 
     const result = await db.execute(
-      sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.month = ${month} ORDER BY c.name ASC`,
+      sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.note, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.month = ${month} ORDER BY c.name ASC`,
     );
 
     return result.rows.map((row) => ({
@@ -132,6 +134,7 @@ export async function getBudgetsByMonth(
       month: row.month as string,
       category_id: row.category_id as string,
       amount_idr: row.amount_idr as number,
+      note: row.note as string | null,
       created_at: row.created_at as Date | null,
       updated_at: row.updated_at as Date | null,
       category_name: row.category_name as string,
@@ -220,8 +223,8 @@ export async function upsertBudgets(
         if (existingId) {
           // Update existing budget
           await client.query(
-            `UPDATE budgets SET amount_idr = $1, updated_at = $2 WHERE id = $3`,
-            [item.amountIdr, now, existingId],
+            `UPDATE budgets SET amount_idr = $1, note = $2, updated_at = $3 WHERE id = $4`,
+            [item.amountIdr, item.note ?? null, now, existingId],
           );
 
           const category = categoryCheck.rows.find(
@@ -232,6 +235,7 @@ export async function upsertBudgets(
             month: validatedInput.month,
             category_id: item.categoryId,
             amount_idr: item.amountIdr,
+            note: item.note ?? null,
             created_at: now,
             updated_at: now,
             category_name: category?.name as string,
@@ -240,13 +244,14 @@ export async function upsertBudgets(
           // Create new budget
           const newId = nanoid();
           await client.query(
-            `INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
+            `INSERT INTO budgets (id, month, category_id, amount_idr, note, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
               newId,
               validatedInput.month,
               item.categoryId,
               item.amountIdr,
+              item.note ?? null,
               now,
               now,
             ],
@@ -260,6 +265,7 @@ export async function upsertBudgets(
             month: validatedInput.month,
             category_id: item.categoryId,
             amount_idr: item.amountIdr,
+            note: item.note ?? null,
             created_at: now,
             updated_at: now,
             category_name: category?.name as string,
@@ -301,6 +307,7 @@ export async function createBudget(input: {
   month: string;
   categoryId: string;
   amountIdr: number;
+  note?: string | null;
 }): Promise<BudgetWithCategory> {
   const db = getDb();
 
@@ -335,8 +342,10 @@ export async function createBudget(input: {
     const id = nanoid();
     const now = new Date();
 
+    const noteValue = input.note ?? null;
+
     await db.execute(
-      sql`INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at) VALUES (${id}, ${input.month}, ${input.categoryId}, ${input.amountIdr}, ${now}, ${now})`,
+      sql`INSERT INTO budgets (id, month, category_id, amount_idr, note, created_at, updated_at) VALUES (${id}, ${input.month}, ${input.categoryId}, ${input.amountIdr}, ${noteValue}, ${now}, ${now})`,
     );
 
     return {
@@ -344,6 +353,7 @@ export async function createBudget(input: {
       month: input.month,
       category_id: input.categoryId,
       amount_idr: input.amountIdr,
+      note: noteValue,
       created_at: now,
       updated_at: now,
       category_name: categoryResult.rows[0].name as string,
@@ -362,6 +372,7 @@ export async function createBudget(input: {
 export async function updateBudget(
   id: string,
   amountIdr: number,
+  note?: string | null,
 ): Promise<BudgetWithCategory> {
   const db = getDb();
 
@@ -378,13 +389,15 @@ export async function updateBudget(
     }
 
     const now = new Date();
+    const noteValue = note !== undefined ? note : existing.note;
     await db.execute(
-      sql`UPDATE budgets SET amount_idr = ${amountIdr}, updated_at = ${now} WHERE id = ${id}`,
+      sql`UPDATE budgets SET amount_idr = ${amountIdr}, note = ${noteValue}, updated_at = ${now} WHERE id = ${id}`,
     );
 
     return {
       ...existing,
       amount_idr: amountIdr,
+      note: noteValue,
       updated_at: now,
     };
   } catch (error: any) {
@@ -606,9 +619,17 @@ export async function copyBudgets(
       for (const budget of budgetsToCopy) {
         const newId = nanoid();
         await client.query(
-          `INSERT INTO budgets (id, month, category_id, amount_idr, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [newId, toMonth, budget.category_id, budget.amount_idr, now, now],
+          `INSERT INTO budgets (id, month, category_id, amount_idr, note, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            newId,
+            toMonth,
+            budget.category_id,
+            budget.amount_idr,
+            budget.note ?? null,
+            now,
+            now,
+          ],
         );
 
         createdBudgets.push({
@@ -616,6 +637,7 @@ export async function copyBudgets(
           month: toMonth,
           category_id: budget.category_id,
           amount_idr: budget.amount_idr,
+          note: budget.note ?? null,
           created_at: now,
           updated_at: now,
           category_name: budget.category_name ?? "",

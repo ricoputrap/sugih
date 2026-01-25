@@ -265,7 +265,7 @@ describe("Budgets [id] API Routes", () => {
 
       expect(status).toBe(200);
       expect(data.amount_idr).toBe(600000);
-      expect(updateBudget).toHaveBeenCalledWith("budget1", 600000);
+      expect(updateBudget).toHaveBeenCalledWith("budget1", 600000, undefined);
     });
 
     it("should return 400 for invalid JSON body", async () => {
@@ -528,6 +528,116 @@ describe("Budgets [id] API Routes", () => {
       expect(data.error.message).toBe(
         "Budget amount must be a positive integer",
       );
+    });
+
+    it("should update budget with note", async () => {
+      const updatedBudget = {
+        ...mockBudget,
+        amount_idr: 500000,
+        note: "Apartment only",
+        updated_at: "2024-01-02T00:00:00.000Z",
+      };
+
+      vi.mocked(updateBudget).mockResolvedValue(updatedBudget);
+
+      const request = createMockRequest(
+        "PATCH",
+        "http://localhost:3000/api/budgets/budget1",
+        { amountIdr: 500000, note: "Apartment only" },
+      );
+      const response = await PATCH(request, createMockParams("budget1"));
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.note).toBe("Apartment only");
+      expect(updateBudget).toHaveBeenCalledWith(
+        "budget1",
+        500000,
+        "Apartment only",
+      );
+    });
+
+    it("should update budget to remove note (set to null)", async () => {
+      const updatedBudget = {
+        ...mockBudget,
+        amount_idr: 500000,
+        note: null,
+        updated_at: "2024-01-02T00:00:00.000Z",
+      };
+
+      vi.mocked(updateBudget).mockResolvedValue(updatedBudget);
+
+      const request = createMockRequest(
+        "PATCH",
+        "http://localhost:3000/api/budgets/budget1",
+        { amountIdr: 500000, note: null },
+      );
+      const response = await PATCH(request, createMockParams("budget1"));
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.note).toBeNull();
+      expect(updateBudget).toHaveBeenCalledWith("budget1", 500000, null);
+    });
+
+    it("should preserve note when not provided in update", async () => {
+      const updatedBudget = {
+        ...mockBudget,
+        amount_idr: 600000,
+        note: "Existing note",
+        updated_at: "2024-01-02T00:00:00.000Z",
+      };
+
+      vi.mocked(updateBudget).mockResolvedValue(updatedBudget);
+
+      const request = createMockRequest(
+        "PATCH",
+        "http://localhost:3000/api/budgets/budget1",
+        { amountIdr: 600000 },
+      );
+      const response = await PATCH(request, createMockParams("budget1"));
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.note).toBe("Existing note");
+      expect(updateBudget).toHaveBeenCalledWith("budget1", 600000, undefined);
+    });
+
+    it("should return 400 for note exceeding 500 characters", async () => {
+      const longNote = "a".repeat(501);
+      const request = createMockRequest(
+        "PATCH",
+        "http://localhost:3000/api/budgets/budget1",
+        { amountIdr: 500000, note: longNote },
+      );
+      const response = await PATCH(request, createMockParams("budget1"));
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Note must be 500 characters or less");
+    });
+
+    it("should accept note with exactly 500 characters", async () => {
+      const maxNote = "a".repeat(500);
+      const updatedBudget = {
+        ...mockBudget,
+        amount_idr: 500000,
+        note: maxNote,
+        updated_at: "2024-01-02T00:00:00.000Z",
+      };
+
+      vi.mocked(updateBudget).mockResolvedValue(updatedBudget);
+
+      const request = createMockRequest(
+        "PATCH",
+        "http://localhost:3000/api/budgets/budget1",
+        { amountIdr: 500000, note: maxNote },
+      );
+      const response = await PATCH(request, createMockParams("budget1"));
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.note).toBe(maxNote);
     });
   });
 

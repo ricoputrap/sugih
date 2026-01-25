@@ -136,7 +136,7 @@ describe("POST /api/budgets/copy", () => {
       ];
 
       vi.mocked(copyBudgets).mockResolvedValue({
-        created: mockCreated,
+        created: mockCreated as any,
         skipped: [],
       });
 
@@ -172,10 +172,8 @@ describe("POST /api/budgets/copy", () => {
       ];
 
       vi.mocked(copyBudgets).mockResolvedValue({
-        created: mockCreated,
-        skipped: [
-          { categoryId: "cat2", categoryName: "Transport" },
-        ],
+        created: mockCreated as any,
+        skipped: [{ categoryId: "cat2", categoryName: "Transport" }],
       });
 
       const request = createMockRequest(
@@ -418,6 +416,92 @@ describe("POST /api/budgets/copy", () => {
 
       expect(status).toBe(500);
       expect(data.error.message).toBe("Failed to copy budgets");
+    });
+  });
+
+  describe("Note Field Handling", () => {
+    it("should copy budgets with notes preserved", async () => {
+      const mockCreatedWithNotes = [
+        {
+          id: "budget1",
+          month: "2024-02-01",
+          category_id: "cat1",
+          amount_idr: 1000000,
+          note: "Apartment only",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          category_name: "Bills",
+        },
+        {
+          id: "budget2",
+          month: "2024-02-01",
+          category_id: "cat2",
+          amount_idr: 2000000,
+          note: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          category_name: "Transport",
+        },
+      ];
+
+      vi.mocked(copyBudgets).mockResolvedValue({
+        created: mockCreatedWithNotes as any,
+        skipped: [],
+      });
+
+      const request = createMockRequest(
+        "POST",
+        "http://localhost:3000/api/budgets/copy",
+        {
+          fromMonth: "2024-01-01",
+          toMonth: "2024-02-01",
+        },
+      );
+
+      const response = await POST(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.created).toHaveLength(2);
+      expect(data.created[0].note).toBe("Apartment only");
+      expect(data.created[1].note).toBeNull();
+    });
+
+    it("should copy budget with long note", async () => {
+      const longNote = "a".repeat(500);
+      const mockCreatedWithLongNote = [
+        {
+          id: "budget1",
+          month: "2024-02-01",
+          category_id: "cat1",
+          amount_idr: 1000000,
+          note: longNote,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          category_name: "Bills",
+        },
+      ];
+
+      vi.mocked(copyBudgets).mockResolvedValue({
+        created: mockCreatedWithLongNote as any,
+        skipped: [],
+      });
+
+      const request = createMockRequest(
+        "POST",
+        "http://localhost:3000/api/budgets/copy",
+        {
+          fromMonth: "2024-01-01",
+          toMonth: "2024-02-01",
+        },
+      );
+
+      const response = await POST(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.created[0].note).toBe(longNote);
+      expect(data.created[0].note.length).toBe(500);
     });
   });
 });

@@ -23,6 +23,7 @@ export const budgets = pgTable(
     month: varchar("month", { length: 10 }).notNull(), // ISO format YYYY-MM-01
     category_id: text("category_id").notNull(),
     amount_idr: bigint("amount_idr", { mode: "number" }).notNull(), // Signed bigint in Rupiah
+    note: text("note"), // Optional description field
     created_at: timestamp("created_at", { withTimezone: true }).$default(
       () => new Date(),
     ),
