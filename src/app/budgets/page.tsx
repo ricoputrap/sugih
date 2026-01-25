@@ -331,53 +331,37 @@ export default function BudgetsPage() {
         </div>
       </div>
 
-      {/* Month Selector */}
+      {/* Budgets Table with Month Selector */}
       <Card>
-        <CardHeader>
-          <CardTitle>Select Month</CardTitle>
-          <CardDescription>
-            Choose a month to view or edit budgets
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <Select value={selectedMonth} onValueChange={handleMonthChange}>
-                <SelectTrigger
-                  className="w-full max-w-md"
-                  data-testid="month-select"
-                >
-                  <SelectValue placeholder="Select a month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {monthOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {selectedMonth ? (
-                <span>Viewing budgets for {getSelectedMonthDisplay()}</span>
-              ) : (
-                <span>Please select a month</span>
-              )}
-            </div>
+        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <CardTitle>Budget Details</CardTitle>
+            <CardDescription>
+              {selectedMonth
+                ? `Budget breakdown for ${getSelectedMonthDisplay()}`
+                : "Select a month to view budget details"}
+            </CardDescription>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Budgets Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Budget Details</CardTitle>
-          <CardDescription>
-            {selectedMonth
-              ? `Budget breakdown for ${getSelectedMonthDisplay()}`
-              : "Select a month to view budget details"}
-          </CardDescription>
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+            <label className="text-sm font-medium text-muted-foreground">
+              Month:
+            </label>
+            <Select value={selectedMonth} onValueChange={handleMonthChange}>
+              <SelectTrigger
+                className="w-full md:w-48"
+                data-testid="month-select"
+              >
+                <SelectValue placeholder="Select a month" />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           <BudgetTable
