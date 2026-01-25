@@ -8,9 +8,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
+import { PolarAngleAxis, RadialBar, RadialBarChart } from "recharts";
 import { toast } from "sonner";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,8 +25,6 @@ import {
 import type { BudgetWithCategory } from "../schema";
 import type { BudgetSummaryItem } from "../types";
 import { formatCurrency, formatPercentage } from "../utils/formatters";
-
-import { CircularProgress } from "./CircularProgress";
 
 interface BudgetCardGridProps {
   budgets: BudgetWithCategory[];
@@ -40,8 +41,8 @@ interface BudgetCardGridProps {
 
 /**
  * BudgetCardGrid Component
- * Displays budgets as a responsive grid of cards with circular progress indicators
- * Each card shows a circular progress on the left and stats on the right
+ * Displays budgets as a responsive grid of cards with radial progress indicators
+ * Each card shows a radial progress on the left and stats on the right
  */
 export function BudgetCardGrid({
   budgets,
@@ -112,6 +113,16 @@ export function BudgetCardGrid({
           On Track
         </Badge>
       );
+    }
+  };
+
+  const getChartColor = (percentUsed: number) => {
+    if (percentUsed > 100) {
+      return "#ef4444"; // Red for over budget
+    } else if (percentUsed >= 80) {
+      return "#f97316"; // Orange for near limit
+    } else {
+      return "#10b981"; // Green for on track
     }
   };
 
@@ -223,6 +234,24 @@ export function BudgetCardGrid({
           const percentUsed = categorySummary?.percentUsed || 0;
           const remaining = categorySummary?.remaining || budget.amount_idr;
 
+          // Prepare chart data - clamp to 100 for visual display
+          const displayPercentage = Math.min(percentUsed, 100);
+          const chartData = [
+            {
+              name: "spent",
+              value: displayPercentage,
+              fill: getChartColor(percentUsed),
+            },
+          ];
+
+          // Chart configuration for Recharts
+          const chartConfig = {
+            spent: {
+              label: "Spent",
+              color: getChartColor(percentUsed),
+            },
+          } satisfies ChartConfig;
+
           return (
             <div
               key={budget.id}
@@ -274,27 +303,49 @@ export function BudgetCardGrid({
 
               {/* Card Body with Horizontal Layout */}
               <div className="p-4 flex-1 flex gap-4">
-                {/* Left: Circular Progress */}
+                {/* Left: Radial Progress Chart */}
                 {summary && (
                   <div className="flex-shrink-0 flex items-center justify-center">
-                    <div className="relative w-24 h-24">
-                      <CircularProgress
-                        percentage={percentUsed}
-                        centerContent={
-                          <div className="text-center">
-                            <div className="text-xs font-medium text-muted-foreground">
-                              Spent
-                            </div>
-                            <div className="text-sm font-bold">
-                              {formatPercentage(percentUsed, 0)}
-                            </div>
-                          </div>
-                        }
-                        size={100}
-                        radius={40}
-                        strokeWidth={5}
-                      />
-                    </div>
+                    <ChartContainer config={chartConfig} className="h-24 w-24">
+                      <RadialBarChart
+                        data={chartData}
+                        innerRadius="65%"
+                        outerRadius="100%"
+                        startAngle={90}
+                        endAngle={450}
+                      >
+                        <PolarAngleAxis
+                          type="number"
+                          domain={[0, 100]}
+                          angleAxisId={0}
+                          tick={false}
+                        />
+                        <RadialBar
+                          background
+                          dataKey="value"
+                          cornerRadius={8}
+                          angleAxisId={0}
+                        />
+                        <text
+                          x="50%"
+                          y="50%"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="fill-muted-foreground text-xs font-medium"
+                        >
+                          <tspan x="50%" dy="0">
+                            {formatPercentage(percentUsed, 0)}
+                          </tspan>
+                          <tspan
+                            x="50%"
+                            dy="12"
+                            className="text-muted-foreground text-[10px]"
+                          >
+                            Spent
+                          </tspan>
+                        </text>
+                      </RadialBarChart>
+                    </ChartContainer>
                   </div>
                 )}
 

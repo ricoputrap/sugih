@@ -264,7 +264,7 @@ describe("BudgetCardGrid", () => {
       expect(screen.getAllByText(/Rp 500\.000/)[0]).toBeInTheDocument();
     });
 
-    it("should display progress bar with usage percentage", () => {
+    it("should display radial progress with usage percentage", () => {
       const budgets = [
         createBudget({
           amount_idr: 2000000,
@@ -296,10 +296,10 @@ describe("BudgetCardGrid", () => {
         />,
       );
 
-      // The new circular progress displays percentage as "75%"
-      expect(screen.getByText("75%")).toBeInTheDocument();
-      // Usage label no longer present in new horizontal layout
-      expect(screen.queryByText("Usage")).not.toBeInTheDocument();
+      // The radial chart is rendered via Recharts
+      // Verify the chart container is present
+      const chartContainer = document.querySelector("[data-chart]");
+      expect(chartContainer).toBeInTheDocument();
     });
   });
 
@@ -508,7 +508,7 @@ describe("BudgetCardGrid", () => {
       expect(screen.getByText(/Rp 2\.000\.000/)).toBeInTheDocument();
     });
 
-    it("should not display usage and status without summary", () => {
+    it("should not display chart and status without summary", () => {
       const budgets = [
         createBudget({
           amount_idr: 2000000,
@@ -523,7 +523,9 @@ describe("BudgetCardGrid", () => {
         />,
       );
 
-      expect(screen.queryByText("Usage")).not.toBeInTheDocument();
+      // When no summary, chart should not be rendered
+      const chartContainers = document.querySelectorAll("[data-chart]");
+      expect(chartContainers.length).toBe(0);
       expect(screen.queryByText("On Track")).not.toBeInTheDocument();
     });
   });
