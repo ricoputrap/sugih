@@ -1,5 +1,8 @@
 "use client";
 
+import { CheckCircle2, Info } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,8 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, Info, X } from "lucide-react";
 
 interface CopyResultModalProps {
   open: boolean;
@@ -22,6 +23,8 @@ interface CopyResultModalProps {
     categoryId: string;
     categoryName: string;
   }>;
+  fromMonth?: string;
+  toMonth?: string;
 }
 
 export function CopyResultModal({
@@ -29,6 +32,8 @@ export function CopyResultModal({
   onOpenChange,
   created,
   skipped,
+  fromMonth,
+  toMonth,
 }: CopyResultModalProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -39,13 +44,31 @@ export function CopyResultModal({
     }).format(amount);
   };
 
+  const formatMonth = (monthStr?: string) => {
+    if (!monthStr) return "";
+    try {
+      const date = new Date(monthStr);
+      return date.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+    } catch {
+      return monthStr;
+    }
+  };
+
+  const fromMonthDisplay = formatMonth(fromMonth);
+  const toMonthDisplay = formatMonth(toMonth);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Copy Results</DialogTitle>
           <DialogDescription>
-            Summary of budgets copied from previous month
+            {fromMonthDisplay && toMonthDisplay
+              ? `Copied from ${fromMonthDisplay} to ${toMonthDisplay}`
+              : "Summary of budgets copied"}
           </DialogDescription>
         </DialogHeader>
 
@@ -58,9 +81,9 @@ export function CopyResultModal({
                 <span>Created ({created.length})</span>
               </div>
               <div className="space-y-1 pl-6">
-                {created.map((budget, index) => (
+                {created.map((budget) => (
                   <div
-                    key={index}
+                    key={`${budget.id}-created`}
                     className="text-sm flex justify-between items-center"
                   >
                     <span className="text-muted-foreground">
@@ -83,8 +106,11 @@ export function CopyResultModal({
                 <span>Already Exist ({skipped.length})</span>
               </div>
               <div className="space-y-1 pl-6">
-                {skipped.map((budget, index) => (
-                  <div key={index} className="text-sm text-muted-foreground">
+                {skipped.map((budget) => (
+                  <div
+                    key={`${budget.categoryId}-skipped`}
+                    className="text-sm text-muted-foreground"
+                  >
                     {budget.categoryName || "Unknown"}
                   </div>
                 ))}

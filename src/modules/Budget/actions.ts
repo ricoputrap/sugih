@@ -398,6 +398,42 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
 }
 
 /**
+ * Get all distinct months that have budgets, sorted in descending order
+ * Returns array of months with budget count
+ */
+export async function getMonthsWithBudgets(): Promise<
+  Array<{ value: string; label: string; budgetCount: number }>
+> {
+  const pool = getPool();
+
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT b.month, COUNT(*) as budget_count
+       FROM budgets b
+       GROUP BY b.month
+       ORDER BY b.month DESC`,
+    );
+
+    return result.rows.map((row) => {
+      const date = new Date(row.month);
+      const label = date.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+
+      return {
+        value: row.month as string,
+        label,
+        budgetCount: row.budget_count as number,
+      };
+    });
+  } catch (error: any) {
+    console.error("Error fetching months with budgets:", error);
+    throw error;
+  }
+}
+
+/**
  * Copy budgets from one month to another
  */
 export async function copyBudgets(

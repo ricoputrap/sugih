@@ -22,6 +22,7 @@ import { BudgetCardGrid } from "@/modules/Budget/components/BudgetCardGrid";
 import { ViewToggle } from "@/modules/Budget/components/ViewToggle";
 import { BudgetDialogForm } from "@/modules/Budget/components/BudgetDialogForm";
 import { CopyResultModal } from "@/modules/Budget/components/CopyResultModal";
+import { CopyBudgetDialog } from "@/modules/Budget/components/CopyBudgetDialog";
 import { BudgetWithCategory } from "@/modules/Budget/schema";
 import { BudgetViewMode } from "@/modules/Budget/types";
 import { toast } from "sonner";
@@ -52,10 +53,13 @@ export default function BudgetsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [viewMode, setViewMode] = useState<BudgetViewMode>("list");
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [copyResultModalOpen, setCopyResultModalOpen] = useState(false);
   const [copyResult, setCopyResult] = useState<{
     created: BudgetWithCategory[];
     skipped: Array<{ categoryId: string; categoryName: string }>;
+    fromMonth?: string;
+    toMonth?: string;
   } | null>(null);
 
   // Generate month options (current month + 11 previous + 6 next)
@@ -243,18 +247,9 @@ export default function BudgetsPage() {
     await fetchBudgets();
   };
 
-  // Handle copy budgets from previous month
-  const handleCopyFromPrevious = async () => {
-    if (!selectedMonth) return;
-
+  // Handle copy budgets from selected months
+  const handleCopyBudgets = async (fromMonth: string, toMonth: string) => {
     try {
-      // Calculate previous month
-      const date = new Date(selectedMonth);
-      date.setMonth(date.getMonth() - 1);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const previousMonth = `${year}-${month}-01`;
-
       // Call copy endpoint
       const response = await fetch("/api/budgets/copy", {
         method: "POST",
@@ -262,8 +257,8 @@ export default function BudgetsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fromMonth: previousMonth,
-          toMonth: selectedMonth,
+          fromMonth,
+          toMonth,
         }),
       });
 
@@ -274,24 +269,30 @@ export default function BudgetsPage() {
 
       const result = await response.json();
 
-      // Refresh budgets list
-      await fetchBudgets();
+      // Refresh budgets list if the destination is the currently selected month
+      if (toMonth === selectedMonth) {
+        await fetchBudgets();
+      }
 
       // Show appropriate feedback
       if (result.created.length === 0 && result.skipped.length > 0) {
         // All budgets already exist
-        toast.info("All budgets from previous month already exist");
+        toast.info("All budgets already exist in destination month");
       } else if (result.skipped.length === 0) {
         // All budgets were created (simple case)
         toast.success(
-          `Copied ${result.created.length} budget${result.created.length !== 1 ? "s" : ""} from previous month`,
+          `Copied ${result.created.length} budget${result.created.length !== 1 ? "s" : ""}`,
         );
       } else {
         // Mixed case: some created, some skipped - show modal
         toast.success(
-          `Copied ${result.created.length} budget${result.created.length !== 1 ? "s" : ""} from previous month`,
+          `Copied ${result.created.length} budget${result.created.length !== 1 ? "s" : ""}`,
         );
-        setCopyResult(result);
+        setCopyResult({
+          ...result,
+          fromMonth,
+          toMonth,
+        });
         setCopyResultModalOpen(true);
       }
     } catch (error: any) {
@@ -334,12 +335,12 @@ export default function BudgetsPage() {
           {hasBudgets && (
             <Button
               variant="outline"
-              onClick={handleCopyFromPrevious}
+              onClick={() => setCopyDialogOpen(true)}
               disabled={isLoading}
-              data-testid="copy-from-previous"
+              data-testid="copy-budgets"
             >
               <Copy className="mr-2 h-4 w-4" />
-              Copy from Previous
+              Copy Budgets
             </Button>
           )}
           <Button onClick={() => setIsCreateDialogOpen(true)}>
@@ -436,6 +437,14 @@ export default function BudgetsPage() {
         />
       )}
 
+      {/* Copy Budget Dialog */}
+      <CopyBudgetDialog
+        open={copyDialogOpen}
+        onOpenChange={setCopyDialogOpen}
+        onCopy={handleCopyBudgets}
+        defaultDestinationMonth={selectedMonth}
+      />
+
       {/* Copy Result Modal */}
       {copyResult && (
         <CopyResultModal
@@ -443,6 +452,8 @@ export default function BudgetsPage() {
           onOpenChange={setCopyResultModalOpen}
           created={copyResult.created}
           skipped={copyResult.skipped}
+          fromMonth={copyResult.fromMonth}
+          toMonth={copyResult.toMonth}
         />
       )}
     </div>
