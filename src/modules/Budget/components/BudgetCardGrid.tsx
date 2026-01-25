@@ -305,7 +305,7 @@ export function BudgetCardGrid({
               <div className="p-4 flex-1 flex gap-4">
                 {/* Left: Radial Progress Chart */}
                 {summary && (
-                  <div className="flex-shrink-0 flex items-center justify-center">
+                  <div className="flex-shrink-0 flex items-center justify-center relative">
                     <ChartContainer config={chartConfig} className="h-24 w-24">
                       <RadialBarChart
                         data={chartData}
@@ -326,26 +326,17 @@ export function BudgetCardGrid({
                           cornerRadius={8}
                           angleAxisId={0}
                         />
-                        <text
-                          x="50%"
-                          y="50%"
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          className="fill-muted-foreground text-xs font-medium"
-                        >
-                          <tspan x="50%" dy="0">
-                            {formatPercentage(percentUsed, 0)}
-                          </tspan>
-                          <tspan
-                            x="50%"
-                            dy="12"
-                            className="text-muted-foreground text-[10px]"
-                          >
-                            Spent
-                          </tspan>
-                        </text>
                       </RadialBarChart>
                     </ChartContainer>
+                    {/* Centered text overlay */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+                      <div className="text-xs font-medium text-muted-foreground">
+                        {formatPercentage(percentUsed, 0)}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Spent
+                      </div>
+                    </div>
                   </div>
                 )}
 
