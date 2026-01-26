@@ -35,6 +35,7 @@ import { toast } from "sonner";
 interface Category {
   id: string;
   name: string;
+  type: "income" | "expense";
   archived: boolean;
 }
 
@@ -115,9 +116,11 @@ export function BudgetDialogForm({
       }
 
       const data = await response.json();
-      // Filter out archived categories
-      const activeCategories = data.filter((cat: Category) => !cat.archived);
-      setCategories(activeCategories);
+      // Filter to show only active expense categories
+      const expenseCategories = data.filter(
+        (cat: Category) => !cat.archived && cat.type === "expense",
+      );
+      setCategories(expenseCategories);
     } catch (error: any) {
       toast.error(error.message || "Failed to load categories");
     } finally {
@@ -269,7 +272,7 @@ export function BudgetDialogForm({
                           </SelectItem>
                         ) : categories.length === 0 ? (
                           <SelectItem value="empty" disabled>
-                            No active categories found
+                            No active expense categories found
                           </SelectItem>
                         ) : (
                           categories.map((category) => (
