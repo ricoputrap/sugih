@@ -305,7 +305,7 @@ export function BudgetCardGrid({
               <div className="p-4 flex-1 flex gap-4">
                 {/* Left: Radial Progress Chart */}
                 {summary && (
-                  <div className="flex-shrink-0 flex items-center justify-center relative">
+                  <div className="shrink-0 flex items-center justify-center relative">
                     <ChartContainer config={chartConfig} className="h-24 w-24">
                       <RadialBarChart
                         data={chartData}

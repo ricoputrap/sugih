@@ -4,7 +4,6 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import {
   Dialog,
   DialogContent,
@@ -252,7 +251,7 @@ export function CopyBudgetDialog({
           {/* Error Message */}
           {error && (
             <div className="flex gap-2 rounded-md bg-red-50 p-3 text-sm text-red-600">
-              <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
@@ -260,7 +259,7 @@ export function CopyBudgetDialog({
           {/* Validation Warning */}
           {isSourceDestinationSame && (
             <div className="flex gap-2 rounded-md bg-yellow-50 p-3 text-sm text-yellow-600">
-              <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>Source and destination months must be different</span>
             </div>
           )}
