@@ -7,11 +7,15 @@ export type BudgetViewMode = "list" | "grid";
 
 /**
  * Budget Summary Item
- * Represents a single category's budget summary information
+ * Represents a single budget item's summary information
+ * Supports both category budgets and savings bucket budgets
  */
 export interface BudgetSummaryItem {
-  categoryId: string;
-  categoryName: string;
+  categoryId: string | null;
+  savingsBucketId?: string | null;
+  targetName?: string;
+  targetType?: "category" | "savings_bucket";
+  categoryName?: string;
   budgetAmount: number;
   spentAmount: number;
   remaining: number;
@@ -21,6 +25,7 @@ export interface BudgetSummaryItem {
 /**
  * Budget Summary
  * Represents the overall budget summary for a month
+ * Includes both category budgets and savings bucket budgets
  */
 export interface BudgetSummary {
   totalBudget: number;

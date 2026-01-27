@@ -5,6 +5,8 @@ import {
   BudgetUpsertSchema,
   BudgetQuerySchema,
   BudgetIdSchema,
+  BudgetCreateSchema,
+  LegacyBudgetItemSchema,
 } from "./schema";
 import { budgets } from "./drizzle-schema";
 
@@ -56,6 +58,7 @@ describe("Budget PostgreSQL Schema Validation", () => {
       expect(budgets).toHaveProperty("id");
       expect(budgets).toHaveProperty("month");
       expect(budgets).toHaveProperty("category_id");
+      expect(budgets).toHaveProperty("savings_bucket_id");
       expect(budgets).toHaveProperty("amount_idr");
       expect(budgets).toHaveProperty("created_at");
       expect(budgets).toHaveProperty("updated_at");
@@ -92,8 +95,18 @@ describe("Budget PostgreSQL Schema Validation", () => {
         expect(budgets.category_id).toBeDefined();
       });
 
-      it("should be not null", () => {
+      it("should be nullable (for savings bucket budgets)", () => {
         expect(budgets.category_id).toBeDefined();
+      });
+    });
+
+    describe("savings_bucket_id column", () => {
+      it("should be defined", () => {
+        expect(budgets.savings_bucket_id).toBeDefined();
+      });
+
+      it("should be nullable (for category budgets)", () => {
+        expect(budgets.savings_bucket_id).toBeDefined();
       });
     });
 
@@ -289,6 +302,61 @@ describe("Budget PostgreSQL Schema Validation", () => {
           note: "a".repeat(500),
         });
         expect(result.success).toBe(true);
+      });
+
+      // Savings bucket budget tests
+      it("should accept valid savings bucket budget", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          savingsBucketId: "bucket123",
+          amountIdr: 1000000,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept savings bucket budget with note", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          savingsBucketId: "bucket123",
+          amountIdr: 500000,
+          note: "Monthly savings for child's school",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject budget with both categoryId and savingsBucketId", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          savingsBucketId: "bucket123",
+          amountIdr: 1000000,
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toBe(
+            "Exactly one of categoryId or savingsBucketId must be provided",
+          );
+        }
+      });
+
+      it("should reject budget with neither categoryId nor savingsBucketId", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          amountIdr: 1000000,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject empty savingsBucketId", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          savingsBucketId: "",
+          amountIdr: 1000000,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject overly long savingsBucketId", async () => {
+        const result = await BudgetItemSchema.safeParseAsync({
+          savingsBucketId: "a".repeat(51),
+          amountIdr: 1000000,
+        });
+        expect(result.success).toBe(false);
       });
     });
 
@@ -672,6 +740,96 @@ describe("Budget PostgreSQL Schema Validation", () => {
         items: budgetVariations,
       });
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe("Savings Bucket Budget Validation", () => {
+    describe("BudgetCreateSchema with savings bucket", () => {
+      it("should accept valid savings bucket budget creation", async () => {
+        const result = await BudgetCreateSchema.safeParseAsync({
+          month: "2024-02-01",
+          savingsBucketId: "bucket123",
+          amountIdr: 2000000,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept savings bucket budget with note", async () => {
+        const result = await BudgetCreateSchema.safeParseAsync({
+          month: "2024-02-01",
+          savingsBucketId: "bucket123",
+          amountIdr: 2000000,
+          note: "Saving for emergency fund",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject budget with both categoryId and savingsBucketId", async () => {
+        const result = await BudgetCreateSchema.safeParseAsync({
+          month: "2024-02-01",
+          categoryId: "cat123",
+          savingsBucketId: "bucket123",
+          amountIdr: 2000000,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject budget with neither categoryId nor savingsBucketId", async () => {
+        const result = await BudgetCreateSchema.safeParseAsync({
+          month: "2024-02-01",
+          amountIdr: 2000000,
+        });
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe("BudgetUpsertSchema with mixed targets", () => {
+      it("should accept items with mixed category and savings bucket targets", async () => {
+        const result = await BudgetUpsertSchema.safeParseAsync({
+          month: "2024-03-01",
+          items: [
+            { categoryId: "cat123", amountIdr: 1000000 },
+            { savingsBucketId: "bucket456", amountIdr: 500000 },
+          ],
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should reject items where any item has both targets", async () => {
+        const result = await BudgetUpsertSchema.safeParseAsync({
+          month: "2024-03-01",
+          items: [
+            { categoryId: "cat123", amountIdr: 1000000 },
+            {
+              categoryId: "cat456",
+              savingsBucketId: "bucket789",
+              amountIdr: 500000,
+            },
+          ],
+        });
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe("LegacyBudgetItemSchema", () => {
+      it("should be defined for backward compatibility", () => {
+        expect(LegacyBudgetItemSchema).toBeDefined();
+      });
+
+      it("should validate legacy budget items with only categoryId", async () => {
+        const result = await LegacyBudgetItemSchema.safeParseAsync({
+          categoryId: "dQRS5HxkBo1FiMjh2LKmb",
+          amountIdr: 1000000,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should require categoryId in legacy schema", async () => {
+        const result = await LegacyBudgetItemSchema.safeParseAsync({
+          amountIdr: 1000000,
+        });
+        expect(result.success).toBe(false);
+      });
     });
   });
 });

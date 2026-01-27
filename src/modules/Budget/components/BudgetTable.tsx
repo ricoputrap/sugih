@@ -25,13 +25,18 @@ import {
   Pencil,
   AlertCircle,
   CheckCircle2,
+  Wallet,
+  PiggyBank,
 } from "lucide-react";
 import { BudgetWithCategory } from "../schema";
 import { toast } from "sonner";
 
 interface BudgetSummaryItem {
-  categoryId: string;
-  categoryName: string;
+  categoryId: string | null;
+  savingsBucketId?: string | null;
+  targetName?: string;
+  targetType?: "category" | "savings_bucket";
+  categoryName?: string;
   budgetAmount: number;
   spentAmount: number;
   remaining: number;
@@ -60,17 +65,24 @@ export function BudgetTable({
 }: BudgetTableProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Create a map of summary data by category ID for quick lookup
-  const summaryMap = new Map(
-    summary?.items.map((item) => [item.categoryId, item]) || [],
+  // Create maps of summary data by category ID and savings bucket ID for quick lookup
+  const categorySummaryMap = new Map(
+    summary?.items
+      .filter((item) => item.categoryId != null)
+      .map((item) => [item.categoryId, item]) || [],
+  );
+  const bucketSummaryMap = new Map(
+    summary?.items
+      .filter((item) => item.savingsBucketId != null)
+      .map((item) => [item.savingsBucketId, item]) || [],
   );
 
-  const handleDelete = async (id: string, categoryName: string) => {
+  const handleDelete = async (id: string, targetName: string) => {
     if (!onDelete) return;
 
     if (
       !confirm(
-        `Are you sure you want to delete the budget for "${categoryName}"?`,
+        `Are you sure you want to delete the budget for "${targetName}"?`,
       )
     ) {
       return;
@@ -79,9 +91,11 @@ export function BudgetTable({
     try {
       setActionLoading(id);
       await onDelete(id);
-      toast.success(`Budget for "${categoryName}" deleted successfully`);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete budget");
+      toast.success(`Budget for "${targetName}" deleted successfully`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to delete budget";
+      toast.error(errorMessage);
     } finally {
       setActionLoading(null);
     }
@@ -290,19 +304,45 @@ export function BudgetTable({
           </TableHeader>
           <TableBody>
             {budgets.map((budget) => {
-              const categorySummary = summaryMap.get(budget.category_id);
-              const percentUsed = categorySummary?.percentUsed || 0;
-              const spent = categorySummary?.spentAmount || 0;
-              const remaining = categorySummary?.remaining || budget.amount_idr;
+              // Get summary based on whether this is a category or savings bucket budget
+              const budgetSummary = budget.category_id
+                ? categorySummaryMap.get(budget.category_id)
+                : bucketSummaryMap.get(budget.savings_bucket_id);
+              const percentUsed = budgetSummary?.percentUsed || 0;
+              const spent = budgetSummary?.spentAmount || 0;
+              const remaining = budgetSummary?.remaining || budget.amount_idr;
+
+              // Determine display name and type
+              const isSavingsBucket = budget.target_type === "savings_bucket";
+              const displayName = isSavingsBucket
+                ? budget.savings_bucket_name || "Unknown Savings Bucket"
+                : budget.category_name || "Unknown Category";
 
               return (
                 <TableRow key={budget.id}>
                   <TableCell className="font-medium">
                     <div className="flex flex-col gap-1">
-                      <span>{budget.category_name || "Unknown Category"}</span>
-                      {!budget.category_name && (
+                      <div className="flex items-center gap-2">
+                        {isSavingsBucket ? (
+                          <PiggyBank className="h-4 w-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Wallet className="h-4 w-4 text-blue-600 shrink-0" />
+                        )}
+                        <span>{displayName}</span>
+                        {isSavingsBucket && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200"
+                          >
+                            Savings
+                          </Badge>
+                        )}
+                      </div>
+                      {!displayName.includes("Unknown") ? null : (
                         <span className="text-xs text-red-500">
-                          Category not found
+                          {isSavingsBucket
+                            ? "Savings bucket not found"
+                            : "Category not found"}
                         </span>
                       )}
                       <span
@@ -358,12 +398,7 @@ export function BudgetTable({
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                          onClick={() =>
-                            handleDelete(
-                              budget.id,
-                              budget.category_name || "Unknown Category",
-                            )
-                          }
+                          onClick={() => handleDelete(budget.id, displayName)}
                           disabled={actionLoading === budget.id}
                           className="text-red-600"
                         >

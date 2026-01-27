@@ -5,10 +5,12 @@
  *
  * Provides CRUD operations for budgets using PostgreSQL.
  * Handles budget creation, retrieval, updating, and deletion.
- * Budgets are organized by month (YYYY-MM-01 format) and category.
+ * Budgets are organized by month (YYYY-MM-01 format) and can target
+ * either expense categories OR savings buckets.
  */
 
 import { nanoid } from "nanoid";
+import { ZodError } from "zod";
 import {
   BudgetQuerySchema,
   BudgetIdSchema,
@@ -19,13 +21,27 @@ import { getDb, getPool, sql } from "@/db/drizzle-client";
 import { formatZodError } from "@/lib/zod";
 import { unprocessableEntity } from "@/lib/http";
 
+// Budget summary item for a month
+export interface BudgetSummaryItem {
+  categoryId: string | null;
+  savingsBucketId: string | null;
+  targetName: string;
+  targetType: "category" | "savings_bucket";
+  budgetAmount: number;
+  spentAmount: number;
+  remaining: number;
+  percentUsed: number;
+}
+
 // Budget summary for a month
 export interface BudgetSummary {
   month: string;
   totalBudget: number;
   totalSpent: number;
   remaining: number;
-  items: {
+  items: BudgetSummaryItem[];
+  // Legacy items for backward compatibility
+  categoryItems?: {
     categoryId: string;
     categoryName: string;
     budgetAmount: number;
@@ -36,7 +52,32 @@ export interface BudgetSummary {
 }
 
 /**
+ * Helper function to map a budget row to BudgetWithCategory
+ */
+function mapRowToBudgetWithCategory(
+  row: Record<string, unknown>,
+): BudgetWithCategory {
+  const categoryId = row.category_id as string | null;
+  const savingsBucketId = row.savings_bucket_id as string | null;
+
+  return {
+    id: row.id as string,
+    month: row.month as string,
+    category_id: categoryId,
+    savings_bucket_id: savingsBucketId,
+    amount_idr: row.amount_idr as number,
+    note: row.note as string | null,
+    created_at: row.created_at as Date | null,
+    updated_at: row.updated_at as Date | null,
+    category_name: row.category_name as string | null,
+    savings_bucket_name: row.savings_bucket_name as string | null,
+    target_type: categoryId ? "category" : "savings_bucket",
+  };
+}
+
+/**
  * List all budgets with optional month filter
+ * Includes both category and savings bucket budgets
  */
 export async function listBudgets(
   query: unknown = {},
@@ -50,26 +91,51 @@ export async function listBudgets(
 
     if (validatedQuery.month) {
       result = await db.execute(
-        sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.note, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.month = ${validatedQuery.month} ORDER BY c.name ASC`,
+        sql`SELECT
+          b.id,
+          b.month,
+          b.category_id,
+          b.savings_bucket_id,
+          b.amount_idr,
+          b.note,
+          b.created_at,
+          b.updated_at,
+          c.name as category_name,
+          sb.name as savings_bucket_name
+        FROM budgets b
+        LEFT JOIN categories c ON b.category_id = c.id
+        LEFT JOIN savings_buckets sb ON b.savings_bucket_id = sb.id
+        WHERE b.month = ${validatedQuery.month}
+        ORDER BY
+          CASE WHEN b.category_id IS NOT NULL THEN 0 ELSE 1 END,
+          COALESCE(c.name, sb.name) ASC`,
       );
     } else {
       result = await db.execute(
-        sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.note, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id ORDER BY b.month DESC, c.name ASC`,
+        sql`SELECT
+          b.id,
+          b.month,
+          b.category_id,
+          b.savings_bucket_id,
+          b.amount_idr,
+          b.note,
+          b.created_at,
+          b.updated_at,
+          c.name as category_name,
+          sb.name as savings_bucket_name
+        FROM budgets b
+        LEFT JOIN categories c ON b.category_id = c.id
+        LEFT JOIN savings_buckets sb ON b.savings_bucket_id = sb.id
+        ORDER BY
+          b.month DESC,
+          CASE WHEN b.category_id IS NOT NULL THEN 0 ELSE 1 END,
+          COALESCE(c.name, sb.name) ASC`,
       );
     }
 
-    return result.rows.map((row) => ({
-      id: row.id as string,
-      month: row.month as string,
-      category_id: row.category_id as string,
-      amount_idr: row.amount_idr as number,
-      note: row.note as string | null,
-      created_at: row.created_at as Date | null,
-      updated_at: row.updated_at as Date | null,
-      category_name: row.category_name as string,
-    }));
-  } catch (error: any) {
-    if (error.name === "ZodError") {
+    return result.rows.map(mapRowToBudgetWithCategory);
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       throw unprocessableEntity("Invalid budget query", formatZodError(error));
     }
     throw error;
@@ -78,6 +144,7 @@ export async function listBudgets(
 
 /**
  * Get a budget by ID
+ * Returns budget with category or savings bucket info
  */
 export async function getBudgetById(
   id: string,
@@ -88,24 +155,29 @@ export async function getBudgetById(
     BudgetIdSchema.parse({ id });
 
     const result = await db.execute(
-      sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.note, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.id = ${id}`,
+      sql`SELECT
+        b.id,
+        b.month,
+        b.category_id,
+        b.savings_bucket_id,
+        b.amount_idr,
+        b.note,
+        b.created_at,
+        b.updated_at,
+        c.name as category_name,
+        sb.name as savings_bucket_name
+      FROM budgets b
+      LEFT JOIN categories c ON b.category_id = c.id
+      LEFT JOIN savings_buckets sb ON b.savings_bucket_id = sb.id
+      WHERE b.id = ${id}`,
     );
 
     const row = result.rows[0];
     if (!row) return null;
 
-    return {
-      id: row.id as string,
-      month: row.month as string,
-      category_id: row.category_id as string,
-      amount_idr: row.amount_idr as number,
-      note: row.note as string | null,
-      created_at: row.created_at as Date | null,
-      updated_at: row.updated_at as Date | null,
-      category_name: row.category_name as string,
-    };
-  } catch (error: any) {
-    if (error.name === "ZodError") {
+    return mapRowToBudgetWithCategory(row);
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       throw unprocessableEntity("Invalid budget ID", formatZodError(error));
     }
     throw error;
@@ -114,6 +186,7 @@ export async function getBudgetById(
 
 /**
  * Get all budgets for a specific month
+ * Includes both category and savings bucket budgets
  */
 export async function getBudgetsByMonth(
   month: string,
@@ -124,21 +197,29 @@ export async function getBudgetsByMonth(
     BudgetMonthSchema.parse(month);
 
     const result = await db.execute(
-      sql`SELECT b.id, b.month, b.category_id, b.amount_idr, b.note, b.created_at, b.updated_at, c.name as category_name FROM budgets b LEFT JOIN categories c ON b.category_id = c.id WHERE b.month = ${month} ORDER BY c.name ASC`,
+      sql`SELECT
+        b.id,
+        b.month,
+        b.category_id,
+        b.savings_bucket_id,
+        b.amount_idr,
+        b.note,
+        b.created_at,
+        b.updated_at,
+        c.name as category_name,
+        sb.name as savings_bucket_name
+      FROM budgets b
+      LEFT JOIN categories c ON b.category_id = c.id
+      LEFT JOIN savings_buckets sb ON b.savings_bucket_id = sb.id
+      WHERE b.month = ${month}
+      ORDER BY
+        CASE WHEN b.category_id IS NOT NULL THEN 0 ELSE 1 END,
+        COALESCE(c.name, sb.name) ASC`,
     );
 
-    return result.rows.map((row) => ({
-      id: row.id as string,
-      month: row.month as string,
-      category_id: row.category_id as string,
-      amount_idr: row.amount_idr as number,
-      note: row.note as string | null,
-      created_at: row.created_at as Date | null,
-      updated_at: row.updated_at as Date | null,
-      category_name: row.category_name as string,
-    }));
-  } catch (error: any) {
-    if (error.name === "ZodError") {
+    return result.rows.map(mapRowToBudgetWithCategory);
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       throw unprocessableEntity("Invalid month format", formatZodError(error));
     }
     throw error;
@@ -147,10 +228,12 @@ export async function getBudgetsByMonth(
 
 /**
  * Create a single budget item
+ * Supports both category budgets and savings bucket budgets
  */
 export async function createBudget(input: {
   month: string;
-  categoryId: string;
+  categoryId?: string | null;
+  savingsBucketId?: string | null;
   amountIdr: number;
   note?: string | null;
 }): Promise<BudgetWithCategory> {
@@ -159,52 +242,122 @@ export async function createBudget(input: {
   try {
     BudgetMonthSchema.parse(input.month);
 
-    // Verify category exists, is not archived, and is an expense category
-    const categoryResult = await db.execute(
-      sql`SELECT id, name, type FROM categories WHERE id = ${input.categoryId} AND archived = false`,
-    );
+    const hasCategoryId = input.categoryId != null && input.categoryId !== "";
+    const hasSavingsBucketId =
+      input.savingsBucketId != null && input.savingsBucketId !== "";
 
-    if (categoryResult.rows.length === 0) {
-      throw new Error("Category not found or archived");
+    // Validate that exactly one target is specified
+    if (hasCategoryId && hasSavingsBucketId) {
+      throw new Error("Cannot specify both categoryId and savingsBucketId");
+    }
+    if (!hasCategoryId && !hasSavingsBucketId) {
+      throw new Error("Must specify either categoryId or savingsBucketId");
     }
 
-    const category = categoryResult.rows[0];
-    if (category.type !== "expense") {
-      throw new Error(
-        "Budget category must be an expense category. Income categories cannot be budgeted.",
+    let targetName: string;
+    let categoryId: string | null = null;
+    let savingsBucketId: string | null = null;
+
+    if (hasCategoryId) {
+      categoryId = input.categoryId!;
+
+      // Verify category exists, is not archived, and is an expense category
+      const categoryResult = await db.execute(
+        sql`SELECT id, name, type FROM categories WHERE id = ${categoryId} AND archived = false`,
       );
-    }
 
-    // Check if budget already exists for this month/category
-    const existingResult = await db.execute(
-      sql`SELECT id FROM budgets WHERE month = ${input.month} AND category_id = ${input.categoryId}`,
-    );
+      if (categoryResult.rows.length === 0) {
+        throw new Error("Category not found or archived");
+      }
 
-    if (existingResult.rows.length > 0) {
-      throw new Error("Budget already exists for this month and category");
+      const category = categoryResult.rows[0];
+      if (category.type !== "expense") {
+        throw new Error(
+          "Budget category must be an expense category. Income categories cannot be budgeted.",
+        );
+      }
+
+      targetName = category.name as string;
+
+      // Check if budget already exists for this month/category
+      const existingResult = await db.execute(
+        sql`SELECT id FROM budgets WHERE month = ${input.month} AND category_id = ${categoryId}`,
+      );
+
+      if (existingResult.rows.length > 0) {
+        throw new Error("Budget already exists for this month and category");
+      }
+    } else {
+      savingsBucketId = input.savingsBucketId!;
+
+      // Verify savings bucket exists and is not archived
+      const bucketResult = await db.execute(
+        sql`SELECT id, name FROM savings_buckets WHERE id = ${savingsBucketId} AND archived = false AND deleted_at IS NULL`,
+      );
+
+      if (bucketResult.rows.length === 0) {
+        throw new Error("Savings bucket not found or archived");
+      }
+
+      targetName = bucketResult.rows[0].name as string;
+
+      // Check if budget already exists for this month/savings bucket
+      const existingResult = await db.execute(
+        sql`SELECT id FROM budgets WHERE month = ${input.month} AND savings_bucket_id = ${savingsBucketId}`,
+      );
+
+      if (existingResult.rows.length > 0) {
+        throw new Error(
+          "Budget already exists for this month and savings bucket",
+        );
+      }
     }
 
     const id = nanoid();
     const now = new Date();
-
     const noteValue = input.note ?? null;
 
-    await db.execute(
-      sql`INSERT INTO budgets (id, month, category_id, amount_idr, note, created_at, updated_at) VALUES (${id}, ${input.month}, ${input.categoryId}, ${input.amountIdr}, ${noteValue}, ${now}, ${now})`,
-    );
+    if (categoryId) {
+      await db.execute(
+        sql`INSERT INTO budgets (id, month, category_id, savings_bucket_id, amount_idr, note, created_at, updated_at)
+            VALUES (${id}, ${input.month}, ${categoryId}, ${null}, ${input.amountIdr}, ${noteValue}, ${now}, ${now})`,
+      );
 
-    return {
-      id,
-      month: input.month,
-      category_id: input.categoryId,
-      amount_idr: input.amountIdr,
-      note: noteValue,
-      created_at: now,
-      updated_at: now,
-      category_name: categoryResult.rows[0].name as string,
-    };
-  } catch (error: any) {
-    if (error.name === "ZodError") {
+      return {
+        id,
+        month: input.month,
+        category_id: categoryId,
+        savings_bucket_id: null,
+        amount_idr: input.amountIdr,
+        note: noteValue,
+        created_at: now,
+        updated_at: now,
+        category_name: targetName,
+        savings_bucket_name: null,
+        target_type: "category",
+      };
+    } else {
+      await db.execute(
+        sql`INSERT INTO budgets (id, month, category_id, savings_bucket_id, amount_idr, note, created_at, updated_at)
+            VALUES (${id}, ${input.month}, ${null}, ${savingsBucketId}, ${input.amountIdr}, ${noteValue}, ${now}, ${now})`,
+      );
+
+      return {
+        id,
+        month: input.month,
+        category_id: null,
+        savings_bucket_id: savingsBucketId,
+        amount_idr: input.amountIdr,
+        note: noteValue,
+        created_at: now,
+        updated_at: now,
+        category_name: null,
+        savings_bucket_name: targetName,
+        target_type: "savings_bucket",
+      };
+    }
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       throw unprocessableEntity("Invalid budget data", formatZodError(error));
     }
     throw error;
@@ -245,8 +398,8 @@ export async function updateBudget(
       note: noteValue,
       updated_at: now,
     };
-  } catch (error: any) {
-    if (error.name === "ZodError") {
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       throw unprocessableEntity("Invalid budget ID", formatZodError(error));
     }
     throw error;
@@ -268,8 +421,8 @@ export async function deleteBudget(id: string): Promise<void> {
     }
 
     await db.execute(sql`DELETE FROM budgets WHERE id = ${id}`);
-  } catch (error: any) {
-    if (error.name === "ZodError") {
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       throw unprocessableEntity("Invalid budget ID", formatZodError(error));
     }
     throw error;
@@ -295,8 +448,8 @@ export async function deleteBudgetsByMonth(month: string): Promise<number> {
     );
 
     return result.rows[0]?.count || 0;
-  } catch (error: any) {
-    if (error.name === "ZodError") {
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       throw unprocessableEntity("Invalid month format", formatZodError(error));
     }
     throw error;
@@ -304,7 +457,8 @@ export async function deleteBudgetsByMonth(month: string): Promise<number> {
 }
 
 /**
- * Get budget summary for a month (budget vs actual spending)
+ * Get budget summary for a month (budget vs actual spending/savings)
+ * Includes both category budgets and savings bucket budgets
  */
 export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
   const pool = getPool();
@@ -321,14 +475,17 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
     const startDateISO = startDate.toISOString();
     const endDateISO = endDate.toISOString();
 
-    // Get budgets for the month with category names
+    // Get all budgets for the month (both category and savings bucket)
     const budgetResult = await pool.query(
       `SELECT
         b.category_id,
+        b.savings_bucket_id,
         c.name as category_name,
+        sb.name as savings_bucket_name,
         b.amount_idr as budget_amount
       FROM budgets b
       LEFT JOIN categories c ON b.category_id = c.id
+      LEFT JOIN savings_buckets sb ON b.savings_bucket_id = sb.id
       WHERE b.month = $1`,
       [month],
     );
@@ -349,7 +506,24 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
       [startDateISO, endDateISO],
     );
 
-    // Create spending map
+    // Get actual savings contributions by savings bucket for the month
+    // Note: savings_bucket_id is on the postings table, not transaction_events
+    const savingsResult = await pool.query(
+      `SELECT
+        p.savings_bucket_id,
+        COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as saved_amount
+      FROM transaction_events te
+      JOIN postings p ON te.id = p.event_id
+      WHERE te.type = 'savings'
+        AND te.deleted_at IS NULL
+        AND te.occurred_at >= $1
+        AND te.occurred_at < $2
+        AND p.savings_bucket_id IS NOT NULL
+      GROUP BY p.savings_bucket_id`,
+      [startDateISO, endDateISO],
+    );
+
+    // Create spending/savings maps
     const spendingByCategory = new Map(
       spendingResult.rows.map((s) => [
         s.category_id as string,
@@ -357,14 +531,36 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
       ]),
     );
 
+    const savingsByBucket = new Map(
+      savingsResult.rows.map((s) => [
+        s.savings_bucket_id as string,
+        Number(s.saved_amount),
+      ]),
+    );
+
     // Calculate summary
     let totalBudget = 0;
     let totalSpent = 0;
 
-    const items = budgetResult.rows.map((budget) => {
+    const items: BudgetSummaryItem[] = budgetResult.rows.map((budget) => {
       const budgetAmount = Number(budget.budget_amount);
-      const spentAmount =
-        spendingByCategory.get(budget.category_id as string) || 0;
+      const categoryId = budget.category_id as string | null;
+      const savingsBucketId = budget.savings_bucket_id as string | null;
+
+      let spentAmount: number;
+      let targetName: string;
+      let targetType: "category" | "savings_bucket";
+
+      if (categoryId) {
+        spentAmount = spendingByCategory.get(categoryId) || 0;
+        targetName = (budget.category_name as string) || "Unknown Category";
+        targetType = "category";
+      } else {
+        spentAmount = savingsByBucket.get(savingsBucketId!) || 0;
+        targetName = (budget.savings_bucket_name as string) || "Unknown Bucket";
+        targetType = "savings_bucket";
+      }
+
       const remaining = budgetAmount - spentAmount;
       const percentUsed =
         budgetAmount > 0 ? (spentAmount / budgetAmount) * 100 : 0;
@@ -373,8 +569,10 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
       totalSpent += spentAmount;
 
       return {
-        categoryId: budget.category_id as string,
-        categoryName: (budget.category_name as string) || "Unknown",
+        categoryId,
+        savingsBucketId,
+        targetName,
+        targetType,
         budgetAmount,
         spentAmount,
         remaining,
@@ -382,15 +580,28 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
       };
     });
 
+    // Legacy category items for backward compatibility
+    const categoryItems = items
+      .filter((item) => item.targetType === "category")
+      .map((item) => ({
+        categoryId: item.categoryId!,
+        categoryName: item.targetName,
+        budgetAmount: item.budgetAmount,
+        spentAmount: item.spentAmount,
+        remaining: item.remaining,
+        percentUsed: item.percentUsed,
+      }));
+
     return {
       month,
       totalBudget,
       totalSpent,
       remaining: totalBudget - totalSpent,
       items,
+      categoryItems,
     };
-  } catch (error: any) {
-    if (error.name === "ZodError") {
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       throw unprocessableEntity("Invalid month format", formatZodError(error));
     }
     throw error;
@@ -427,7 +638,7 @@ export async function getMonthsWithBudgets(): Promise<
         budgetCount: row.budget_count as number,
       };
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching months with budgets:", error);
     throw error;
   }
@@ -435,13 +646,18 @@ export async function getMonthsWithBudgets(): Promise<
 
 /**
  * Copy budgets from one month to another
+ * Supports both category budgets and savings bucket budgets
  */
 export async function copyBudgets(
   fromMonth: string,
   toMonth: string,
 ): Promise<{
-  created: Array<BudgetWithCategory & { category_name: string }>;
-  skipped: Array<{ categoryId: string; categoryName: string }>;
+  created: Array<BudgetWithCategory>;
+  skipped: Array<{
+    categoryId: string | null;
+    savingsBucketId: string | null;
+    targetName: string;
+  }>;
 }> {
   const pool = getPool();
 
@@ -462,21 +678,41 @@ export async function copyBudgets(
 
     // Get existing budgets in destination month
     const existingBudgets = await getBudgetsByMonth(toMonth);
+
+    // Create sets for existing category and savings bucket IDs
     const existingCategoryIds = new Set(
-      existingBudgets.map((b) => b.category_id),
+      existingBudgets
+        .filter((b) => b.category_id != null)
+        .map((b) => b.category_id),
+    );
+    const existingSavingsBucketIds = new Set(
+      existingBudgets
+        .filter((b) => b.savings_bucket_id != null)
+        .map((b) => b.savings_bucket_id),
     );
 
-    // Filter source budgets to only include categories NOT in destination
-    const budgetsToCopy = sourceBudgets.filter(
-      (b) => !existingCategoryIds.has(b.category_id),
-    );
+    // Filter source budgets to only include those NOT in destination
+    const budgetsToCopy = sourceBudgets.filter((b) => {
+      if (b.category_id) {
+        return !existingCategoryIds.has(b.category_id);
+      } else {
+        return !existingSavingsBucketIds.has(b.savings_bucket_id);
+      }
+    });
 
     // Track skipped budgets
     const skippedBudgets = sourceBudgets
-      .filter((b) => existingCategoryIds.has(b.category_id))
+      .filter((b) => {
+        if (b.category_id) {
+          return existingCategoryIds.has(b.category_id);
+        } else {
+          return existingSavingsBucketIds.has(b.savings_bucket_id);
+        }
+      })
       .map((b) => ({
         categoryId: b.category_id,
-        categoryName: b.category_name ?? "",
+        savingsBucketId: b.savings_bucket_id,
+        targetName: b.category_name || b.savings_bucket_name || "",
       }));
 
     // If all budgets already exist, return early
@@ -489,9 +725,7 @@ export async function copyBudgets(
 
     const client = await pool.connect();
     const now = new Date();
-    const createdBudgets: Array<
-      BudgetWithCategory & { category_name: string }
-    > = [];
+    const createdBudgets: Array<BudgetWithCategory> = [];
 
     try {
       await client.query("BEGIN");
@@ -499,13 +733,15 @@ export async function copyBudgets(
       // Insert only the budgets that don't exist in destination
       for (const budget of budgetsToCopy) {
         const newId = nanoid();
+
         await client.query(
-          `INSERT INTO budgets (id, month, category_id, amount_idr, note, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          `INSERT INTO budgets (id, month, category_id, savings_bucket_id, amount_idr, note, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
             newId,
             toMonth,
             budget.category_id,
+            budget.savings_bucket_id,
             budget.amount_idr,
             budget.note ?? null,
             now,
@@ -517,11 +753,14 @@ export async function copyBudgets(
           id: newId,
           month: toMonth,
           category_id: budget.category_id,
+          savings_bucket_id: budget.savings_bucket_id,
           amount_idr: budget.amount_idr,
           note: budget.note ?? null,
           created_at: now,
           updated_at: now,
-          category_name: budget.category_name ?? "",
+          category_name: budget.category_name,
+          savings_bucket_name: budget.savings_bucket_name,
+          target_type: budget.target_type,
         });
       }
 
@@ -536,8 +775,8 @@ export async function copyBudgets(
     } finally {
       client.release();
     }
-  } catch (error: any) {
-    if (error.name === "ZodError") {
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
       throw unprocessableEntity("Invalid month format", formatZodError(error));
     }
     throw error;

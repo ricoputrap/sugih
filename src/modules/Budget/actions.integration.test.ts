@@ -18,10 +18,15 @@ import {
   copyBudgets,
 } from "./actions";
 import { createCategory, deleteCategory } from "@/modules/Category/actions";
+import {
+  createSavingsBucket,
+  deleteSavingsBucket,
+} from "@/modules/SavingsBucket/actions";
 import { getPool, closeDb } from "@/db/drizzle-client";
 
 describe("Budget Integration Tests", () => {
   const testCategoryIds: string[] = [];
+  const testSavingsBucketIds: string[] = [];
   const testBudgetIds: string[] = [];
   const testMonth = "2099-01-01";
   const testMonth2 = "2099-02-01";
@@ -33,6 +38,15 @@ describe("Budget Integration Tests", () => {
     });
     testCategoryIds.push(category.id);
     return category;
+  }
+
+  async function createTestSavingsBucket() {
+    const bucket = await createSavingsBucket({
+      name: `Budget Savings Bucket ${nanoid()}`,
+      description: "Test savings bucket for budget tests",
+    });
+    testSavingsBucketIds.push(bucket.id);
+    return bucket;
   }
 
   async function cleanupTestBudget(id: string) {
@@ -52,6 +66,14 @@ describe("Budget Integration Tests", () => {
     }
   }
 
+  async function cleanupTestSavingsBucket(id: string) {
+    try {
+      await deleteSavingsBucket(id);
+    } catch (error) {
+      console.error("Savings bucket cleanup error:", error);
+    }
+  }
+
   afterEach(async () => {
     // Clean up budgets first (foreign key constraint)
     for (const id of testBudgetIds) {
@@ -64,6 +86,12 @@ describe("Budget Integration Tests", () => {
       await cleanupTestCategory(id);
     }
     testCategoryIds.length = 0;
+
+    // Clean up savings buckets
+    for (const id of testSavingsBucketIds) {
+      await cleanupTestSavingsBucket(id);
+    }
+    testSavingsBucketIds.length = 0;
   });
 
   afterAll(async () => {
@@ -778,6 +806,345 @@ describe("Budget Integration Tests", () => {
 
       // Cleanup
       await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+  });
+
+  describe("Savings Bucket Budget CRUD", () => {
+    it("should create a budget for a savings bucket", async () => {
+      const bucket = await createTestSavingsBucket();
+      const budget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 2000000,
+      });
+      testBudgetIds.push(budget.id);
+
+      expect(budget.id).toBeDefined();
+      expect(budget.month).toBe(testMonth);
+      expect(budget.savings_bucket_id).toBe(bucket.id);
+      expect(budget.category_id).toBeNull();
+      expect(budget.amount_idr).toBe(2000000);
+      expect(budget.savings_bucket_name).toBe(bucket.name);
+      expect(budget.target_type).toBe("savings_bucket");
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should reject budget for non-existent savings bucket", async () => {
+      await expect(
+        createBudget({
+          month: testMonth,
+          savingsBucketId: "non-existent-bucket-id",
+          amountIdr: 1000000,
+        }),
+      ).rejects.toThrow("not found or archived");
+    });
+
+    it("should reject duplicate budget for same month and savings bucket", async () => {
+      const bucket = await createTestSavingsBucket();
+      const budget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(budget.id);
+
+      await expect(
+        createBudget({
+          month: testMonth,
+          savingsBucketId: bucket.id,
+          amountIdr: 2000000,
+        }),
+      ).rejects.toThrow("already exists");
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should reject budget with both categoryId and savingsBucketId", async () => {
+      const category = await createTestCategory();
+      const bucket = await createTestSavingsBucket();
+
+      await expect(
+        createBudget({
+          month: testMonth,
+          categoryId: category.id,
+          savingsBucketId: bucket.id,
+          amountIdr: 1000000,
+        }),
+      ).rejects.toThrow("Cannot specify both categoryId and savingsBucketId");
+    });
+
+    it("should reject budget with neither categoryId nor savingsBucketId", async () => {
+      await expect(
+        createBudget({
+          month: testMonth,
+          amountIdr: 1000000,
+        }),
+      ).rejects.toThrow("Must specify either categoryId or savingsBucketId");
+    });
+
+    it("should allow same savings bucket in different months", async () => {
+      const bucket = await createTestSavingsBucket();
+
+      const budget1 = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(budget1.id);
+
+      const budget2 = await createBudget({
+        month: testMonth2,
+        savingsBucketId: bucket.id,
+        amountIdr: 2000000,
+      });
+      testBudgetIds.push(budget2.id);
+
+      expect(budget1.amount_idr).toBe(1000000);
+      expect(budget2.amount_idr).toBe(2000000);
+
+      // Cleanup
+      await cleanupTestBudget(budget1.id);
+      await cleanupTestBudget(budget2.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should get savings bucket budget by ID", async () => {
+      const bucket = await createTestSavingsBucket();
+      const budget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 1500000,
+        note: "Savings goal",
+      });
+      testBudgetIds.push(budget.id);
+
+      const retrieved = await getBudgetById(budget.id);
+
+      expect(retrieved).not.toBeNull();
+      expect(retrieved?.id).toBe(budget.id);
+      expect(retrieved?.savings_bucket_id).toBe(bucket.id);
+      expect(retrieved?.savings_bucket_name).toBe(bucket.name);
+      expect(retrieved?.target_type).toBe("savings_bucket");
+      expect(retrieved?.note).toBe("Savings goal");
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should list both category and savings bucket budgets for a month", async () => {
+      const category = await createTestCategory();
+      const bucket = await createTestSavingsBucket();
+
+      const categoryBudget = await createBudget({
+        month: testMonth,
+        categoryId: category.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(categoryBudget.id);
+
+      const bucketBudget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 500000,
+      });
+      testBudgetIds.push(bucketBudget.id);
+
+      const budgets = await listBudgets({ month: testMonth });
+
+      expect(budgets.length).toBeGreaterThanOrEqual(2);
+
+      const foundCategoryBudget = budgets.find(
+        (b) => b.id === categoryBudget.id,
+      );
+      const foundBucketBudget = budgets.find((b) => b.id === bucketBudget.id);
+
+      expect(foundCategoryBudget?.target_type).toBe("category");
+      expect(foundBucketBudget?.target_type).toBe("savings_bucket");
+
+      // Cleanup
+      await cleanupTestBudget(categoryBudget.id);
+      await cleanupTestBudget(bucketBudget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should update savings bucket budget amount", async () => {
+      const bucket = await createTestSavingsBucket();
+      const budget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(budget.id);
+
+      const updated = await updateBudget(budget.id, 2500000);
+
+      expect(updated.amount_idr).toBe(2500000);
+      expect(updated.savings_bucket_id).toBe(bucket.id);
+      expect(updated.target_type).toBe("savings_bucket");
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should delete savings bucket budget", async () => {
+      const bucket = await createTestSavingsBucket();
+      const budget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 1000000,
+      });
+
+      await deleteBudget(budget.id);
+
+      const retrieved = await getBudgetById(budget.id);
+      expect(retrieved).toBeNull();
+    });
+  });
+
+  describe("Copy Budgets with Savings Buckets", () => {
+    it("should copy savings bucket budgets to another month", async () => {
+      const bucket = await createTestSavingsBucket();
+      const budget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 1000000,
+        note: "Monthly savings",
+      });
+      testBudgetIds.push(budget.id);
+
+      const result = await copyBudgets(testMonth, testMonth2);
+
+      expect(result.created.length).toBe(1);
+      expect(result.created[0].savings_bucket_id).toBe(bucket.id);
+      expect(result.created[0].target_type).toBe("savings_bucket");
+      expect(result.created[0].note).toBe("Monthly savings");
+      testBudgetIds.push(result.created[0].id);
+
+      // Cleanup
+      for (const id of testBudgetIds) {
+        await cleanupTestBudget(id);
+      }
+      testBudgetIds.length = 0;
+    });
+
+    it("should copy mixed category and savings bucket budgets", async () => {
+      const category = await createTestCategory();
+      const bucket = await createTestSavingsBucket();
+
+      const categoryBudget = await createBudget({
+        month: testMonth,
+        categoryId: category.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(categoryBudget.id);
+
+      const bucketBudget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 500000,
+      });
+      testBudgetIds.push(bucketBudget.id);
+
+      const result = await copyBudgets(testMonth, testMonth2);
+
+      expect(result.created.length).toBe(2);
+
+      const copiedCategoryBudget = result.created.find(
+        (b) => b.category_id === category.id,
+      );
+      const copiedBucketBudget = result.created.find(
+        (b) => b.savings_bucket_id === bucket.id,
+      );
+
+      expect(copiedCategoryBudget?.target_type).toBe("category");
+      expect(copiedBucketBudget?.target_type).toBe("savings_bucket");
+
+      testBudgetIds.push(...result.created.map((b) => b.id));
+
+      // Cleanup
+      for (const id of testBudgetIds) {
+        await cleanupTestBudget(id);
+      }
+      testBudgetIds.length = 0;
+    });
+
+    it("should skip existing savings bucket budgets when copying", async () => {
+      const bucket = await createTestSavingsBucket();
+
+      const sourceBudget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(sourceBudget.id);
+
+      const destBudget = await createBudget({
+        month: testMonth2,
+        savingsBucketId: bucket.id,
+        amountIdr: 2000000,
+      });
+      testBudgetIds.push(destBudget.id);
+
+      const result = await copyBudgets(testMonth, testMonth2);
+
+      expect(result.created.length).toBe(0);
+      expect(result.skipped.length).toBe(1);
+      expect(result.skipped[0].savingsBucketId).toBe(bucket.id);
+
+      // Cleanup
+      for (const id of testBudgetIds) {
+        await cleanupTestBudget(id);
+      }
+      testBudgetIds.length = 0;
+    });
+  });
+
+  describe("Budget Summary with Savings Buckets", () => {
+    it("should include savings bucket budgets in summary", async () => {
+      const category = await createTestCategory();
+      const bucket = await createTestSavingsBucket();
+
+      const categoryBudget = await createBudget({
+        month: testMonth,
+        categoryId: category.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(categoryBudget.id);
+
+      const bucketBudget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 500000,
+      });
+      testBudgetIds.push(bucketBudget.id);
+
+      const summary = await getBudgetSummary(testMonth);
+
+      expect(summary.totalBudget).toBe(1500000);
+      expect(summary.items.length).toBeGreaterThanOrEqual(2);
+
+      const categoryItem = summary.items.find(
+        (i) => i.categoryId === category.id,
+      );
+      const bucketItem = summary.items.find(
+        (i) => i.savingsBucketId === bucket.id,
+      );
+
+      expect(categoryItem?.targetType).toBe("category");
+      expect(bucketItem?.targetType).toBe("savings_bucket");
+
+      // Cleanup
+      for (const id of testBudgetIds) {
+        await cleanupTestBudget(id);
+      }
       testBudgetIds.length = 0;
     });
   });

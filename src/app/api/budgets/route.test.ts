@@ -434,7 +434,7 @@ describe("Budgets API Routes", () => {
 
       expect(status).toBe(409);
       expect(data.error.message).toBe(
-        "Budget already exists for this month and category",
+        "Budget already exists for this month and target",
       );
       expect(createBudget).toHaveBeenCalled();
     });
@@ -463,7 +463,7 @@ describe("Budgets API Routes", () => {
 
       expect(status).toBe(409);
       expect(data.error.message).toBe(
-        "Budget already exists for this month and category",
+        "Budget already exists for this month and target",
       );
     });
 
@@ -489,7 +489,7 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(400);
-      expect(data.error.message).toContain("Invalid category reference");
+      expect(data.error.message).toContain("Invalid reference:");
       expect(createBudget).toHaveBeenCalled();
     });
 
@@ -577,7 +577,7 @@ describe("Budgets API Routes", () => {
         "POST",
         "http://localhost:3000/api/budgets",
         {
-          month: "2024-01-03",
+          month: "2024-01-01",
           categoryId: "cat3",
           amountIdr: 500000,
         },
@@ -587,7 +587,7 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(500);
-      expect(data.error.message).toBe("Failed to create budget");
+      expect(data.error.message).toBe("Database error");
     });
 
     it("should handle large budget amounts", async () => {

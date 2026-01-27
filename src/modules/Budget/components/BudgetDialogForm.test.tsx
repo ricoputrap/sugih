@@ -15,18 +15,50 @@ vi.mock("sonner", () => ({
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
+const mockCategories = [
+  { id: "cat1", name: "Food", type: "expense", archived: false },
+  { id: "cat2", name: "Transport", type: "expense", archived: false },
+];
+
+const mockSavingsBuckets = [
+  {
+    id: "bucket1",
+    name: "Emergency Fund",
+    description: "For emergencies",
+    archived: false,
+  },
+  {
+    id: "bucket2",
+    name: "Child School",
+    description: "Child education",
+    archived: false,
+  },
+];
+
 describe("BudgetDialogForm", () => {
   const mockOnOpenChange = vi.fn();
   const mockOnSubmit = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => [
-        { id: "cat1", name: "Food", type: "expense", archived: false },
-        { id: "cat2", name: "Transport", type: "expense", archived: false },
-      ],
+    // Mock fetch to return different data based on URL
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/categories") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockCategories,
+        });
+      }
+      if (url === "/api/savings-buckets") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockSavingsBuckets,
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => [],
+      });
     });
   });
 
@@ -47,17 +79,31 @@ describe("BudgetDialogForm", () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith("/api/categories");
+      expect(mockFetch).toHaveBeenCalledWith("/api/savings-buckets");
     });
 
     it("should only display expense categories in the selector", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => [
-          { id: "exp1", name: "Food", type: "expense", archived: false },
-          { id: "exp2", name: "Transport", type: "expense", archived: false },
-          { id: "inc1", name: "Salary", type: "income", archived: false },
-          { id: "inc2", name: "Bonus", type: "income", archived: false },
-        ],
+      mockFetch.mockImplementation((url: string) => {
+        if (url === "/api/categories") {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [
+              { id: "exp1", name: "Food", type: "expense", archived: false },
+              {
+                id: "exp2",
+                name: "Transport",
+                type: "expense",
+                archived: false,
+              },
+              { id: "inc1", name: "Salary", type: "income", archived: false },
+              { id: "inc2", name: "Bonus", type: "income", archived: false },
+            ],
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockSavingsBuckets,
+        });
       });
 
       const { container } = render(
@@ -84,12 +130,25 @@ describe("BudgetDialogForm", () => {
     });
 
     it("should not display income categories in the selector", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => [
-          { id: "inc1", name: "Salary", type: "income", archived: false },
-          { id: "inc2", name: "Freelance", type: "income", archived: false },
-        ],
+      mockFetch.mockImplementation((url: string) => {
+        if (url === "/api/categories") {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [
+              { id: "inc1", name: "Salary", type: "income", archived: false },
+              {
+                id: "inc2",
+                name: "Freelance",
+                type: "income",
+                archived: false,
+              },
+            ],
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockSavingsBuckets,
+        });
       });
 
       render(
@@ -112,14 +171,32 @@ describe("BudgetDialogForm", () => {
     });
 
     it("should filter out both archived and income categories", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => [
-          { id: "exp1", name: "Food", type: "expense", archived: false },
-          { id: "exp2", name: "Old Expense", type: "expense", archived: true },
-          { id: "inc1", name: "Salary", type: "income", archived: false },
-          { id: "inc2", name: "Old Income", type: "income", archived: true },
-        ],
+      mockFetch.mockImplementation((url: string) => {
+        if (url === "/api/categories") {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [
+              { id: "exp1", name: "Food", type: "expense", archived: false },
+              {
+                id: "exp2",
+                name: "Old Expense",
+                type: "expense",
+                archived: true,
+              },
+              { id: "inc1", name: "Salary", type: "income", archived: false },
+              {
+                id: "inc2",
+                name: "Old Income",
+                type: "income",
+                archived: true,
+              },
+            ],
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockSavingsBuckets,
+        });
       });
 
       render(
@@ -142,13 +219,26 @@ describe("BudgetDialogForm", () => {
     });
 
     it("should filter out archived expense categories", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => [
-          { id: "exp1", name: "Food", type: "expense", archived: true },
-          { id: "exp2", name: "Transport", type: "expense", archived: false },
-          { id: "inc1", name: "Salary", type: "income", archived: false },
-        ],
+      mockFetch.mockImplementation((url: string) => {
+        if (url === "/api/categories") {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [
+              { id: "exp1", name: "Food", type: "expense", archived: true },
+              {
+                id: "exp2",
+                name: "Transport",
+                type: "expense",
+                archived: false,
+              },
+              { id: "inc1", name: "Salary", type: "income", archived: false },
+            ],
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockSavingsBuckets,
+        });
       });
 
       render(
@@ -532,6 +622,248 @@ describe("BudgetDialogForm", () => {
         const noteField = screen.getByTestId("budget-form-note");
         expect(noteField).toHaveValue("Preserved note");
       });
+    });
+  });
+
+  describe("Savings Bucket Selection", () => {
+    it("should render target type radio buttons in create mode", async () => {
+      render(
+        <BudgetDialogForm
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          onSubmit={mockOnSubmit}
+          mode="create"
+          initialData={null}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Budget For")).toBeInTheDocument();
+        expect(screen.getByText("Expense Category")).toBeInTheDocument();
+        expect(screen.getByText("Savings Bucket")).toBeInTheDocument();
+      });
+    });
+
+    it("should default to category selection in create mode", async () => {
+      render(
+        <BudgetDialogForm
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          onSubmit={mockOnSubmit}
+          mode="create"
+          initialData={null}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("budget-form-category")).toBeInTheDocument();
+      });
+
+      // Savings bucket selector should not be visible by default
+      expect(
+        screen.queryByTestId("budget-form-savings-bucket"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("should show savings bucket selector when savings bucket target is selected", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <BudgetDialogForm
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          onSubmit={mockOnSubmit}
+          mode="create"
+          initialData={null}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Savings Bucket")).toBeInTheDocument();
+      });
+
+      // Click on savings bucket radio
+      const savingsBucketRadio = screen.getByLabelText(/Savings Bucket/i);
+      await user.click(savingsBucketRadio);
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("budget-form-savings-bucket"),
+        ).toBeInTheDocument();
+      });
+
+      // Category selector should no longer be visible
+      expect(
+        screen.queryByTestId("budget-form-category"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("should fetch savings buckets when dialog opens", async () => {
+      render(
+        <BudgetDialogForm
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          onSubmit={mockOnSubmit}
+          mode="create"
+          initialData={null}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith("/api/savings-buckets");
+      });
+    });
+
+    it("should filter out archived savings buckets", async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url === "/api/savings-buckets") {
+          return Promise.resolve({
+            ok: true,
+            json: async () => [
+              { id: "bucket1", name: "Active Bucket", archived: false },
+              { id: "bucket2", name: "Archived Bucket", archived: true },
+            ],
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockCategories,
+        });
+      });
+
+      render(
+        <BudgetDialogForm
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          onSubmit={mockOnSubmit}
+          mode="create"
+          initialData={null}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith("/api/savings-buckets");
+      });
+    });
+
+    it("should display savings bucket name in edit mode for savings bucket budget", async () => {
+      const initialData = {
+        id: "budget1",
+        month: "2024-01-01",
+        category_id: null,
+        savings_bucket_id: "bucket1",
+        category_name: null,
+        savings_bucket_name: "Emergency Fund",
+        amount_idr: 1000000,
+        note: null,
+        target_type: "savings_bucket" as const,
+      };
+
+      render(
+        <BudgetDialogForm
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          onSubmit={mockOnSubmit}
+          mode="edit"
+          initialData={initialData}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Savings Bucket")).toBeInTheDocument();
+        expect(screen.getByText("Emergency Fund")).toBeInTheDocument();
+      });
+    });
+
+    it("should not show target type radio buttons in edit mode", async () => {
+      const initialData = {
+        id: "budget1",
+        month: "2024-01-01",
+        category_id: "cat1",
+        savings_bucket_id: null,
+        category_name: "Food",
+        savings_bucket_name: null,
+        amount_idr: 1000000,
+        note: null,
+        target_type: "category" as const,
+      };
+
+      render(
+        <BudgetDialogForm
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          onSubmit={mockOnSubmit}
+          mode="edit"
+          initialData={initialData}
+        />,
+      );
+
+      await waitFor(() => {
+        // In edit mode, we show a static display, not radio buttons
+        expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+      });
+    });
+
+    it("should switch to savings bucket selector when savings bucket target is selected", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <BudgetDialogForm
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          onSubmit={mockOnSubmit}
+          mode="create"
+          initialData={null}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Savings Bucket")).toBeInTheDocument();
+      });
+
+      // Select savings bucket target type
+      const savingsBucketRadio = screen.getByLabelText(/Savings Bucket/i);
+      await user.click(savingsBucketRadio);
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("budget-form-savings-bucket"),
+        ).toBeInTheDocument();
+      });
+
+      // Verify category selector is hidden
+      expect(
+        screen.queryByTestId("budget-form-category"),
+      ).not.toBeInTheDocument();
+
+      // Verify the savings bucket trigger has correct placeholder
+      const bucketTrigger = screen.getByTestId("budget-form-savings-bucket");
+      expect(bucketTrigger).toBeInTheDocument();
+    });
+
+    it("should keep category selector visible by default", async () => {
+      render(
+        <BudgetDialogForm
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          onSubmit={mockOnSubmit}
+          mode="create"
+          initialData={null}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("budget-form-category")).toBeInTheDocument();
+      });
+
+      // Verify savings bucket selector is hidden by default
+      expect(
+        screen.queryByTestId("budget-form-savings-bucket"),
+      ).not.toBeInTheDocument();
+
+      // Verify the category trigger has correct test id
+      const categoryTrigger = screen.getByTestId("budget-form-category");
+      expect(categoryTrigger).toBeInTheDocument();
     });
   });
 });

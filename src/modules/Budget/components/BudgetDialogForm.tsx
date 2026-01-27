@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -26,11 +27,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { BudgetUpsertSchema, BudgetItemSchema } from "../schema";
+import { Label } from "@/components/ui/label";
+import { BudgetUpsertSchema } from "../schema";
 import { toast } from "sonner";
+import { Wallet, PiggyBank } from "lucide-react";
 
 interface Category {
   id: string;
@@ -39,12 +43,20 @@ interface Category {
   archived: boolean;
 }
 
+interface SavingsBucket {
+  id: string;
+  name: string;
+  description?: string | null;
+  archived: boolean;
+}
+
 interface BudgetDialogFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: {
     month: string;
-    categoryId: string;
+    categoryId?: string | null;
+    savingsBucketId?: string | null;
     amountIdr: number;
     note?: string | null;
   }) => Promise<void>;
@@ -53,12 +65,46 @@ interface BudgetDialogFormProps {
   initialData?: {
     id: string;
     month: string;
-    category_id: string;
-    category_name?: string;
+    category_id?: string | null;
+    savings_bucket_id?: string | null;
+    category_name?: string | null;
+    savings_bucket_name?: string | null;
     amount_idr: number;
     note?: string | null;
+    target_type?: "category" | "savings_bucket";
   } | null;
 }
+
+// Form schema that handles both category and savings bucket targets
+const BudgetFormSchema = z
+  .object({
+    month: BudgetUpsertSchema.shape.month,
+    targetType: z.enum(["category", "savings_bucket"]),
+    categoryId: z.string().optional().nullable(),
+    savingsBucketId: z.string().optional().nullable(),
+    amountIdr: z.number().int().positive("Budget amount must be positive"),
+    note: z
+      .string()
+      .max(500, "Note must be 500 characters or less")
+      .transform((val) => (val === "" ? null : val))
+      .nullable()
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.targetType === "category") {
+        return data.categoryId != null && data.categoryId !== "";
+      } else {
+        return data.savingsBucketId != null && data.savingsBucketId !== "";
+      }
+    },
+    {
+      message: "Please select a target",
+      path: ["categoryId"],
+    },
+  );
+
+type BudgetFormValues = z.infer<typeof BudgetFormSchema>;
 
 export function BudgetDialogForm({
   open,
@@ -70,7 +116,9 @@ export function BudgetDialogForm({
 }: BudgetDialogFormProps) {
   const isEditing = mode === "edit" && !!initialData;
   const [categories, setCategories] = useState<Category[]>([]);
+  const [savingsBuckets, setSavingsBuckets] = useState<SavingsBucket[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [bucketsLoading, setBucketsLoading] = useState(false);
 
   // Get current month in YYYY-MM-01 format for the input
   const getCurrentMonthFirst = () => {
@@ -80,29 +128,31 @@ export function BudgetDialogForm({
     return `${year}-${month}-01`;
   };
 
-  const form = useForm<{
-    month: string;
-    categoryId: string;
-    amountIdr: number;
-    note?: string | null;
-  }>({
-    resolver: zodResolver(
-      BudgetItemSchema.extend({
-        month: BudgetUpsertSchema.shape.month,
-      }),
-    ),
+  // Determine initial target type
+  const getInitialTargetType = (): "category" | "savings_bucket" => {
+    if (initialData?.savings_bucket_id) return "savings_bucket";
+    return "category";
+  };
+
+  const form = useForm<BudgetFormValues>({
+    resolver: zodResolver(BudgetFormSchema),
     defaultValues: {
       month: initialData?.month || getCurrentMonthFirst(),
+      targetType: getInitialTargetType(),
       categoryId: initialData?.category_id || "",
+      savingsBucketId: initialData?.savings_bucket_id || "",
       amountIdr: initialData?.amount_idr || 0,
       note: initialData?.note || "",
     },
   });
 
+  const targetType = form.watch("targetType");
+
   // Fetch categories when dialog opens
   useEffect(() => {
     if (open) {
       fetchCategories();
+      fetchSavingsBuckets();
     }
   }, [open]);
 
@@ -121,10 +171,38 @@ export function BudgetDialogForm({
         (cat: Category) => !cat.archived && cat.type === "expense",
       );
       setCategories(expenseCategories);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to load categories");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to load categories";
+      toast.error(errorMessage);
     } finally {
       setCategoriesLoading(false);
+    }
+  };
+
+  const fetchSavingsBuckets = async () => {
+    try {
+      setBucketsLoading(true);
+      const response = await fetch("/api/savings-buckets");
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch savings buckets");
+      }
+
+      const data = await response.json();
+      // Filter to show only active savings buckets
+      const activeBuckets = data.filter(
+        (bucket: SavingsBucket) => !bucket.archived,
+      );
+      setSavingsBuckets(activeBuckets);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to load savings buckets";
+      toast.error(errorMessage);
+    } finally {
+      setBucketsLoading(false);
     }
   };
 
@@ -132,33 +210,38 @@ export function BudgetDialogForm({
     if (open) {
       form.reset({
         month: initialData?.month || getCurrentMonthFirst(),
+        targetType: getInitialTargetType(),
         categoryId: initialData?.category_id || "",
+        savingsBucketId: initialData?.savings_bucket_id || "",
         amountIdr: initialData?.amount_idr || 0,
         note: initialData?.note || "",
       });
     }
   }, [open, initialData, form]);
 
-  const handleSubmit = async (values: {
-    month: string;
-    categoryId: string;
-    amountIdr: number;
-    note?: string | null;
-  }) => {
+  const handleSubmit = async (values: BudgetFormValues) => {
     try {
       // Convert empty string to null for note field
       const submitValues = {
-        ...values,
+        month: values.month,
+        categoryId: values.targetType === "category" ? values.categoryId : null,
+        savingsBucketId:
+          values.targetType === "savings_bucket"
+            ? values.savingsBucketId
+            : null,
+        amountIdr: values.amountIdr,
         note: values.note && values.note.trim() !== "" ? values.note : null,
       };
       await onSubmit(submitValues);
       form.reset();
       onOpenChange(false);
       toast.success(`Budget ${isEditing ? "updated" : "created"} successfully`);
-    } catch (error: any) {
-      toast.error(
-        error.message || `Failed to ${isEditing ? "update" : "create"} budget`,
-      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : `Failed to ${isEditing ? "update" : "create"} budget`;
+      toast.error(errorMessage);
       throw error;
     }
   };
@@ -198,6 +281,7 @@ export function BudgetDialogForm({
   };
 
   const monthOptions = generateMonthOptions();
+  const dataLoading = categoriesLoading || bucketsLoading;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -208,8 +292,8 @@ export function BudgetDialogForm({
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Update the budget amount for this category."
-              : "Set a monthly budget for a category to track your spending."}
+              ? "Update the budget amount for this category or savings bucket."
+              : "Set a monthly budget for a category or savings bucket to track your spending and savings goals."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -227,7 +311,7 @@ export function BudgetDialogForm({
                   <Select
                     value={field.value || getCurrentMonthFirst()}
                     onValueChange={field.onChange}
-                    disabled={isEditing || categoriesLoading}
+                    disabled={isEditing || dataLoading}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -247,8 +331,57 @@ export function BudgetDialogForm({
               )}
             />
 
-            {/* Category Selection (only for create mode or if not editing) */}
+            {/* Target Type Selection (only for create mode) */}
             {mode === "create" && (
+              <FormField
+                control={form.control}
+                name="targetType"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Budget For</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex gap-4"
+                        disabled={dataLoading}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem
+                            value="category"
+                            id="target-category"
+                          />
+                          <Label
+                            htmlFor="target-category"
+                            className="flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Wallet className="h-4 w-4" />
+                            Expense Category
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem
+                            value="savings_bucket"
+                            id="target-savings"
+                          />
+                          <Label
+                            htmlFor="target-savings"
+                            className="flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <PiggyBank className="h-4 w-4" />
+                            Savings Bucket
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Category Selection (for create mode when category is selected) */}
+            {mode === "create" && targetType === "category" && (
               <FormField
                 control={form.control}
                 name="categoryId"
@@ -257,7 +390,7 @@ export function BudgetDialogForm({
                     <FormLabel>Category</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value || ""}
                       disabled={categoriesLoading}
                     >
                       <FormControl>
@@ -289,12 +422,69 @@ export function BudgetDialogForm({
               />
             )}
 
-            {/* Category Display (for edit mode) */}
+            {/* Savings Bucket Selection (for create mode when savings bucket is selected) */}
+            {mode === "create" && targetType === "savings_bucket" && (
+              <FormField
+                control={form.control}
+                name="savingsBucketId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Savings Bucket</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || ""}
+                      disabled={bucketsLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="budget-form-savings-bucket">
+                          <SelectValue placeholder="Select a savings bucket" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {bucketsLoading ? (
+                          <SelectItem value="loading" disabled>
+                            Loading savings buckets...
+                          </SelectItem>
+                        ) : savingsBuckets.length === 0 ? (
+                          <SelectItem value="empty" disabled>
+                            No active savings buckets found
+                          </SelectItem>
+                        ) : (
+                          savingsBuckets.map((bucket) => (
+                            <SelectItem key={bucket.id} value={bucket.id}>
+                              {bucket.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Target Display (for edit mode) */}
             {isEditing && initialData && (
               <div className="space-y-2">
-                <label className="text-sm font-medium">Category</label>
-                <div className="px-3 py-2 text-sm border rounded-md bg-muted">
-                  {initialData.category_name || "Unknown Category"}
+                <label className="text-sm font-medium">
+                  {initialData.target_type === "savings_bucket"
+                    ? "Savings Bucket"
+                    : "Category"}
+                </label>
+                <div className="px-3 py-2 text-sm border rounded-md bg-muted flex items-center gap-2">
+                  {initialData.target_type === "savings_bucket" ? (
+                    <>
+                      <PiggyBank className="h-4 w-4 text-muted-foreground" />
+                      {initialData.savings_bucket_name ||
+                        "Unknown Savings Bucket"}
+                    </>
+                  ) : (
+                    <>
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                      {initialData.category_name || "Unknown Category"}
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -359,7 +549,7 @@ export function BudgetDialogForm({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading || categoriesLoading}>
+              <Button type="submit" disabled={isLoading || dataLoading}>
                 {isLoading
                   ? "Saving..."
                   : isEditing

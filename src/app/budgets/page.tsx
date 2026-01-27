@@ -33,8 +33,11 @@ interface BudgetSummary {
   totalSpent: number;
   remaining: number;
   items: {
-    categoryId: string;
-    categoryName: string;
+    categoryId: string | null;
+    savingsBucketId?: string | null;
+    targetName?: string;
+    targetType?: "category" | "savings_bucket";
+    categoryName?: string;
     budgetAmount: number;
     spentAmount: number;
     remaining: number;
@@ -57,7 +60,11 @@ export default function BudgetsPage() {
   const [copyResultModalOpen, setCopyResultModalOpen] = useState(false);
   const [copyResult, setCopyResult] = useState<{
     created: BudgetWithCategory[];
-    skipped: Array<{ categoryId: string; categoryName: string }>;
+    skipped: Array<{
+      categoryId: string | null;
+      savingsBucketId: string | null;
+      targetName: string;
+    }>;
     fromMonth?: string;
     toMonth?: string;
   } | null>(null);
@@ -171,7 +178,8 @@ export default function BudgetsPage() {
   // Handle create budget
   const handleCreateBudget = async (values: {
     month: string;
-    categoryId: string;
+    categoryId?: string | null;
+    savingsBucketId?: string | null;
     amountIdr: number;
     note?: string | null;
   }) => {
@@ -184,6 +192,7 @@ export default function BudgetsPage() {
         body: JSON.stringify({
           month: values.month,
           categoryId: values.categoryId,
+          savingsBucketId: values.savingsBucketId,
           amountIdr: values.amountIdr,
           note: values.note,
         }),
@@ -203,7 +212,8 @@ export default function BudgetsPage() {
   // Handle update budget
   const handleUpdateBudget = async (values: {
     month: string;
-    categoryId: string;
+    categoryId?: string | null;
+    savingsBucketId?: string | null;
     amountIdr: number;
     note?: string | null;
   }) => {

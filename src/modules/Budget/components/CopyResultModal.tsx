@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Info } from "lucide-react";
+import { CheckCircle2, Info, PiggyBank, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,17 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { BudgetWithCategory } from "../schema";
 
 interface CopyResultModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  created: Array<{
-    category_name?: string;
-    amount_idr: number;
-  }>;
+  created: BudgetWithCategory[];
   skipped: Array<{
-    categoryId: string;
-    categoryName: string;
+    categoryId: string | null;
+    savingsBucketId: string | null;
+    targetName: string;
   }>;
   fromMonth?: string;
   toMonth?: string;
@@ -57,6 +56,13 @@ export function CopyResultModal({
     }
   };
 
+  const getDisplayName = (budget: BudgetWithCategory) => {
+    if (budget.target_type === "savings_bucket") {
+      return budget.savings_bucket_name || "Unknown Savings Bucket";
+    }
+    return budget.category_name || "Unknown Category";
+  };
+
   const fromMonthDisplay = formatMonth(fromMonth);
   const toMonthDisplay = formatMonth(toMonth);
 
@@ -86,8 +92,13 @@ export function CopyResultModal({
                     key={`${budget.id}-created`}
                     className="text-sm flex justify-between items-center"
                   >
-                    <span className="text-muted-foreground">
-                      {budget.category_name || "Unknown"}
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      {budget.target_type === "savings_bucket" ? (
+                        <PiggyBank className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <Wallet className="h-3.5 w-3.5 text-blue-600" />
+                      )}
+                      {getDisplayName(budget)}
                     </span>
                     <span className="font-medium">
                       {formatCurrency(budget.amount_idr)}
@@ -106,12 +117,17 @@ export function CopyResultModal({
                 <span>Already Exist ({skipped.length})</span>
               </div>
               <div className="space-y-1 pl-6">
-                {skipped.map((budget) => (
+                {skipped.map((budget, index) => (
                   <div
-                    key={`${budget.categoryId}-skipped`}
-                    className="text-sm text-muted-foreground"
+                    key={`${budget.categoryId || budget.savingsBucketId || index}-skipped`}
+                    className="text-sm text-muted-foreground flex items-center gap-1.5"
                   >
-                    {budget.categoryName || "Unknown"}
+                    {budget.savingsBucketId ? (
+                      <PiggyBank className="h-3.5 w-3.5 text-emerald-600" />
+                    ) : (
+                      <Wallet className="h-3.5 w-3.5 text-blue-600" />
+                    )}
+                    {budget.targetName || "Unknown"}
                   </div>
                 ))}
               </div>

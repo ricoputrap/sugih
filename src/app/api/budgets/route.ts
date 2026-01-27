@@ -8,6 +8,7 @@ import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
 import { formatPostgresError } from "@/db/drizzle-client";
 import { withRouteLogging } from "@/lib/logging";
 import { BudgetCreateSchema } from "@/modules/Budget/schema";
+import { ZodError } from "zod";
 
 /**
  * GET /api/budgets
@@ -67,10 +68,14 @@ export const GET = withRouteLogging(handleGet, {
  * POST /api/budgets
  * Create a single budget
  *
+ * Supports both category budgets and savings bucket budgets.
+ * Exactly one of categoryId or savingsBucketId must be provided.
+ *
  * Body:
  * {
  *   month: "YYYY-MM-01",
- *   categoryId: string,
+ *   categoryId?: string | null,       // For expense category budgets
+ *   savingsBucketId?: string | null,  // For savings bucket budgets
  *   amountIdr: number,
  *   note?: string | null
  * }
@@ -86,7 +91,16 @@ async function handlePost(request: NextRequest) {
     }
 
     // Validate request body
-    const validatedBody = BudgetCreateSchema.parse(body);
+    let validatedBody;
+    try {
+      validatedBody = BudgetCreateSchema.parse(body);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const firstIssue = error.issues[0];
+        return badRequest(firstIssue?.message || "Invalid request body");
+      }
+      throw error;
+    }
 
     const budget = await createBudget(validatedBody);
     return ok(budget);
@@ -103,38 +117,51 @@ async function handlePost(request: NextRequest) {
       return error;
     }
 
-    // Handle not found errors (categories)
-    if (error.message?.includes("not found")) {
+    // Handle not found errors (categories or savings buckets)
+    if (error instanceof Error && error.message?.includes("not found")) {
       return notFound(error.message);
     }
 
-    // Handle archived category errors
-    if (error.message?.includes("archived")) {
+    // Handle archived category/savings bucket errors
+    if (error instanceof Error && error.message?.includes("archived")) {
+      return badRequest(error.message);
+    }
+
+    // Handle "must specify" errors for target validation
+    if (
+      error instanceof Error &&
+      (error.message?.includes("Cannot specify both") ||
+        error.message?.includes("Must specify either"))
+    ) {
       return badRequest(error.message);
     }
 
     // Handle PostgreSQL unique constraint violation
-    if (error.code === "23505") {
-      return conflict("Budget already exists for this month and category");
+    const errorCode = (error as { code?: string }).code;
+    if (errorCode === "23505") {
+      return conflict("Budget already exists for this month and target");
     }
 
     // Handle PostgreSQL foreign key violation
-    if (error.code === "23503") {
-      return badRequest("Invalid category reference: " + error.detail);
+    if (errorCode === "23503") {
+      const detail = (error as { detail?: string }).detail;
+      return badRequest("Invalid reference: " + detail);
     }
 
     // Handle PostgreSQL not-null violation
-    if (error.code === "23502") {
-      return badRequest("Missing required field: " + error.column);
+    if (errorCode === "23502") {
+      const column = (error as { column?: string }).column;
+      return badRequest("Missing required field: " + column);
     }
 
     // Handle PostgreSQL check constraint violation
-    if (error.code === "23514") {
-      return badRequest("Invalid data: " + error.detail);
+    if (errorCode === "23514") {
+      const detail = (error as { detail?: string }).detail;
+      return badRequest("Invalid data: " + detail);
     }
 
     // Handle other PostgreSQL errors
-    if (error.code) {
+    if (errorCode) {
       const formattedError = formatPostgresError(error);
       console.error("PostgreSQL error:", formattedError);
       return serverError("Database error");
