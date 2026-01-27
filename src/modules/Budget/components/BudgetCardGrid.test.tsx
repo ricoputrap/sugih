@@ -29,8 +29,28 @@ describe("BudgetCardGrid", () => {
     id: "budget1",
     month: "2024-01-01",
     category_id: "cat1",
+    savings_bucket_id: null,
     category_name: "Food",
+    savings_bucket_name: null,
+    target_type: "category",
     amount_idr: 1000000,
+    created_at: new Date("2024-01-01"),
+    updated_at: new Date("2024-01-01"),
+    note: null,
+    ...overrides,
+  });
+
+  const createSavingsBucketBudget = (
+    overrides?: Partial<BudgetWithCategory>,
+  ): BudgetWithCategory => ({
+    id: "bucket-budget1",
+    month: "2024-01-01",
+    category_id: null,
+    savings_bucket_id: "bucket1",
+    category_name: null,
+    savings_bucket_name: "Emergency Fund",
+    target_type: "savings_bucket",
+    amount_idr: 500000,
     created_at: new Date("2024-01-01"),
     updated_at: new Date("2024-01-01"),
     note: null,
@@ -603,6 +623,188 @@ describe("BudgetCardGrid", () => {
           category_name: "Food",
         }),
       );
+    });
+  });
+
+  describe("Savings Bucket Budgets Display", () => {
+    it("should display savings bucket budget with piggy bank icon and savings badge", () => {
+      const budgets = [createSavingsBucketBudget()];
+
+      render(
+        <BudgetCardGrid
+          budgets={budgets}
+          onEdit={mockOnEdit}
+          onDelete={mockOnDelete}
+        />,
+      );
+
+      expect(screen.getByText("Emergency Fund")).toBeInTheDocument();
+      expect(screen.getByText("Savings")).toBeInTheDocument();
+    });
+
+    it("should display category budget with wallet icon", () => {
+      const budgets = [createBudget()];
+
+      render(
+        <BudgetCardGrid
+          budgets={budgets}
+          onEdit={mockOnEdit}
+          onDelete={mockOnDelete}
+        />,
+      );
+
+      expect(screen.getByText("Food")).toBeInTheDocument();
+      // Should not have Savings badge
+      expect(screen.queryByText("Savings")).not.toBeInTheDocument();
+    });
+
+    it("should display both category and savings bucket budgets together", () => {
+      const budgets = [
+        createBudget({
+          id: "budget1",
+          category_id: "cat1",
+          category_name: "Food",
+        }),
+        createSavingsBucketBudget({
+          id: "bucket-budget1",
+          savings_bucket_id: "bucket1",
+          savings_bucket_name: "Emergency Fund",
+        }),
+      ];
+
+      render(
+        <BudgetCardGrid
+          budgets={budgets}
+          onEdit={mockOnEdit}
+          onDelete={mockOnDelete}
+        />,
+      );
+
+      expect(screen.getByText("Food")).toBeInTheDocument();
+      expect(screen.getByText("Emergency Fund")).toBeInTheDocument();
+      expect(screen.getByText("Savings")).toBeInTheDocument();
+    });
+
+    it("should display savings bucket budget with note", () => {
+      const budgets = [
+        createSavingsBucketBudget({
+          note: "Monthly savings goal",
+        }),
+      ];
+
+      render(
+        <BudgetCardGrid
+          budgets={budgets}
+          onEdit={mockOnEdit}
+          onDelete={mockOnDelete}
+        />,
+      );
+
+      expect(screen.getByText("Emergency Fund")).toBeInTheDocument();
+      expect(screen.getByText(/Monthly savings goal/)).toBeInTheDocument();
+    });
+
+    it("should handle delete for savings bucket budget", async () => {
+      const user = userEvent.setup();
+      mockOnDelete.mockResolvedValue(undefined);
+
+      const budgets = [createSavingsBucketBudget()];
+
+      render(
+        <BudgetCardGrid
+          budgets={budgets}
+          onEdit={mockOnEdit}
+          onDelete={mockOnDelete}
+        />,
+      );
+
+      const menuButton = screen.getByRole("button", { name: /open menu/i });
+      await user.click(menuButton);
+
+      const deleteButton = screen.getByRole("menuitem", {
+        name: /delete budget/i,
+      });
+      await user.click(deleteButton);
+
+      expect(mockOnDelete).toHaveBeenCalledWith("bucket-budget1");
+    });
+
+    it("should handle edit for savings bucket budget", async () => {
+      const user = userEvent.setup();
+
+      const budgets = [createSavingsBucketBudget()];
+
+      render(
+        <BudgetCardGrid
+          budgets={budgets}
+          onEdit={mockOnEdit}
+          onDelete={mockOnDelete}
+        />,
+      );
+
+      const menuButton = screen.getByRole("button", { name: /open menu/i });
+      await user.click(menuButton);
+
+      const editButton = screen.getByRole("menuitem", { name: /edit budget/i });
+      await user.click(editButton);
+
+      expect(mockOnEdit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "bucket-budget1",
+          savings_bucket_id: "bucket1",
+          target_type: "savings_bucket",
+        }),
+      );
+    });
+
+    it("should display summary data for savings bucket budgets", () => {
+      const budgets = [createSavingsBucketBudget()];
+
+      const summary = {
+        totalBudget: 500000,
+        totalSpent: 200000,
+        remaining: 300000,
+        items: [
+          {
+            categoryId: null,
+            savingsBucketId: "bucket1",
+            targetName: "Emergency Fund",
+            targetType: "savings_bucket" as const,
+            budgetAmount: 500000,
+            spentAmount: 200000,
+            remaining: 300000,
+            percentUsed: 40,
+          },
+        ],
+      };
+
+      render(
+        <BudgetCardGrid
+          budgets={budgets}
+          summary={summary}
+          onEdit={mockOnEdit}
+          onDelete={mockOnDelete}
+        />,
+      );
+
+      expect(screen.getByText("Emergency Fund")).toBeInTheDocument();
+      expect(screen.getByText("On Track")).toBeInTheDocument();
+    });
+
+    it("should apply special border styling for savings bucket cards", () => {
+      const budgets = [createSavingsBucketBudget()];
+
+      const { container } = render(
+        <BudgetCardGrid
+          budgets={budgets}
+          onEdit={mockOnEdit}
+          onDelete={mockOnDelete}
+        />,
+      );
+
+      // Check for emerald border class
+      const card = container.querySelector(".border-emerald-200");
+      expect(card).toBeInTheDocument();
     });
   });
 });

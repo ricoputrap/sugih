@@ -6,6 +6,8 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  Wallet,
+  PiggyBank,
 } from "lucide-react";
 import { useState } from "react";
 import { PolarAngleAxis, RadialBar, RadialBarChart } from "recharts";
@@ -13,6 +15,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 import {
   DropdownMenu,
@@ -53,17 +56,24 @@ export function BudgetCardGrid({
 }: BudgetCardGridProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Create a map of summary data by category ID for quick lookup
-  const summaryMap = new Map(
-    summary?.items.map((item) => [item.categoryId, item]) || [],
+  // Create maps of summary data by category ID and savings bucket ID for quick lookup
+  const categorySummaryMap = new Map(
+    summary?.items
+      .filter((item) => item.categoryId != null)
+      .map((item) => [item.categoryId, item]) || [],
+  );
+  const bucketSummaryMap = new Map(
+    summary?.items
+      .filter((item) => item.savingsBucketId != null)
+      .map((item) => [item.savingsBucketId, item]) || [],
   );
 
-  const handleDelete = async (id: string, categoryName: string) => {
+  const handleDelete = async (id: string, targetName: string) => {
     if (!onDelete) return;
 
     if (
       !confirm(
-        `Are you sure you want to delete the budget for "${categoryName}"?`,
+        `Are you sure you want to delete the budget for "${targetName}"?`,
       )
     ) {
       return;
@@ -72,7 +82,7 @@ export function BudgetCardGrid({
     try {
       setActionLoading(id);
       await onDelete(id);
-      toast.success(`Budget for "${categoryName}" deleted successfully`);
+      toast.success(`Budget for "${targetName}" deleted successfully`);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to delete budget";
@@ -230,9 +240,18 @@ export function BudgetCardGrid({
       {/* Budget Cards Grid - New Horizontal Layout */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {budgets.map((budget) => {
-          const categorySummary = summaryMap.get(budget.category_id);
-          const percentUsed = categorySummary?.percentUsed || 0;
-          const remaining = categorySummary?.remaining || budget.amount_idr;
+          // Get summary based on whether this is a category or savings bucket budget
+          const budgetSummary = budget.category_id
+            ? categorySummaryMap.get(budget.category_id)
+            : bucketSummaryMap.get(budget.savings_bucket_id);
+          const percentUsed = budgetSummary?.percentUsed || 0;
+          const remaining = budgetSummary?.remaining || budget.amount_idr;
+
+          // Determine display name and type
+          const isSavingsBucket = budget.target_type === "savings_bucket";
+          const displayName = isSavingsBucket
+            ? budget.savings_bucket_name || "Unknown Savings Bucket"
+            : budget.category_name || "Unknown Category";
 
           // Prepare chart data - clamp to 100 for visual display
           const displayPercentage = Math.min(percentUsed, 100);
@@ -255,13 +274,36 @@ export function BudgetCardGrid({
           return (
             <div
               key={budget.id}
-              className="rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col"
+              className={cn(
+                "rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col",
+                isSavingsBucket && "border-emerald-200",
+              )}
             >
               {/* Card Header with Menu */}
-              <div className="flex items-center justify-between px-4 py-2 border-b">
-                <h3 className="font-semibold text-base leading-tight flex-1">
-                  {budget.category_name || "Unknown Category"}
-                </h3>
+              <div
+                className={cn(
+                  "flex items-center justify-between px-4 py-2 border-b",
+                  isSavingsBucket && "bg-emerald-50/50",
+                )}
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {isSavingsBucket ? (
+                    <PiggyBank className="h-4 w-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <Wallet className="h-4 w-4 text-blue-600 shrink-0" />
+                  )}
+                  <h3 className="font-semibold text-base leading-tight truncate">
+                    {displayName}
+                  </h3>
+                  {isSavingsBucket && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 shrink-0"
+                    >
+                      Savings
+                    </Badge>
+                  )}
+                </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -285,12 +327,7 @@ export function BudgetCardGrid({
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() =>
-                        handleDelete(
-                          budget.id,
-                          budget.category_name || "Unknown Category",
-                        )
-                      }
+                      onClick={() => handleDelete(budget.id, displayName)}
                       disabled={actionLoading === budget.id}
                       className="text-red-600"
                     >
