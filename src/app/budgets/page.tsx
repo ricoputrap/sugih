@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Copy } from "lucide-react";
+import { Copy, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,145 +17,54 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BudgetTable } from "@/modules/Budget/components/BudgetTable";
 import { BudgetCardGrid } from "@/modules/Budget/components/BudgetCardGrid";
-import { ViewToggle } from "@/modules/Budget/components/ViewToggle";
 import { BudgetDialogForm } from "@/modules/Budget/components/BudgetDialogForm";
-import { CopyResultModal } from "@/modules/Budget/components/CopyResultModal";
+import { BudgetTable } from "@/modules/Budget/components/BudgetTable";
 import { CopyBudgetDialog } from "@/modules/Budget/components/CopyBudgetDialog";
-import { BudgetWithCategory } from "@/modules/Budget/schema";
-import { BudgetViewMode } from "@/modules/Budget/types";
-import { toast } from "sonner";
-
-interface BudgetSummary {
-  month: string;
-  totalBudget: number;
-  totalSpent: number;
-  remaining: number;
-  items: {
-    categoryId: string | null;
-    savingsBucketId?: string | null;
-    targetName?: string;
-    targetType?: "category" | "savings_bucket";
-    categoryName?: string;
-    budgetAmount: number;
-    spentAmount: number;
-    remaining: number;
-    percentUsed: number;
-  }[];
-}
+import { CopyResultModal } from "@/modules/Budget/components/CopyResultModal";
+import { ViewToggle } from "@/modules/Budget/components/ViewToggle";
+import {
+  useBudgetMonth,
+  useBudgetMonthOptions,
+  useBudgetMutations,
+  useBudgetsData,
+  useBudgetView,
+} from "@/modules/Budget/hooks";
+import { useBudgetsPageStore } from "@/modules/Budget/stores";
 
 export default function BudgetsPage() {
-  const [budgets, setBudgets] = useState<BudgetWithCategory[]>([]);
-  const [summary, setSummary] = useState<BudgetSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [selectedBudget, setSelectedBudget] =
-    useState<BudgetWithCategory | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
-  const [viewMode, setViewMode] = useState<BudgetViewMode>("list");
-  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
-  const [copyResultModalOpen, setCopyResultModalOpen] = useState(false);
-  const [copyResult, setCopyResult] = useState<{
-    created: BudgetWithCategory[];
-    skipped: Array<{
-      categoryId: string | null;
-      savingsBucketId: string | null;
-      targetName: string;
-    }>;
-    fromMonth?: string;
-    toMonth?: string;
-  } | null>(null);
+  // URL state (NUQS)
+  const [month, setMonth] = useBudgetMonth();
+  const [viewMode, setViewMode] = useBudgetView();
+  const monthOptions = useBudgetMonthOptions();
 
-  // Generate month options (current month + 11 previous + 6 next)
-  const generateMonthOptions = () => {
-    const options = [];
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+  // Server state (TanStack Query)
+  const { data, isLoading } = useBudgetsData(month);
+  const budgets = data?.budgets ?? [];
+  const summary = data?.summary ?? null;
 
-    // Generate 18 months total (6 previous, current, 11 next)
-    for (let i = -6; i <= 11; i++) {
-      const date = new Date(currentYear, currentMonth + i, 1);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const monthFirst = `${year}-${month}-01`;
-      const monthDisplay = date.toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      });
+  // UI state (Zustand)
+  const {
+    isCreateDialogOpen,
+    isEditDialogOpen,
+    copyDialogOpen,
+    copyResultModalOpen,
+    selectedBudget,
+    copyResult,
+    openCreateDialog,
+    closeCreateDialog,
+    openEditDialog,
+    closeEditDialog,
+    openCopyDialog,
+    closeCopyDialog,
+    setCopyResult,
+    openCopyResultModal,
+    closeCopyResultModal,
+  } = useBudgetsPageStore();
 
-      options.push({
-        value: monthFirst,
-        label: monthDisplay,
-      });
-    }
-
-    return options;
-  };
-
-  const monthOptions = generateMonthOptions();
-
-  // Initialize with current month
-  useEffect(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    setSelectedMonth(`${year}-${month}-01`);
-
-    // Load view preference from localStorage
-    const savedViewMode = localStorage.getItem(
-      "budgetViewMode",
-    ) as BudgetViewMode | null;
-    if (savedViewMode === "list" || savedViewMode === "grid") {
-      setViewMode(savedViewMode);
-    }
-  }, []);
-
-  // Fetch budgets when month changes
-  useEffect(() => {
-    if (selectedMonth) {
-      fetchBudgets();
-    }
-  }, [selectedMonth]);
-
-  // Save view preference to localStorage
-  const handleViewModeChange = (mode: BudgetViewMode) => {
-    setViewMode(mode);
-    localStorage.setItem("budgetViewMode", mode);
-  };
-
-  // Fetch budgets and summary for selected month
-  const fetchBudgets = async () => {
-    try {
-      setIsLoading(true);
-      if (selectedMonth) {
-        // Unified response: { budgets, summary }
-        const response = await fetch(`/api/budgets?month=${selectedMonth}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch budgets");
-        }
-        const data = await response.json();
-        setBudgets(data.budgets);
-        setSummary(data.summary);
-      } else {
-        const response = await fetch("/api/budgets");
-        if (!response.ok) {
-          throw new Error("Failed to fetch budgets");
-        }
-        const data = await response.json();
-        setBudgets(data);
-        setSummary(null);
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to load budgets");
-      setBudgets([]);
-      setSummary(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Mutations
+  const { createBudget, updateBudget, deleteBudget, copyBudgets } =
+    useBudgetMutations();
 
   // Handle create budget
   const handleCreateBudget = async (values: {
@@ -165,30 +74,13 @@ export default function BudgetsPage() {
     amountIdr: number;
     note?: string | null;
   }) => {
-    try {
-      const response = await fetch("/api/budgets", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          month: values.month,
-          categoryId: values.categoryId,
-          savingsBucketId: values.savingsBucketId,
-          amountIdr: values.amountIdr,
-          note: values.note,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create budget");
-      }
-
-      await fetchBudgets();
-    } catch (error: any) {
-      throw error;
-    }
+    await createBudget.mutateAsync({
+      month: values.month,
+      categoryId: values.categoryId,
+      savingsBucketId: values.savingsBucketId,
+      amountIdr: values.amountIdr,
+      note: values.note,
+    });
   };
 
   // Handle update budget
@@ -201,82 +93,32 @@ export default function BudgetsPage() {
   }) => {
     if (!selectedBudget) return;
 
-    try {
-      const response = await fetch(`/api/budgets/${selectedBudget.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amountIdr: values.amountIdr,
-          note: values.note,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update budget");
-      }
-
-      await fetchBudgets();
-      setSelectedBudget(null);
-    } catch (error: any) {
-      throw error;
-    }
+    await updateBudget.mutateAsync({
+      id: selectedBudget.id,
+      month,
+      amountIdr: values.amountIdr,
+      note: values.note,
+    });
   };
 
   // Handle delete budget
   const handleDeleteBudget = async (id: string) => {
-    const response = await fetch(`/api/budgets/${id}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to delete budget");
-    }
-
-    await fetchBudgets();
+    await deleteBudget.mutateAsync({ id, month });
   };
 
-  // Handle copy budgets from selected months
+  // Handle copy budgets
   const handleCopyBudgets = async (fromMonth: string, toMonth: string) => {
     try {
-      // Call copy endpoint
-      const response = await fetch("/api/budgets/copy", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fromMonth,
-          toMonth,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || "Failed to copy budgets");
-      }
-
-      const result = await response.json();
-
-      // Refresh budgets list if the destination is the currently selected month
-      if (toMonth === selectedMonth) {
-        await fetchBudgets();
-      }
+      const result = await copyBudgets.mutateAsync({ fromMonth, toMonth });
 
       // Show appropriate feedback
       if (result.created.length === 0 && result.skipped.length > 0) {
-        // All budgets already exist
         toast.info("All budgets already exist in destination month");
       } else if (result.skipped.length === 0) {
-        // All budgets were created (simple case)
         toast.success(
           `Copied ${result.created.length} budget${result.created.length !== 1 ? "s" : ""}`,
         );
       } else {
-        // Mixed case: some created, some skipped - show modal
         toast.success(
           `Copied ${result.created.length} budget${result.created.length !== 1 ? "s" : ""}`,
         );
@@ -285,31 +127,21 @@ export default function BudgetsPage() {
           fromMonth,
           toMonth,
         });
-        setCopyResultModalOpen(true);
+        openCopyResultModal();
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to copy budgets");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to copy budgets";
+      toast.error(message);
     }
-  };
-
-  // Open edit dialog
-  const handleEditClick = (budget: BudgetWithCategory) => {
-    setSelectedBudget(budget);
-    setIsEditDialogOpen(true);
-  };
-
-  // Handle month change
-  const handleMonthChange = (value: string) => {
-    setSelectedMonth(value);
   };
 
   // Get selected month display name
   const getSelectedMonthDisplay = () => {
-    const option = monthOptions.find((opt) => opt.value === selectedMonth);
+    const option = monthOptions.find((opt) => opt.value === month);
     return option?.label || "Select a month";
   };
 
-  // Calculate summary statistics
   const hasBudgets = budgets.length > 0;
 
   return (
@@ -326,7 +158,7 @@ export default function BudgetsPage() {
           {hasBudgets && (
             <Button
               variant="outline"
-              onClick={() => setCopyDialogOpen(true)}
+              onClick={openCopyDialog}
               disabled={isLoading}
               data-testid="copy-budgets"
             >
@@ -334,7 +166,7 @@ export default function BudgetsPage() {
               Copy Budgets
             </Button>
           )}
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button onClick={openCreateDialog}>
             <Plus className="mr-2 h-4 w-4" />
             Add Budget
           </Button>
@@ -347,20 +179,21 @@ export default function BudgetsPage() {
           <div>
             <CardTitle>Budget Details</CardTitle>
             <CardDescription>
-              {selectedMonth
+              {month
                 ? `Budget breakdown for ${getSelectedMonthDisplay()}`
                 : "Select a month to view budget details"}
             </CardDescription>
           </div>
           <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:gap-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center">
-              <label className="text-sm font-medium text-muted-foreground">
+              <span className="text-sm font-medium text-muted-foreground">
                 Month:
-              </label>
-              <Select value={selectedMonth} onValueChange={handleMonthChange}>
+              </span>
+              <Select value={month} onValueChange={setMonth}>
                 <SelectTrigger
                   className="w-full md:w-48"
                   data-testid="month-select"
+                  aria-label="Select month"
                 >
                   <SelectValue placeholder="Select a month" />
                 </SelectTrigger>
@@ -375,7 +208,7 @@ export default function BudgetsPage() {
             </div>
             <ViewToggle
               value={viewMode}
-              onChange={handleViewModeChange}
+              onChange={setViewMode}
               data-testid="view-toggle"
             />
           </div>
@@ -385,7 +218,7 @@ export default function BudgetsPage() {
             <BudgetTable
               budgets={budgets}
               summary={summary || undefined}
-              onEdit={handleEditClick}
+              onEdit={openEditDialog}
               onDelete={handleDeleteBudget}
               isLoading={isLoading}
             />
@@ -393,7 +226,7 @@ export default function BudgetsPage() {
             <BudgetCardGrid
               budgets={budgets}
               summary={summary || undefined}
-              onEdit={handleEditClick}
+              onEdit={openEditDialog}
               onDelete={handleDeleteBudget}
               isLoading={isLoading}
             />
@@ -404,9 +237,11 @@ export default function BudgetsPage() {
       {/* Create Dialog */}
       <BudgetDialogForm
         open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeCreateDialog();
+        }}
         onSubmit={handleCreateBudget}
-        isLoading={isLoading}
+        isLoading={createBudget.isPending}
         mode="create"
         initialData={null}
       />
@@ -416,14 +251,11 @@ export default function BudgetsPage() {
         <BudgetDialogForm
           open={isEditDialogOpen}
           onOpenChange={(open) => {
-            setIsEditDialogOpen(open);
-            if (!open) {
-              setSelectedBudget(null);
-            }
+            if (!open) closeEditDialog();
           }}
           initialData={selectedBudget}
           onSubmit={handleUpdateBudget}
-          isLoading={isLoading}
+          isLoading={updateBudget.isPending}
           mode="edit"
         />
       )}
@@ -431,16 +263,20 @@ export default function BudgetsPage() {
       {/* Copy Budget Dialog */}
       <CopyBudgetDialog
         open={copyDialogOpen}
-        onOpenChange={setCopyDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeCopyDialog();
+        }}
         onCopy={handleCopyBudgets}
-        defaultDestinationMonth={selectedMonth}
+        defaultDestinationMonth={month}
       />
 
       {/* Copy Result Modal */}
       {copyResult && (
         <CopyResultModal
           open={copyResultModalOpen}
-          onOpenChange={setCopyResultModalOpen}
+          onOpenChange={(open) => {
+            if (!open) closeCopyResultModal();
+          }}
           created={copyResult.created}
           skipped={copyResult.skipped}
           fromMonth={copyResult.fromMonth}
