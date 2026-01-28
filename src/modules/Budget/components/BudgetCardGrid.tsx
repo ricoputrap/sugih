@@ -425,7 +425,7 @@ export function BudgetCardGrid({
               <div className="px-4 py-3 border-t bg-muted/30">
                 {budget.note ? (
                   <p
-                    className="text-xs text-muted-foreground line-clamp-2"
+                    className="text-xs text-muted-foreground line-clamp-1"
                     title={budget.note}
                   >
                     📝 {budget.note}
