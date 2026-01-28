@@ -422,16 +422,18 @@ export function BudgetCardGrid({
               </div>
 
               {/* Note Section */}
-              {budget.note && (
-                <div className="px-4 py-3 border-t bg-muted/30">
+              <div className="px-4 py-3 border-t bg-muted/30">
+                {budget.note ? (
                   <p
                     className="text-xs text-muted-foreground line-clamp-2"
                     title={budget.note}
                   >
                     📝 {budget.note}
                   </p>
-                </div>
-              )}
+                ) : (
+                  <p className="text-xs text-muted-foreground/50">No notes</p>
+                )}
+              </div>
             </div>
           );
         })}
