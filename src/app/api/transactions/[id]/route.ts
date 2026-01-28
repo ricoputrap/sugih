@@ -264,6 +264,6 @@ async function handlePut(
 
 export const PUT = withRouteLogging(handlePut, {
   operation: "api.transactions.update",
-  logBody: true,
+  logBodyMetadata: true,
   logRouteParams: true,
 });

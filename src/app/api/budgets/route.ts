@@ -16,7 +16,16 @@ import { ZodError } from "zod";
  *
  * Query params:
  * - month: YYYY-MM-01 format (optional)
- * - summary: boolean - if true, returns budget vs actual summary (requires month)
+ * - summary: boolean - DEPRECATED, included automatically when month is provided
+ *
+ * Response when month is provided (unified response):
+ * {
+ *   budgets: BudgetWithCategory[],
+ *   summary: BudgetSummary
+ * }
+ *
+ * Response when no month is provided:
+ * BudgetWithCategory[]
  */
 async function handleGet(request: NextRequest) {
   try {
@@ -24,16 +33,23 @@ async function handleGet(request: NextRequest) {
     const month = url.searchParams.get("month") || undefined;
     const summary = url.searchParams.get("summary") === "true";
 
-    if (summary) {
-      if (!month) {
-        return badRequest("Month is required for budget summary");
-      }
+    // If month is provided, return unified response with both budgets and summary
+    if (month) {
+      const budgets = await listBudgets({ month });
       const budgetSummary = await getBudgetSummary(month);
-      return ok(budgetSummary);
+      return ok({
+        budgets,
+        summary: budgetSummary,
+      });
     }
 
-    const query = { month };
-    const budgets = await listBudgets(query);
+    // Legacy behavior: if summary flag is used without month
+    if (summary) {
+      return badRequest("Month is required for budget summary");
+    }
+
+    // Return all budgets if no month specified
+    const budgets = await listBudgets({});
     return ok(budgets);
   } catch (error: any) {
     console.error("Error fetching budgets:", error);

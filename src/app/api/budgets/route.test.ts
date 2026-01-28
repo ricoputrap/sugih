@@ -221,7 +221,28 @@ describe("Budgets API Routes", () => {
       expect(listBudgets).toHaveBeenCalledWith({ month: "2024-01-01" });
     });
 
-    it("should return budget summary when summary=true", async () => {
+    it("should return unified response with budgets and summary when month is provided", async () => {
+      vi.mocked(listBudgets).mockResolvedValue([mockBudget1, mockBudget2]);
+      vi.mocked(getBudgetSummary).mockResolvedValue(mockBudgetSummary);
+
+      const request = createMockRequest(
+        "GET",
+        "http://localhost:3000/api/budgets?month=2024-01-01",
+      );
+      const response = await GET(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data).toEqual({
+        budgets: [mockBudget1, mockBudget2],
+        summary: mockBudgetSummary,
+      });
+      expect(listBudgets).toHaveBeenCalledWith({ month: "2024-01-01" });
+      expect(getBudgetSummary).toHaveBeenCalledWith("2024-01-01");
+    });
+
+    it("should return budget summary when summary=true (legacy behavior)", async () => {
+      vi.mocked(listBudgets).mockResolvedValue([mockBudget1, mockBudget2]);
       vi.mocked(getBudgetSummary).mockResolvedValue(mockBudgetSummary);
 
       const request = createMockRequest(
@@ -232,7 +253,10 @@ describe("Budgets API Routes", () => {
       const { status, data } = await parseResponse(response);
 
       expect(status).toBe(200);
-      expect(data).toEqual(mockBudgetSummary);
+      expect(data).toEqual({
+        budgets: [mockBudget1, mockBudget2],
+        summary: mockBudgetSummary,
+      });
       expect(getBudgetSummary).toHaveBeenCalledWith("2024-01-01");
     });
 

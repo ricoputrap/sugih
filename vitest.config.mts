@@ -35,11 +35,12 @@ export default defineConfig({
         "public/**",
       ],
       include: ["src/**/*.ts", "src/**/*.tsx"],
-      all: true,
-      lines: 80,
-      functions: 80,
-      branches: 80,
-      statements: 80,
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+      },
     },
   },
   resolve: {

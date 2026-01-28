@@ -260,7 +260,12 @@ export function EditTransactionDialog({
         };
       }
       default:
-        return baseValues;
+        return {
+          ...baseValues,
+          walletId: "",
+          categoryId: "",
+          amountIdr: 0,
+        };
     }
   };
 
@@ -414,7 +419,7 @@ export function EditTransactionDialog({
                       <FormLabel>Category</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value}
+                        value={field.value ?? undefined}
                       >
                         <FormControl>
                           <SelectTrigger>

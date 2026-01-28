@@ -49,7 +49,6 @@ export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<BudgetWithCategory[]>([]);
   const [summary, setSummary] = useState<BudgetSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] =
     useState<BudgetWithCategory | null>(null);
@@ -118,7 +117,6 @@ export default function BudgetsPage() {
   useEffect(() => {
     if (selectedMonth) {
       fetchBudgets();
-      fetchBudgetSummary();
     }
   }, [selectedMonth]);
 
@@ -128,50 +126,34 @@ export default function BudgetsPage() {
     localStorage.setItem("budgetViewMode", mode);
   };
 
-  // Fetch budgets for selected month
+  // Fetch budgets and summary for selected month
   const fetchBudgets = async () => {
     try {
       setIsLoading(true);
-      const url = selectedMonth
-        ? `/api/budgets?month=${selectedMonth}`
-        : "/api/budgets";
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch budgets");
+      if (selectedMonth) {
+        // Unified response: { budgets, summary }
+        const response = await fetch(`/api/budgets?month=${selectedMonth}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch budgets");
+        }
+        const data = await response.json();
+        setBudgets(data.budgets);
+        setSummary(data.summary);
+      } else {
+        const response = await fetch("/api/budgets");
+        if (!response.ok) {
+          throw new Error("Failed to fetch budgets");
+        }
+        const data = await response.json();
+        setBudgets(data);
+        setSummary(null);
       }
-
-      const data = await response.json();
-      setBudgets(data);
     } catch (error: any) {
       toast.error(error.message || "Failed to load budgets");
       setBudgets([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch budget summary for selected month
-  const fetchBudgetSummary = async () => {
-    if (!selectedMonth) return;
-
-    try {
-      setIsSummaryLoading(true);
-      const response = await fetch(
-        `/api/budgets?month=${selectedMonth}&summary=true`,
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch budget summary");
-      }
-
-      const data = await response.json();
-      setSummary(data);
-    } catch (error: any) {
-      console.error("Failed to fetch budget summary:", error);
       setSummary(null);
     } finally {
-      setIsSummaryLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -328,7 +310,6 @@ export default function BudgetsPage() {
   };
 
   // Calculate summary statistics
-  const totalBudgets = budgets.length;
   const hasBudgets = budgets.length > 0;
 
   return (
@@ -406,7 +387,7 @@ export default function BudgetsPage() {
               summary={summary || undefined}
               onEdit={handleEditClick}
               onDelete={handleDeleteBudget}
-              isLoading={isLoading || isSummaryLoading}
+              isLoading={isLoading}
             />
           ) : (
             <BudgetCardGrid
@@ -414,7 +395,7 @@ export default function BudgetsPage() {
               summary={summary || undefined}
               onEdit={handleEditClick}
               onDelete={handleDeleteBudget}
-              isLoading={isLoading || isSummaryLoading}
+              isLoading={isLoading}
             />
           )}
         </CardContent>
