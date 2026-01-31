@@ -366,19 +366,20 @@ export async function createExpense(
     throw error;
   }
 
+  // Auto-generate idempotency key if not provided
+  const idempotencyKey = validatedInput.idempotencyKey || nanoid();
+
   // Check for idempotency
-  if (validatedInput.idempotencyKey) {
-    const existing = await pool.query(
-      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
-      [validatedInput.idempotencyKey],
+  const existing = await pool.query(
+    `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+    [idempotencyKey],
+  );
+  if (existing.rows.length > 0) {
+    const existingTransaction = await getTransactionById(
+      existing.rows[0].id as string,
     );
-    if (existing.rows.length > 0) {
-      const existingTransaction = await getTransactionById(
-        existing.rows[0].id as string,
-      );
-      if (existingTransaction) {
-        return existingTransaction;
-      }
+    if (existingTransaction) {
+      return existingTransaction;
     }
   }
 
@@ -417,7 +418,7 @@ export async function createExpense(
         validatedInput.categoryId,
         now,
         now,
-        validatedInput.idempotencyKey || null,
+        idempotencyKey,
       ],
     );
 
@@ -467,19 +468,20 @@ export async function createIncome(
     throw error;
   }
 
+  // Auto-generate idempotency key if not provided
+  const idempotencyKey = validatedInput.idempotencyKey || nanoid();
+
   // Check for idempotency
-  if (validatedInput.idempotencyKey) {
-    const existing = await pool.query(
-      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
-      [validatedInput.idempotencyKey],
+  const existing = await pool.query(
+    `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+    [idempotencyKey],
+  );
+  if (existing.rows.length > 0) {
+    const existingTransaction = await getTransactionById(
+      existing.rows[0].id as string,
     );
-    if (existing.rows.length > 0) {
-      const existingTransaction = await getTransactionById(
-        existing.rows[0].id as string,
-      );
-      if (existingTransaction) {
-        return existingTransaction;
-      }
+    if (existingTransaction) {
+      return existingTransaction;
     }
   }
 
@@ -519,7 +521,7 @@ export async function createIncome(
         validatedInput.categoryId || null,
         now,
         now,
-        validatedInput.idempotencyKey || null,
+        idempotencyKey,
       ],
     );
 
@@ -562,19 +564,20 @@ export async function createTransfer(
 
   const validatedInput = TransferCreateSchema.parse(input);
 
+  // Auto-generate idempotency key if not provided
+  const idempotencyKey = validatedInput.idempotencyKey || nanoid();
+
   // Check for idempotency
-  if (validatedInput.idempotencyKey) {
-    const existing = await pool.query(
-      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
-      [validatedInput.idempotencyKey],
+  const existing = await pool.query(
+    `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+    [idempotencyKey],
+  );
+  if (existing.rows.length > 0) {
+    const existingTransaction = await getTransactionById(
+      existing.rows[0].id as string,
     );
-    if (existing.rows.length > 0) {
-      const existingTransaction = await getTransactionById(
-        existing.rows[0].id as string,
-      );
-      if (existingTransaction) {
-        return existingTransaction;
-      }
+    if (existingTransaction) {
+      return existingTransaction;
     }
   }
 
@@ -619,7 +622,7 @@ export async function createTransfer(
         validatedInput.note || null,
         now,
         now,
-        validatedInput.idempotencyKey || null,
+        idempotencyKey,
       ],
     );
 
@@ -675,19 +678,20 @@ export async function createSavingsContribution(
 
   const validatedInput = SavingsContributeSchema.parse(input);
 
+  // Auto-generate idempotency key if not provided
+  const idempotencyKey = validatedInput.idempotencyKey || nanoid();
+
   // Check for idempotency
-  if (validatedInput.idempotencyKey) {
-    const existing = await pool.query(
-      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
-      [validatedInput.idempotencyKey],
+  const existing = await pool.query(
+    `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+    [idempotencyKey],
+  );
+  if (existing.rows.length > 0) {
+    const existingTransaction = await getTransactionById(
+      existing.rows[0].id as string,
     );
-    if (existing.rows.length > 0) {
-      const existingTransaction = await getTransactionById(
-        existing.rows[0].id as string,
-      );
-      if (existingTransaction) {
-        return existingTransaction;
-      }
+    if (existingTransaction) {
+      return existingTransaction;
     }
   }
 
@@ -732,7 +736,7 @@ export async function createSavingsContribution(
         validatedInput.note || null,
         now,
         now,
-        validatedInput.idempotencyKey || null,
+        idempotencyKey,
       ],
     );
 
@@ -788,19 +792,20 @@ export async function createSavingsWithdrawal(
 
   const validatedInput = SavingsWithdrawSchema.parse(input);
 
+  // Auto-generate idempotency key if not provided
+  const idempotencyKey = validatedInput.idempotencyKey || nanoid();
+
   // Check for idempotency
-  if (validatedInput.idempotencyKey) {
-    const existing = await pool.query(
-      `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
-      [validatedInput.idempotencyKey],
+  const existing = await pool.query(
+    `SELECT id FROM transaction_events WHERE idempotency_key = $1`,
+    [idempotencyKey],
+  );
+  if (existing.rows.length > 0) {
+    const existingTransaction = await getTransactionById(
+      existing.rows[0].id as string,
     );
-    if (existing.rows.length > 0) {
-      const existingTransaction = await getTransactionById(
-        existing.rows[0].id as string,
-      );
-      if (existingTransaction) {
-        return existingTransaction;
-      }
+    if (existingTransaction) {
+      return existingTransaction;
     }
   }
 
@@ -845,7 +850,7 @@ export async function createSavingsWithdrawal(
         validatedInput.note || null,
         now,
         now,
-        validatedInput.idempotencyKey || null,
+        idempotencyKey,
       ],
     );
 

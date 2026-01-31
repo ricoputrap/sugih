@@ -60,9 +60,9 @@ describe("Wallet Integration Tests", () => {
 
     // Create transaction event
     await pool.query(
-      `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [eventId, now, amount > 0 ? "income" : "expense", now, now],
+      `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [eventId, now, amount > 0 ? "income" : "expense", now, now, eventId],
     );
 
     // Create posting
@@ -442,9 +442,9 @@ describe("Wallet Integration Tests", () => {
       testEventIds.push(eventId);
 
       await pool.query(
-        `INSERT INTO transaction_events (id, occurred_at, type, deleted_at, created_at, updated_at)
-         VALUES ($1, $2, 'expense', $3, $4, $5)`,
-        [eventId, now, now, now, now],
+        `INSERT INTO transaction_events (id, occurred_at, type, deleted_at, created_at, updated_at, idempotency_key)
+         VALUES ($1, $2, 'expense', $3, $4, $5, $6)`,
+        [eventId, now, now, now, now, eventId],
       );
 
       const postingId = nanoid();

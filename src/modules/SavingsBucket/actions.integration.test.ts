@@ -327,9 +327,9 @@ describe("Savings Bucket Integration Tests", () => {
       );
 
       await pool.query(
-        `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
-         VALUES ($1, $2, 'expense', $3, $4)`,
-        [eventId, now, now, now],
+        `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at, idempotency_key)
+         VALUES ($1, $2, 'expense', $3, $4, $5)`,
+        [eventId, now, now, now, eventId],
       );
 
       await pool.query(
@@ -386,9 +386,9 @@ describe("Savings Bucket Integration Tests", () => {
       testPostingIds.push(postingId1);
 
       await pool.query(
-        `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
-         VALUES ($1, $2, 'income', $3, $4)`,
-        [eventId1, now, now, now],
+        `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at, idempotency_key)
+         VALUES ($1, $2, 'income', $3, $4, $5)`,
+        [eventId1, now, now, now, eventId1],
       );
       await pool.query(
         `INSERT INTO postings (id, event_id, wallet_id, savings_bucket_id, amount_idr, created_at)
@@ -403,9 +403,9 @@ describe("Savings Bucket Integration Tests", () => {
       testPostingIds.push(postingId2);
 
       await pool.query(
-        `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at)
-         VALUES ($1, $2, 'expense', $3, $4)`,
-        [eventId2, now, now, now],
+        `INSERT INTO transaction_events (id, occurred_at, type, created_at, updated_at, idempotency_key)
+         VALUES ($1, $2, 'expense', $3, $4, $5)`,
+        [eventId2, now, now, now, eventId2],
       );
       await pool.query(
         `INSERT INTO postings (id, event_id, wallet_id, savings_bucket_id, amount_idr, created_at)
@@ -446,9 +446,9 @@ describe("Savings Bucket Integration Tests", () => {
       );
 
       await pool.query(
-        `INSERT INTO transaction_events (id, occurred_at, type, deleted_at, created_at, updated_at)
-         VALUES ($1, $2, 'expense', $3, $4, $5)`,
-        [eventId, now, now, now, now],
+        `INSERT INTO transaction_events (id, occurred_at, type, deleted_at, created_at, updated_at, idempotency_key)
+         VALUES ($1, $2, 'expense', $3, $4, $5, $6)`,
+        [eventId, now, now, now, now, eventId],
       );
 
       await pool.query(

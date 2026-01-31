@@ -14,7 +14,7 @@ import { withRouteLogging } from "@/lib/logging";
  * - amountIdr: number (required, positive integer)
  * - note: string (optional)
  * - payee: string (optional)
- * - idempotencyKey: string (optional)
+ * - idempotencyKey: string (optional, auto-generated if not provided)
  */
 async function handlePost(request: NextRequest) {
   try {

@@ -22,6 +22,8 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { categories } from "@/modules/Category/schema";
+import { savingsBuckets } from "@/modules/SavingsBucket/schema";
 
 // Drizzle schema for the budgets table
 export const budgets = pgTable(
@@ -29,8 +31,10 @@ export const budgets = pgTable(
   {
     id: text("id").primaryKey(), // UUID as text
     month: varchar("month", { length: 10 }).notNull(), // ISO format YYYY-MM-01
-    category_id: text("category_id"), // Now nullable - references expense categories
-    savings_bucket_id: text("savings_bucket_id"), // New column - references savings buckets
+    category_id: text("category_id")
+      .references(() => categories.id, { onDelete: "restrict" }), // Now nullable - references expense categories
+    savings_bucket_id: text("savings_bucket_id")
+      .references(() => savingsBuckets.id, { onDelete: "restrict" }), // New column - references savings buckets
     amount_idr: bigint("amount_idr", { mode: "number" }).notNull(), // Signed bigint in Rupiah
     note: text("note"), // Optional description field
     created_at: timestamp("created_at", { withTimezone: true }).$default(

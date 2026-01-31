@@ -14,7 +14,7 @@ import { withRouteLogging } from "@/lib/logging";
  * - toWalletId: string (required)
  * - amountIdr: number (required, positive integer)
  * - note: string (optional)
- * - idempotencyKey: string (optional)
+ * - idempotencyKey: string (optional, auto-generated if not provided)
  *
  * Notes:
  * - fromWalletId and toWalletId must be different

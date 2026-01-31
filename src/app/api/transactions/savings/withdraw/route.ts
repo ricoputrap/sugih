@@ -14,7 +14,7 @@ import { withRouteLogging } from "@/lib/logging";
  * - bucketId: string (required)
  * - amountIdr: number (required, positive integer)
  * - note: string (optional)
- * - idempotencyKey: string (optional)
+ * - idempotencyKey: string (optional, auto-generated if not provided)
  */
 async function handlePost(request: NextRequest) {
   try {
