@@ -66,6 +66,47 @@ RESTful routes in `src/app/api/{resource}/route.ts`. Use `src/lib/http.ts` helpe
 - Charts via Recharts
 - Toast notifications via Sonner
 
+### Self-Contained Component Pattern
+
+When building or refactoring page-level features, follow the **self-contained component architecture** established in the Budget module. This is the preferred pattern for all pages in the project.
+
+**Page file** (`src/app/{feature}/page.tsx`): Purely compositional — only renders child components inside a `<Suspense>` boundary. No state, no props, no callbacks.
+
+```tsx
+export default function FeaturePage() {
+  return (
+    <Suspense fallback={<FeaturePageSkeleton />}>
+      <div className="space-y-6">
+        <FeaturePageHeader />
+        <FeatureDetailsCard />
+        <FeatureDialogForm />
+      </div>
+    </Suspense>
+  );
+}
+```
+
+**Child components** (`src/modules/{Feature}/components/`): Each component is self-contained — it directly accesses the stores and hooks it needs. No prop drilling from the page.
+
+**State management split per component:**
+
+| State Type | Tool | Naming Convention | Purpose |
+|---|---|---|---|
+| UI state | Zustand | `use{Feature}PageStore` | Dialog open/close, selected items, transient UI |
+| Server state | React Query | `use{Feature}Data`, `use{Feature}Mutations` | Fetching, creating, updating, deleting |
+| URL state | NUQS | `use{Feature}Month`, `use{Feature}View`, etc. | Filters, pagination, view modes |
+
+**Refactoring checklist when applying this pattern:**
+
+1. Create a Zustand store (`use{Feature}PageStore`) for all UI state (dialogs, selections, transient results)
+2. Create React Query hooks for data fetching and mutations if they don't exist
+3. Move URL-driven state (filters, month, view mode) to NUQS hooks
+4. Refactor each child component to import stores/hooks directly instead of receiving props
+5. Simplify the page file to pure composition (no state, no handlers, no props)
+6. Update tests to mock stores/hooks instead of passing props
+
+**Reference implementation:** Budget module — see `src/app/budgets/page.tsx`, `src/modules/Budget/components/`, and `docs/design/budgets-page-refactoring.md` for the full breakdown.
+
 ### Path Alias
 
 `@/*` maps to `./src/*` (configured in tsconfig.json).
