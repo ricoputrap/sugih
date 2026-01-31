@@ -1,29 +1,13 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Copy, Plus } from "lucide-react";
 import { Suspense } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { BudgetCardGrid } from "@/modules/Budget/components/BudgetCardGrid";
+import { BudgetDetailsCard } from "@/modules/Budget/components/BudgetDetailsCard";
 import { BudgetDialogForm } from "@/modules/Budget/components/BudgetDialogForm";
-import { BudgetTable } from "@/modules/Budget/components/BudgetTable";
+import { BudgetsPageHeader } from "@/modules/Budget/components/BudgetsPageHeader";
+import { BudgetsPageSkeleton } from "@/modules/Budget/components/BudgetsPageSkeleton";
 import { CopyBudgetDialog } from "@/modules/Budget/components/CopyBudgetDialog";
 import { CopyResultModal } from "@/modules/Budget/components/CopyResultModal";
-import { ViewToggle } from "@/modules/Budget/components/ViewToggle";
 import {
   useBudgetMonth,
   useBudgetMonthOptions,
@@ -39,27 +23,6 @@ export default function BudgetsPage() {
     <Suspense fallback={<BudgetsPageSkeleton />}>
       <BudgetsPageContent />
     </Suspense>
-  );
-}
-
-function BudgetsPageSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="h-9 w-32 animate-pulse rounded bg-gray-200" />
-          <div className="mt-2 h-5 w-64 animate-pulse rounded bg-gray-200" />
-        </div>
-      </div>
-      <Card>
-        <CardHeader>
-          <div className="h-6 w-40 animate-pulse rounded bg-gray-200" />
-        </CardHeader>
-        <CardContent>
-          <div className="h-48 animate-pulse rounded bg-gray-200" />
-        </CardContent>
-      </Card>
-    </div>
   );
 }
 
@@ -168,133 +131,29 @@ function BudgetsPageContent() {
     }
   };
 
-  // Get selected month display name
-  const getSelectedMonthDisplay = () => {
-    const option = monthOptions.find((opt) => opt.value === month);
-    return option?.label || "Select a month";
-  };
-
-  const hasBudgets = budgets.length > 0;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Budgets</h1>
-          <p className="text-muted-foreground">
-            Set monthly budgets and track your spending against them
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {hasBudgets && (
-            <Button
-              variant="outline"
-              onClick={openCopyDialog}
-              disabled={isLoading}
-              data-testid="copy-budgets"
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              Copy Budgets
-            </Button>
-          )}
-          <Button onClick={openCreateDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Budget
-          </Button>
-        </div>
-      </div>
+      <BudgetsPageHeader
+        onCopyClick={openCopyDialog}
+        onCreateClick={openCreateDialog}
+      />
 
-      {/* Budgets Table/Grid with Month Selector and View Toggle */}
-      <Card>
-        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <CardTitle>Budget Details</CardTitle>
-            <CardDescription>
-              {month
-                ? `Budget breakdown for ${getSelectedMonthDisplay()}`
-                : "Select a month to view budget details"}
-            </CardDescription>
-          </div>
-          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:gap-4">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center">
-              <span className="text-sm font-medium text-muted-foreground">
-                Month:
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (monthNavigation.previousMonth) {
-                      setMonth(monthNavigation.previousMonth);
-                    }
-                  }}
-                  disabled={isLoading || !monthNavigation.canGoToPrevious}
-                  aria-label="Previous month"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-
-                <Select value={month} onValueChange={setMonth}>
-                  <SelectTrigger
-                    className="w-full sm:w-48"
-                    data-testid="month-select"
-                    aria-label="Select month"
-                  >
-                    <SelectValue placeholder="Select a month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {monthOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (monthNavigation.nextMonth) {
-                      setMonth(monthNavigation.nextMonth);
-                    }
-                  }}
-                  disabled={isLoading || !monthNavigation.canGoToNext}
-                  aria-label="Next month"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            <ViewToggle
-              value={viewMode}
-              onChange={setViewMode}
-              data-testid="view-toggle"
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {viewMode === "list" ? (
-            <BudgetTable
-              budgets={budgets}
-              summary={summary || undefined}
-              onEdit={openEditDialog}
-              onDelete={handleDeleteBudget}
-              isLoading={isLoading}
-            />
-          ) : (
-            <BudgetCardGrid
-              budgets={budgets}
-              summary={summary || undefined}
-              onEdit={openEditDialog}
-              onDelete={handleDeleteBudget}
-              isLoading={isLoading}
-            />
-          )}
-        </CardContent>
-      </Card>
+      {/* Budget Details Card */}
+      <BudgetDetailsCard
+        month={month}
+        onMonthChange={setMonth}
+        monthOptions={monthOptions}
+        monthNavigation={monthNavigation}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        budgets={budgets}
+        summary={summary}
+        isLoading={isLoading}
+        onEdit={openEditDialog}
+        onDelete={handleDeleteBudget}
+      />
 
       {/* Create Dialog */}
       <BudgetDialogForm
