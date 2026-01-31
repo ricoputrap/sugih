@@ -5,26 +5,26 @@
  * Tests each preset with edge cases: month boundaries, year boundaries, etc.
  */
 
-import { describe, it, expect } from "vitest";
 import {
-  resolveDateRange,
-  getDateRangeDescription,
-  isDateInRange,
-  type DateRange,
-} from "./dateRange";
-import {
-  startOfDay,
   endOfDay,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
   endOfMonth,
-  startOfYear,
+  endOfWeek,
   endOfYear,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  startOfYear,
   subDays,
   subMonths,
   subYears,
 } from "date-fns";
+import { describe, expect, it } from "vitest";
+import {
+  type DateRange,
+  getDateRangeDescription,
+  isDateInRange,
+  resolveDateRange,
+} from "./dateRange";
 
 describe("Date Range Resolution", () => {
   describe("resolveDateRange", () => {

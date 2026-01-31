@@ -4,19 +4,19 @@
  * Unit tests for spending data shaping functions.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { CategorySpendingTrendChartData } from "../../schema";
 import {
-  transformSpendingData,
+  calculateTotalSpending,
   extractCategories,
-  getCategoryNames,
   fillSpendingBuckets,
   generateSpendingChartConfig,
-  isSpendingDataEmpty,
-  calculateTotalSpending,
+  getCategoryNames,
   getCategoryTotal,
+  isSpendingDataEmpty,
   limitCategories,
+  transformSpendingData,
 } from "./spendingSeries";
-import type { CategorySpendingTrendChartData } from "../../schema";
 
 describe("spendingSeries", () => {
   const mockData: CategorySpendingTrendChartData[] = [

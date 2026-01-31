@@ -14,12 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  PERIOD_LABELS,
-  PERIODS,
   DATE_RANGE_PRESET_LABELS,
   DATE_RANGE_PRESETS,
-  type Period,
   type DateRangePreset,
+  PERIOD_LABELS,
+  PERIODS,
+  type Period,
 } from "../types";
 
 export interface DashboardChartControlsProps {

@@ -1,19 +1,20 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+
 import {
+  act,
+  fireEvent,
   render,
   screen,
-  fireEvent,
   waitFor,
-  act,
 } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useChartTypeStore } from "../stores/useChartTypeStore";
 import {
   CategorySpendingAreaChart,
   type CategorySpendingTrendData,
 } from "./CategorySpendingAreaChart";
-import { useChartTypeStore } from "../stores/useChartTypeStore";
 
 // Mock Drizzle database connection for tests
 vi.mock("@/db/drizzle-client", () => ({

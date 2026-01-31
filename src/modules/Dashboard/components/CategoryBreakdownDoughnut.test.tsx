@@ -8,12 +8,12 @@
  * Tests for the category breakdown doughnut chart component with filters
  */
 
-import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { CategoryBreakdownDoughnut } from "./CategoryBreakdownDoughnut";
 import type { CategoryBreakdownData } from "../schema";
+import { CategoryBreakdownDoughnut } from "./CategoryBreakdownDoughnut";
 
 // Polyfill for pointer capture and scroll behavior in jsdom environment
 beforeAll(() => {

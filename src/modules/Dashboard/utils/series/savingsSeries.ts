@@ -10,8 +10,8 @@ import type {
   SavingsBucketBalanceSnapshot,
 } from "../../schema";
 import type { Period } from "../../types";
-import type { DateRange } from "../dateRange";
 import { generateBuckets } from "../bucketing";
+import type { DateRange } from "../dateRange";
 
 /**
  * Single series data point for chart rendering

@@ -2,16 +2,16 @@
 
 import * as React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { InsightTab, ChartVariant } from "../types";
-import { INSIGHT_TAB_LABELS } from "../types";
 import type {
-  NetWorthChartData,
   CategorySpendingTrendChartData,
+  NetWorthChartData,
 } from "../schema";
-import { NetWorthGrowthChart } from "./charts/NetWorthGrowthChart";
-import { SpendingTrendsChart } from "./charts/SpendingTrendsChart";
+import type { ChartVariant, InsightTab } from "../types";
+import { INSIGHT_TAB_LABELS } from "../types";
 import { IncomeTrendsChart } from "./charts/IncomeTrendsChart";
+import { NetWorthGrowthChart } from "./charts/NetWorthGrowthChart";
 import { SavingsTrendsChart } from "./charts/SavingsTrendsChart";
+import { SpendingTrendsChart } from "./charts/SpendingTrendsChart";
 
 export interface DashboardInsightsProps {
   /** Net worth chart data */

@@ -19,21 +19,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  type ChartConfig,
   ChartContainer,
   ChartLegend,
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
-  type ChartConfig,
 } from "@/components/ui/chart";
 import type { CategorySpendingTrendChartData } from "../../schema";
 import type { ChartVariant } from "../../types";
 import {
-  transformSpendingData,
-  getCategoryNames,
-  generateSpendingChartConfig,
-  isSpendingDataEmpty,
   calculateTotalSpending,
+  generateSpendingChartConfig,
+  getCategoryNames,
+  isSpendingDataEmpty,
+  transformSpendingData,
 } from "../../utils/series/spendingSeries";
 
 export interface SpendingTrendsChartProps {

@@ -10,10 +10,10 @@
  */
 
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { DashboardRevampShell } from "./DashboardRevampShell";
 import type { CategoryBreakdownData, RecentTransaction } from "../schema";
+import { DashboardRevampShell } from "./DashboardRevampShell";
 
 describe("DashboardRevampShell", () => {
   const mockExpenseData: CategoryBreakdownData[] = [

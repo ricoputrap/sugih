@@ -5,19 +5,19 @@
  * Tests each period (daily/weekly/monthly) with edge cases.
  */
 
-import { describe, it, expect } from "vitest";
+import { startOfDay, startOfMonth, startOfWeek } from "date-fns";
+import { describe, expect, it } from "vitest";
 import {
+  type Aggregatable,
+  aggregateByPeriod,
+  aggregateByPeriodAndGroup,
   bucketKey,
   bucketStart,
   fillMissingBuckets,
   generateBuckets,
-  aggregateByPeriod,
-  aggregateByPeriodAndGroup,
   parseBucketKey,
   type TimeSeriesPoint,
-  type Aggregatable,
 } from "./bucketing";
-import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
 
 describe("Time Bucketing Utilities", () => {
   describe("bucketKey", () => {

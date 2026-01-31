@@ -4,19 +4,19 @@
  * Unit tests for income data shaping functions.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { CategorySpendingTrendChartData } from "../../schema";
 import {
-  transformIncomeData,
+  calculateTotalIncome,
   extractIncomeCategories,
-  getIncomeCategoryNames,
   fillIncomeBuckets,
   generateIncomeChartConfig,
-  isIncomeDataEmpty,
-  calculateTotalIncome,
+  getIncomeCategoryNames,
   getIncomeCategoryTotal,
+  isIncomeDataEmpty,
   limitIncomeCategories,
+  transformIncomeData,
 } from "./incomeSeries";
-import type { CategorySpendingTrendChartData } from "../../schema";
 
 describe("incomeSeries", () => {
   const mockData: CategorySpendingTrendChartData[] = [

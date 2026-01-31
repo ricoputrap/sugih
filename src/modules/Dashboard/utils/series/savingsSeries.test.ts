@@ -4,24 +4,24 @@
  * Unit tests for savings data shaping functions.
  */
 
-import { describe, it, expect } from "vitest";
-import {
-  transformSavingsData,
-  buildSavingsBucketSeries,
-  extractSavingsBuckets,
-  getSavingsBucketNames,
-  fillSavingsBuckets,
-  generateSavingsChartConfig,
-  isSavingsDataEmpty,
-  getLatestSavingsBalance,
-  calculateSavingsGrowth,
-  getSavingsSeriesKeys,
-  calculateTotalSavings,
-} from "./savingsSeries";
+import { describe, expect, it } from "vitest";
 import type {
   NetWorthChartData,
   SavingsBucketBalanceSnapshot,
 } from "../../schema";
+import {
+  buildSavingsBucketSeries,
+  calculateSavingsGrowth,
+  calculateTotalSavings,
+  extractSavingsBuckets,
+  fillSavingsBuckets,
+  generateSavingsChartConfig,
+  getLatestSavingsBalance,
+  getSavingsBucketNames,
+  getSavingsSeriesKeys,
+  isSavingsDataEmpty,
+  transformSavingsData,
+} from "./savingsSeries";
 
 describe("savingsSeries", () => {
   const mockNetWorthData: NetWorthChartData[] = [

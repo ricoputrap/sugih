@@ -12,10 +12,10 @@
 
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CategoryBreakdownDoughnut } from "./CategoryBreakdownDoughnut";
-import { LatestTransactionsTable } from "./LatestTransactionsTable";
 import type { CategoryBreakdownData, RecentTransaction } from "../schema";
 import type { DateRangePreset } from "../types";
+import { CategoryBreakdownDoughnut } from "./CategoryBreakdownDoughnut";
+import { LatestTransactionsTable } from "./LatestTransactionsTable";
 
 export interface DashboardRevampShellProps {
   /** Expense category breakdown data */

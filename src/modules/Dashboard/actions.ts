@@ -33,8 +33,8 @@ import {
   type SpendingTrendChartData,
   type WalletBalanceSnapshot,
 } from "./schema";
-import { computeKpiSummary } from "./utils/kpis";
 import { resolveDateRange } from "./utils/dateRange";
+import { computeKpiSummary } from "./utils/kpis";
 
 // ============================================================================
 // DASHBOARD SUMMARY

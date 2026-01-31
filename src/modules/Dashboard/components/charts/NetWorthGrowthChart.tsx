@@ -19,20 +19,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  type ChartConfig,
   ChartContainer,
   ChartLegend,
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
-  type ChartConfig,
 } from "@/components/ui/chart";
 import type { NetWorthChartData } from "../../schema";
 import type { ChartVariant } from "../../types";
 import {
-  transformNetWorthData,
   generateNetWorthChartConfig,
   getNetWorthSeriesKeys,
   isNetWorthDataEmpty,
+  transformNetWorthData,
 } from "../../utils/series/netWorthSeries";
 
 export interface NetWorthGrowthChartProps {

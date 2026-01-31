@@ -4,8 +4,8 @@
  * Converts dashboard categoryBreakdown data into recharts-compatible pie chart data.
  */
 
-import type { CategoryBreakdownData } from "../schema";
 import type { ChartConfig } from "@/components/ui/chart";
+import type { CategoryBreakdownData } from "../schema";
 
 /**
  * Pie chart data item structure for recharts

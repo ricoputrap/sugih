@@ -4,42 +4,38 @@
  * Centralized exports for all Dashboard utility functions.
  */
 
-export {
-  mapCategoryBreakdownToPie,
-  generateChartConfigFromBreakdown,
-  type PieChartDataItem,
-} from "./mapCategoryBreakdownToPie";
-
-// Series utilities for chart data transformation
-export * from "./series";
-
+export type {
+  Aggregatable,
+  AggregationResult,
+  GroupedAggregationResult,
+  TimeSeriesPoint,
+} from "./bucketing";
 // Bucketing utilities
 export {
+  aggregateByPeriod,
+  aggregateByPeriodAndGroup,
   bucketKey,
   bucketStart,
   fillMissingBuckets,
   generateBuckets,
-  aggregateByPeriod,
-  aggregateByPeriodAndGroup,
   parseBucketKey,
 } from "./bucketing";
-export type {
-  TimeSeriesPoint,
-  Aggregatable,
-  AggregationResult,
-  GroupedAggregationResult,
-} from "./bucketing";
-
+export type { DateRange } from "./dateRange";
 // Date range utilities
 export { resolveDateRange } from "./dateRange";
-export type { DateRange } from "./dateRange";
-
 // KPI utilities
 export {
+  computeGrowthPercentage,
   computeKpiSummary,
   formatGrowthMetric,
-  computeGrowthPercentage,
 } from "./kpis";
+export {
+  generateChartConfigFromBreakdown,
+  mapCategoryBreakdownToPie,
+  type PieChartDataItem,
+} from "./mapCategoryBreakdownToPie";
+// Series utilities for chart data transformation
+export * from "./series";
 
 // Currency formatting (if exists, otherwise will be added)
 export function formatCurrency(value: number): string {

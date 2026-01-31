@@ -1,6 +1,15 @@
 "use client";
 
+import { format } from "date-fns";
+import {
+  ArrowDownIcon,
+  ArrowRightIcon,
+  ArrowUpIcon,
+  PiggyBank,
+} from "lucide-react";
 import * as React from "react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -9,15 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ArrowRightIcon,
-  PiggyBank,
-} from "lucide-react";
 import type { RecentTransaction } from "../schema";
 
 /**

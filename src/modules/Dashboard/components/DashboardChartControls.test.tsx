@@ -12,10 +12,10 @@
  * - All options are available
  */
 
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import type { DateRangePreset, Period } from "../types";
 import { DashboardChartControls } from "./DashboardChartControls";
-import type { Period, DateRangePreset } from "../types";
 
 describe("DashboardChartControls", () => {
   const mockOnPeriodChange = vi.fn();

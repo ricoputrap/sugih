@@ -5,24 +5,24 @@
  * Ensures exhaustive coverage of all enum values.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  type InsightTab,
-  type Period,
-  type DateRangePreset,
-  type ChartVariant,
-  INSIGHT_TABS,
-  PERIODS,
-  DATE_RANGE_PRESETS,
-  CHART_VARIANTS,
-  INSIGHT_TAB_LABELS,
-  PERIOD_LABELS,
-  DATE_RANGE_PRESET_LABELS,
   CHART_VARIANT_LABELS,
+  CHART_VARIANTS,
+  type ChartVariant,
+  DATE_RANGE_PRESET_LABELS,
+  DATE_RANGE_PRESETS,
+  type DateRangePreset,
+  INSIGHT_TAB_LABELS,
+  INSIGHT_TABS,
+  type InsightTab,
+  isChartVariant,
+  isDateRangePreset,
   isInsightTab,
   isPeriod,
-  isDateRangePreset,
-  isChartVariant,
+  PERIOD_LABELS,
+  PERIODS,
+  type Period,
 } from "./types";
 
 describe("Dashboard Revamp Types", () => {

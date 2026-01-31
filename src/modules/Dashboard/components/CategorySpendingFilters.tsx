@@ -1,5 +1,6 @@
 "use client";
 
+import { Calendar, CalendarDays } from "lucide-react";
 import * as React from "react";
 import {
   Select,
@@ -8,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, CalendarDays } from "lucide-react";
 
 export type PeriodGranularity = "day" | "week" | "month";
 export type DateRangePreset =

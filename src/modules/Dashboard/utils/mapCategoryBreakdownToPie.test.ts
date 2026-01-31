@@ -5,11 +5,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import {
-  mapCategoryBreakdownToPie,
-  generateChartConfigFromBreakdown,
-} from "./mapCategoryBreakdownToPie";
 import type { CategoryBreakdownData } from "../schema";
+import {
+  generateChartConfigFromBreakdown,
+  mapCategoryBreakdownToPie,
+} from "./mapCategoryBreakdownToPie";
 
 describe("mapCategoryBreakdownToPie", () => {
   it("should convert category breakdown data to pie chart format", () => {

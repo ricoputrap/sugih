@@ -4,17 +4,17 @@
  * Unit tests for net worth data shaping functions.
  */
 
-import { describe, it, expect } from "vitest";
-import {
-  transformNetWorthData,
-  buildNetWorthSeries,
-  fillNetWorthBuckets,
-  calculateNetWorthGrowth,
-  getNetWorthSeriesKeys,
-  generateNetWorthChartConfig,
-  isNetWorthDataEmpty,
-} from "./netWorthSeries";
+import { describe, expect, it } from "vitest";
 import type { NetWorthChartData } from "../../schema";
+import {
+  buildNetWorthSeries,
+  calculateNetWorthGrowth,
+  fillNetWorthBuckets,
+  generateNetWorthChartConfig,
+  getNetWorthSeriesKeys,
+  isNetWorthDataEmpty,
+  transformNetWorthData,
+} from "./netWorthSeries";
 
 describe("netWorthSeries", () => {
   describe("transformNetWorthData", () => {

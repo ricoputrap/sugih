@@ -1,18 +1,18 @@
 "use client";
 
 import {
-  LineChart,
+  CartesianGrid,
+  Legend,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { SpendingTrendChartData } from "@/modules/Dashboard/schema";
 import { formatCurrency } from "@/modules/Dashboard/utils";
-import { SpendingTrendChartData } from "@/modules/Dashboard/schema";
 
 interface SpendingTrendChartProps {
   data: SpendingTrendChartData[];

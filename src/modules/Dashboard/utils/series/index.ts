@@ -4,73 +4,70 @@
  * Centralized exports for all series data transformation utilities.
  */
 
-// Net Worth Series
-export {
-  transformNetWorthData,
-  buildNetWorthSeries,
-  fillNetWorthBuckets,
-  calculateNetWorthGrowth,
-  getNetWorthSeriesKeys,
-  generateNetWorthChartConfig,
-  isNetWorthDataEmpty,
-} from "./netWorthSeries";
 export type {
-  SeriesDataPoint as NetWorthSeriesDataPoint,
+  CategoryInfo as IncomeCategoryInfo,
+  IncomeChartDataPoint,
+} from "./incomeSeries";
+// Income Series
+export {
+  calculateTotalIncome,
+  extractIncomeCategories,
+  fillIncomeBuckets,
+  generateIncomeChartConfig,
+  getIncomeCategoryNames,
+  getIncomeCategoryTotal,
+  isIncomeDataEmpty,
+  limitIncomeCategories,
+  transformIncomeData,
+} from "./incomeSeries";
+export type {
   NamedSeries as NetWorthNamedSeries,
   NetWorthChartDataPoint,
   NetWorthSeriesConfig,
+  SeriesDataPoint as NetWorthSeriesDataPoint,
 } from "./netWorthSeries";
-
-// Spending Series
+// Net Worth Series
 export {
-  transformSpendingData,
-  extractCategories as extractSpendingCategories,
-  getCategoryNames as getSpendingCategoryNames,
-  fillSpendingBuckets,
-  generateSpendingChartConfig,
-  isSpendingDataEmpty,
-  calculateTotalSpending,
-  getCategoryTotal as getSpendingCategoryTotal,
-  limitCategories as limitSpendingCategories,
-} from "./spendingSeries";
+  buildNetWorthSeries,
+  calculateNetWorthGrowth,
+  fillNetWorthBuckets,
+  generateNetWorthChartConfig,
+  getNetWorthSeriesKeys,
+  isNetWorthDataEmpty,
+  transformNetWorthData,
+} from "./netWorthSeries";
 export type {
-  SpendingChartDataPoint,
-  CategoryInfo as SpendingCategoryInfo,
-} from "./spendingSeries";
-
-// Income Series
-export {
-  transformIncomeData,
-  extractIncomeCategories,
-  getIncomeCategoryNames,
-  fillIncomeBuckets,
-  generateIncomeChartConfig,
-  isIncomeDataEmpty,
-  calculateTotalIncome,
-  getIncomeCategoryTotal,
-  limitIncomeCategories,
-} from "./incomeSeries";
-export type {
-  IncomeChartDataPoint,
-  CategoryInfo as IncomeCategoryInfo,
-} from "./incomeSeries";
-
+  NamedSeries as SavingsNamedSeries,
+  SavingsBucketInfo,
+  SavingsChartDataPoint,
+} from "./savingsSeries";
 // Savings Series
 export {
-  transformSavingsData,
   buildSavingsBucketSeries,
+  calculateSavingsGrowth,
+  calculateTotalSavings,
   extractSavingsBuckets,
-  getSavingsBucketNames,
   fillSavingsBuckets,
   generateSavingsChartConfig,
-  isSavingsDataEmpty,
   getLatestSavingsBalance,
-  calculateSavingsGrowth,
+  getSavingsBucketNames,
   getSavingsSeriesKeys,
-  calculateTotalSavings,
+  isSavingsDataEmpty,
+  transformSavingsData,
 } from "./savingsSeries";
 export type {
-  SavingsChartDataPoint,
-  SavingsBucketInfo,
-  NamedSeries as SavingsNamedSeries,
-} from "./savingsSeries";
+  CategoryInfo as SpendingCategoryInfo,
+  SpendingChartDataPoint,
+} from "./spendingSeries";
+// Spending Series
+export {
+  calculateTotalSpending,
+  extractCategories as extractSpendingCategories,
+  fillSpendingBuckets,
+  generateSpendingChartConfig,
+  getCategoryNames as getSpendingCategoryNames,
+  getCategoryTotal as getSpendingCategoryTotal,
+  isSpendingDataEmpty,
+  limitCategories as limitSpendingCategories,
+  transformSpendingData,
+} from "./spendingSeries";

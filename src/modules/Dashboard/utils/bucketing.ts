@@ -6,15 +6,15 @@
  */
 
 import {
-  format,
-  startOfDay,
-  startOfWeek,
-  startOfMonth,
   eachDayOfInterval,
-  eachWeekOfInterval,
   eachMonthOfInterval,
-  parseISO,
+  eachWeekOfInterval,
+  format,
   isValid,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
 } from "date-fns";
 import type { Period } from "../types";
 import type { DateRange } from "./dateRange";

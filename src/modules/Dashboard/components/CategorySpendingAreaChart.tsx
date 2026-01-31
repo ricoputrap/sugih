@@ -18,19 +18,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  type ChartConfig,
   ChartContainer,
   ChartLegend,
   ChartLegendContent,
   ChartTooltip,
-  type ChartConfig,
 } from "@/components/ui/chart";
+import { type ChartType, useChartTypeStore } from "../stores/useChartTypeStore";
 import {
   CategorySpendingFilters,
   type DateRangePreset,
   type PeriodGranularity,
 } from "./CategorySpendingFilters";
 import { ChartTypeSelector } from "./ChartTypeSelector";
-import { useChartTypeStore, type ChartType } from "../stores/useChartTypeStore";
 
 export interface CategorySpendingTrendData {
   period: string;

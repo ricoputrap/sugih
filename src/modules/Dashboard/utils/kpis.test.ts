@@ -9,20 +9,20 @@
  * - Edge cases (zero baselines, negative values)
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  computeNetWorth,
-  computeMoneyLeftToSpend,
-  computeTotalSpending,
-  computeTotalSavings,
-  computeGrowthPercentage,
-  formatGrowthMetric,
-  computeKpiSummary,
-  type WalletBalance,
-  type SavingsBucketBalance,
   type BudgetData,
-  type SpendingData,
+  computeGrowthPercentage,
+  computeKpiSummary,
+  computeMoneyLeftToSpend,
+  computeNetWorth,
+  computeTotalSavings,
+  computeTotalSpending,
+  formatGrowthMetric,
   type KpiSummaryInput,
+  type SavingsBucketBalance,
+  type SpendingData,
+  type WalletBalance,
 } from "./kpis";
 
 describe("KPI Computation Utilities", () => {

@@ -9,14 +9,14 @@
  */
 
 import {
-  startOfDay,
   endOfDay,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
   endOfMonth,
-  startOfYear,
+  endOfWeek,
   endOfYear,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  startOfYear,
   subDays,
   subMonths,
   subYears,

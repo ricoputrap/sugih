@@ -1,5 +1,6 @@
 "use client";
 
+import { Calendar } from "lucide-react";
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -9,12 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "lucide-react";
-import { CategoryBreakdownChart } from "./CategoryBreakdownChart";
-import { prepareCategoryBreakdownForChart } from "../utils/series/categoryBreakdown";
 import type { CategoryBreakdownData } from "../schema";
 import type { DateRangePreset } from "../types";
 import { DATE_RANGE_PRESET_LABELS } from "../types";
+import { prepareCategoryBreakdownForChart } from "../utils/series/categoryBreakdown";
+import { CategoryBreakdownChart } from "./CategoryBreakdownChart";
 
 /**
  * Category type for filtering breakdown

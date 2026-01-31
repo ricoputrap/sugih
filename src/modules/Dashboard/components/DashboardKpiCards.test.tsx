@@ -13,9 +13,9 @@
  */
 
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
-import { DashboardKpiCards } from "./DashboardKpiCards";
+import { describe, expect, it } from "vitest";
 import type { KpiCardData } from "../schema";
+import { DashboardKpiCards } from "./DashboardKpiCards";
 
 describe("DashboardKpiCards", () => {
   const mockKpiData = {

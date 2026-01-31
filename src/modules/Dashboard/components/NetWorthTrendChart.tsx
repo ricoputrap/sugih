@@ -11,8 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/modules/Dashboard/utils";
 import type { NetWorthChartData } from "@/modules/Dashboard/schema";
+import { formatCurrency } from "@/modules/Dashboard/utils";
 
 interface NetWorthTrendChartProps {
   data: NetWorthChartData[];

@@ -7,12 +7,12 @@
 
 import type {
   NetWorthChartData,
-  WalletBalanceSnapshot,
   SavingsBucketBalanceSnapshot,
+  WalletBalanceSnapshot,
 } from "../../schema";
 import type { Period } from "../../types";
+import { fillMissingBuckets, generateBuckets } from "../bucketing";
 import type { DateRange } from "../dateRange";
-import { generateBuckets, fillMissingBuckets } from "../bucketing";
 
 /**
  * Single series data point for chart rendering

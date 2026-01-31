@@ -2,14 +2,14 @@
  * @vitest-environment jsdom
  */
 
-import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DashboardInsights } from "./DashboardInsights";
+import { describe, expect, it, vi } from "vitest";
 import type {
-  NetWorthChartData,
   CategorySpendingTrendChartData,
+  NetWorthChartData,
 } from "../schema";
+import { DashboardInsights } from "./DashboardInsights";
 
 // Mock the chart components
 vi.mock("./charts/NetWorthGrowthChart", () => ({

@@ -4,16 +4,16 @@
  * Tests for category breakdown data transformation functions
  */
 
-import { describe, it, expect } from "vitest";
-import {
-  sortCategoryBreakdown,
-  groupSmallCategories,
-  filterValidCategories,
-  prepareCategoryBreakdownForChart,
-  calculateTotalAmount,
-  assignCategoryColors,
-} from "./categoryBreakdown";
+import { describe, expect, it } from "vitest";
 import type { CategoryBreakdownData } from "../../schema";
+import {
+  assignCategoryColors,
+  calculateTotalAmount,
+  filterValidCategories,
+  groupSmallCategories,
+  prepareCategoryBreakdownForChart,
+  sortCategoryBreakdown,
+} from "./categoryBreakdown";
 
 describe("categoryBreakdown", () => {
   describe("sortCategoryBreakdown", () => {

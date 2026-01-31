@@ -8,10 +8,10 @@
  * @vitest-environment jsdom
  */
 
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { NetWorthGrowthChart } from "./NetWorthGrowthChart";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { NetWorthChartData } from "../../schema";
+import { NetWorthGrowthChart } from "./NetWorthGrowthChart";
 
 // Mock ResizeObserver for Recharts
 class ResizeObserverMock {

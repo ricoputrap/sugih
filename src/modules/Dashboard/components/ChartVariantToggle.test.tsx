@@ -7,10 +7,10 @@
  * @vitest-environment jsdom
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { ChartVariantToggle } from "./ChartVariantToggle";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChartVariant } from "../types";
+import { ChartVariantToggle } from "./ChartVariantToggle";
 
 describe("ChartVariantToggle", () => {
   const mockOnChange = vi.fn();

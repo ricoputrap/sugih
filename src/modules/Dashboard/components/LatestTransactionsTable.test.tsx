@@ -8,11 +8,11 @@
  * Tests for the latest transactions table component
  */
 
-import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { LatestTransactionsTable } from "./LatestTransactionsTable";
 import type { RecentTransaction } from "../schema";
+import { LatestTransactionsTable } from "./LatestTransactionsTable";
 
 describe("LatestTransactionsTable", () => {
   const mockTransactions: RecentTransaction[] = [

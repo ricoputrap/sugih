@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { useChartTypeStore, type ChartType } from "./useChartTypeStore";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type ChartType, useChartTypeStore } from "./useChartTypeStore";
 
 // Mock localStorage
 const localStorageMock = (() => {
