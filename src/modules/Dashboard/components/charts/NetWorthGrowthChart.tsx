@@ -173,7 +173,9 @@ export function NetWorthGrowthChart({
     if (variant === "line") return null;
 
     return seriesKeys.map((key) => {
-      const color = SERIES_COLORS[key] || `var(--chart-${(seriesKeys.indexOf(key) % 5) + 1})`;
+      const color =
+        SERIES_COLORS[key] ||
+        `var(--chart-${(seriesKeys.indexOf(key) % 5) + 1})`;
       const gradientId = `gradient-${key}`;
       return (
         <linearGradient
@@ -260,7 +262,9 @@ export function NetWorthGrowthChart({
             indicator="line"
             formatter={(value, name) => (
               <div className="flex items-center justify-between gap-4">
-                <span className="text-muted-foreground">{chartConfig[name]?.label || name}</span>
+                <span className="text-muted-foreground">
+                  {chartConfig[name]?.label || name}
+                </span>
                 <span className="font-medium">
                   {new Intl.NumberFormat("id-ID", {
                     style: "currency",
@@ -321,7 +325,9 @@ export function NetWorthGrowthChart({
             indicator="dot"
             formatter={(value, name) => (
               <div className="flex items-center justify-between gap-4">
-                <span className="text-muted-foreground">{chartConfig[name]?.label || name}</span>
+                <span className="text-muted-foreground">
+                  {chartConfig[name]?.label || name}
+                </span>
                 <span className="font-medium">
                   {new Intl.NumberFormat("id-ID", {
                     style: "currency",

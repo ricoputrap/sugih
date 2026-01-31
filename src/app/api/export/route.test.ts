@@ -19,21 +19,21 @@ vi.mock("@/lib/http", () => ({
       new Response(JSON.stringify(data), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
   ),
   badRequest: vi.fn(
     (message, issues) =>
       new Response(JSON.stringify({ error: { message, issues } }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
   ),
   serverError: vi.fn(
     (message, details) =>
       new Response(JSON.stringify({ error: { message, details } }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
   ),
 }));
 
@@ -47,7 +47,7 @@ import { getExportStats } from "@/modules/Export/actions";
 
 // Helper to create mock NextRequest
 function createMockRequest(
-  url: string = "http://localhost:3000/api/export"
+  url: string = "http://localhost:3000/api/export",
 ): NextRequest {
   return new NextRequest(url, {
     method: "GET",
@@ -125,7 +125,9 @@ describe("Export API Route - Index", () => {
       expect(data.exports.transactions.queryParams).toBeDefined();
       expect(data.exports.transactions.queryParams.from).toBeDefined();
       expect(data.exports.transactions.queryParams.to).toBeDefined();
-      expect(data.exports.transactions.queryParams.includeDeleted).toBeDefined();
+      expect(
+        data.exports.transactions.queryParams.includeDeleted,
+      ).toBeDefined();
     });
 
     it("should include correct endpoint information for database backup", async () => {

@@ -35,7 +35,7 @@ export const DatabaseBackupSchema = z.object({
         "transaction_events",
         "postings",
         "budgets",
-      ])
+      ]),
     )
     .optional(),
 });
@@ -80,5 +80,7 @@ export type TransactionExportInput = z.infer<typeof TransactionExportSchema>;
 export type DatabaseBackupInput = z.infer<typeof DatabaseBackupSchema>;
 export type WalletExportInput = z.infer<typeof WalletExportSchema>;
 export type CategoryExportInput = z.infer<typeof CategoryExportSchema>;
-export type SavingsBucketExportInput = z.infer<typeof SavingsBucketExportSchema>;
+export type SavingsBucketExportInput = z.infer<
+  typeof SavingsBucketExportSchema
+>;
 export type BudgetExportInput = z.infer<typeof BudgetExportSchema>;

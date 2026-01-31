@@ -68,7 +68,7 @@ async function handleGet(request: NextRequest): Promise<Response> {
       for (const table of requestedTables) {
         if (!VALID_TABLES.includes(table as ValidTable)) {
           return badRequest(
-            `Invalid table name: ${table}. Valid tables are: ${VALID_TABLES.join(", ")}`
+            `Invalid table name: ${table}. Valid tables are: ${VALID_TABLES.join(", ")}`,
           );
         }
       }
@@ -79,7 +79,11 @@ async function handleGet(request: NextRequest): Promise<Response> {
     // Generate filename with current date
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
-    const timeStr = now.toISOString().split("T")[1].slice(0, 8).replace(/:/g, "-");
+    const timeStr = now
+      .toISOString()
+      .split("T")[1]
+      .slice(0, 8)
+      .replace(/:/g, "-");
 
     if (format === "json") {
       // Export as JSON

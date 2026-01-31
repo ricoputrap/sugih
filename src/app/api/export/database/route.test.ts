@@ -21,21 +21,21 @@ vi.mock("@/lib/http", () => ({
       new Response(JSON.stringify(data), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
   ),
   badRequest: vi.fn(
     (message, issues) =>
       new Response(JSON.stringify({ error: { message, issues } }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
   ),
   serverError: vi.fn(
     (message, details) =>
       new Response(JSON.stringify({ error: { message, details } }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
   ),
 }));
 
@@ -54,7 +54,7 @@ import {
 // Helper to create mock NextRequest
 function createMockRequest(
   queryParams: Record<string, string> = {},
-  url: string = "http://localhost:3000/api/export/database"
+  url: string = "http://localhost:3000/api/export/database",
 ): NextRequest {
   const urlWithParams = new URL(url);
   Object.entries(queryParams).forEach(([key, value]) => {
@@ -97,13 +97,13 @@ describe("Export Database API Route", () => {
 
         expect(response.status).toBe(200);
         expect(response.headers.get("Content-Type")).toBe(
-          "application/json; charset=utf-8"
+          "application/json; charset=utf-8",
         );
         expect(response.headers.get("Content-Disposition")).toMatch(
-          /attachment; filename="sugih-backup-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.json"/
+          /attachment; filename="sugih-backup-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.json"/,
         );
         expect(response.headers.get("Cache-Control")).toBe(
-          "no-cache, no-store, must-revalidate"
+          "no-cache, no-store, must-revalidate",
         );
       });
 
@@ -192,10 +192,10 @@ INSERT INTO wallets (id, name) VALUES ('wal_001', 'Main Wallet');`;
 
         expect(response.status).toBe(200);
         expect(response.headers.get("Content-Type")).toBe(
-          "application/sql; charset=utf-8"
+          "application/sql; charset=utf-8",
         );
         expect(response.headers.get("Content-Disposition")).toMatch(
-          /attachment; filename="sugih-backup-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.sql"/
+          /attachment; filename="sugih-backup-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.sql"/,
         );
       });
 
@@ -273,7 +273,9 @@ SET session_replication_role = 'origin';`;
         const data = await response.json();
 
         expect(response.status).toBe(400);
-        expect(data.error.message).toBe('Invalid format. Must be "json" or "sql"');
+        expect(data.error.message).toBe(
+          'Invalid format. Must be "json" or "sql"',
+        );
       });
 
       it("should return 400 for invalid table name", async () => {
@@ -287,7 +289,7 @@ SET session_replication_role = 'origin';`;
 
       it("should return 500 on database error", async () => {
         vi.mocked(exportDatabaseAsJson).mockRejectedValue(
-          new Error("Database connection failed")
+          new Error("Database connection failed"),
         );
 
         const request = createMockRequest();
@@ -336,7 +338,7 @@ SET session_replication_role = 'origin';`;
 
         const contentDisposition = response.headers.get("Content-Disposition");
         expect(contentDisposition).toMatch(
-          /sugih-backup-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.json/
+          /sugih-backup-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.json/,
         );
       });
 
@@ -349,7 +351,7 @@ SET session_replication_role = 'origin';`;
 
         const contentDisposition = response.headers.get("Content-Disposition");
         expect(contentDisposition).toMatch(
-          /sugih-backup-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.sql/
+          /sugih-backup-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.sql/,
         );
       });
     });

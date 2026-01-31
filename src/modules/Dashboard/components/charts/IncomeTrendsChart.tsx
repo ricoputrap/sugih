@@ -173,10 +173,7 @@ export function IncomeTrendsChart({
   }, [categoryNames]);
 
   // Calculate total income
-  const totalIncome = React.useMemo(
-    () => calculateTotalIncome(data),
-    [data],
-  );
+  const totalIncome = React.useMemo(() => calculateTotalIncome(data), [data]);
 
   // Generate gradient definitions for area chart
   const gradientDefs = React.useMemo(() => {

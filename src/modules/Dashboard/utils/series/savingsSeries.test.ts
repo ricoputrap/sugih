@@ -58,10 +58,10 @@ describe("savingsSeries", () => {
 
     it("should handle null/undefined input", () => {
       expect(
-        transformSavingsData(null as unknown as NetWorthChartData[])
+        transformSavingsData(null as unknown as NetWorthChartData[]),
       ).toEqual([]);
       expect(
-        transformSavingsData(undefined as unknown as NetWorthChartData[])
+        transformSavingsData(undefined as unknown as NetWorthChartData[]),
       ).toEqual([]);
     });
 
@@ -85,7 +85,12 @@ describe("savingsSeries", () => {
 
     it("should handle data with zero savings", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 0, totalNetWorth: 1000000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 0,
+          totalNetWorth: 1000000,
+        },
       ];
 
       const result = transformSavingsData(data);
@@ -101,10 +106,14 @@ describe("savingsSeries", () => {
 
     it("should handle null/undefined input", () => {
       expect(
-        buildSavingsBucketSeries(null as unknown as SavingsBucketBalanceSnapshot[])
+        buildSavingsBucketSeries(
+          null as unknown as SavingsBucketBalanceSnapshot[],
+        ),
       ).toEqual([]);
       expect(
-        buildSavingsBucketSeries(undefined as unknown as SavingsBucketBalanceSnapshot[])
+        buildSavingsBucketSeries(
+          undefined as unknown as SavingsBucketBalanceSnapshot[],
+        ),
       ).toEqual([]);
     });
 
@@ -150,10 +159,14 @@ describe("savingsSeries", () => {
 
     it("should handle null/undefined input", () => {
       expect(
-        extractSavingsBuckets(null as unknown as SavingsBucketBalanceSnapshot[])
+        extractSavingsBuckets(
+          null as unknown as SavingsBucketBalanceSnapshot[],
+        ),
       ).toEqual([]);
       expect(
-        extractSavingsBuckets(undefined as unknown as SavingsBucketBalanceSnapshot[])
+        extractSavingsBuckets(
+          undefined as unknown as SavingsBucketBalanceSnapshot[],
+        ),
       ).toEqual([]);
     });
 
@@ -190,8 +203,18 @@ describe("savingsSeries", () => {
 
     it("should fill missing monthly buckets", () => {
       const dataWithGap: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 500000, totalNetWorth: 1500000 },
-        { period: "2024-03", walletBalance: 1400000, savingsBalance: 750000, totalNetWorth: 2150000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 500000,
+          totalNetWorth: 1500000,
+        },
+        {
+          period: "2024-03",
+          walletBalance: 1400000,
+          savingsBalance: 750000,
+          totalNetWorth: 2150000,
+        },
       ];
 
       const result = fillSavingsBuckets(dataWithGap, range, "monthly");
@@ -204,8 +227,18 @@ describe("savingsSeries", () => {
 
     it("should carry forward previous savings balance for missing buckets", () => {
       const dataWithGap: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 500000, totalNetWorth: 1500000 },
-        { period: "2024-03", walletBalance: 1400000, savingsBalance: 750000, totalNetWorth: 2150000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 500000,
+          totalNetWorth: 1500000,
+        },
+        {
+          period: "2024-03",
+          walletBalance: 1400000,
+          savingsBalance: 750000,
+          totalNetWorth: 2150000,
+        },
       ];
 
       const result = fillSavingsBuckets(dataWithGap, range, "monthly");
@@ -266,14 +299,28 @@ describe("savingsSeries", () => {
     });
 
     it("should return true for null/undefined", () => {
-      expect(isSavingsDataEmpty(null as unknown as NetWorthChartData[])).toBe(true);
-      expect(isSavingsDataEmpty(undefined as unknown as NetWorthChartData[])).toBe(true);
+      expect(isSavingsDataEmpty(null as unknown as NetWorthChartData[])).toBe(
+        true,
+      );
+      expect(
+        isSavingsDataEmpty(undefined as unknown as NetWorthChartData[]),
+      ).toBe(true);
     });
 
     it("should return true when all savings values are zero", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 0, totalNetWorth: 1000000 },
-        { period: "2024-02", walletBalance: 1200000, savingsBalance: 0, totalNetWorth: 1200000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 0,
+          totalNetWorth: 1000000,
+        },
+        {
+          period: "2024-02",
+          walletBalance: 1200000,
+          savingsBalance: 0,
+          totalNetWorth: 1200000,
+        },
       ];
 
       expect(isSavingsDataEmpty(data)).toBe(true);
@@ -294,7 +341,9 @@ describe("savingsSeries", () => {
     });
 
     it("should handle null/undefined", () => {
-      expect(getLatestSavingsBalance(null as unknown as NetWorthChartData[])).toBe(0);
+      expect(
+        getLatestSavingsBalance(null as unknown as NetWorthChartData[]),
+      ).toBe(0);
     });
   });
 
@@ -309,8 +358,18 @@ describe("savingsSeries", () => {
 
     it("should calculate negative growth", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 750000, totalNetWorth: 1750000 },
-        { period: "2024-02", walletBalance: 1200000, savingsBalance: 500000, totalNetWorth: 1700000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 750000,
+          totalNetWorth: 1750000,
+        },
+        {
+          period: "2024-02",
+          walletBalance: 1200000,
+          savingsBalance: 500000,
+          totalNetWorth: 1700000,
+        },
       ];
 
       const result = calculateSavingsGrowth(data);
@@ -322,8 +381,18 @@ describe("savingsSeries", () => {
 
     it("should handle zero starting balance with positive current", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 0, totalNetWorth: 1000000 },
-        { period: "2024-02", walletBalance: 1200000, savingsBalance: 500000, totalNetWorth: 1700000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 0,
+          totalNetWorth: 1000000,
+        },
+        {
+          period: "2024-02",
+          walletBalance: 1200000,
+          savingsBalance: 500000,
+          totalNetWorth: 1700000,
+        },
       ];
 
       const result = calculateSavingsGrowth(data);
@@ -335,8 +404,18 @@ describe("savingsSeries", () => {
 
     it("should handle zero to zero (no change)", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 0, totalNetWorth: 1000000 },
-        { period: "2024-02", walletBalance: 1200000, savingsBalance: 0, totalNetWorth: 1200000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 0,
+          totalNetWorth: 1000000,
+        },
+        {
+          period: "2024-02",
+          walletBalance: 1200000,
+          savingsBalance: 0,
+          totalNetWorth: 1200000,
+        },
       ];
 
       const result = calculateSavingsGrowth(data);
@@ -348,7 +427,12 @@ describe("savingsSeries", () => {
 
     it("should return default values for insufficient data", () => {
       const singlePoint: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 500000, totalNetWorth: 1500000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 500000,
+          totalNetWorth: 1500000,
+        },
       ];
 
       const result = calculateSavingsGrowth(singlePoint);
@@ -398,7 +482,9 @@ describe("savingsSeries", () => {
 
     it("should handle null/undefined", () => {
       expect(
-        calculateTotalSavings(null as unknown as SavingsBucketBalanceSnapshot[])
+        calculateTotalSavings(
+          null as unknown as SavingsBucketBalanceSnapshot[],
+        ),
       ).toBe(0);
     });
   });

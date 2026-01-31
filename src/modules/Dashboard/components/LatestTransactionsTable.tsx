@@ -12,7 +12,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { ArrowDownIcon, ArrowUpIcon, ArrowRightIcon, PiggyBank } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ArrowRightIcon,
+  PiggyBank,
+} from "lucide-react";
 import type { RecentTransaction } from "../schema";
 
 /**
@@ -42,9 +47,7 @@ const defaultFormatCurrency = (amount: number): string => {
 /**
  * Get transaction type badge variant and icon
  */
-function getTransactionTypeInfo(
-  type: RecentTransaction["type"],
-): {
+function getTransactionTypeInfo(type: RecentTransaction["type"]): {
   variant: "default" | "secondary" | "destructive" | "outline";
   label: string;
   icon: React.ReactNode;

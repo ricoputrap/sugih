@@ -53,10 +53,14 @@ describe("spendingSeries", () => {
 
     it("should handle null/undefined input", () => {
       expect(
-        transformSpendingData(null as unknown as CategorySpendingTrendChartData[])
+        transformSpendingData(
+          null as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toEqual([]);
       expect(
-        transformSpendingData(undefined as unknown as CategorySpendingTrendChartData[])
+        transformSpendingData(
+          undefined as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toEqual([]);
     });
 
@@ -96,10 +100,12 @@ describe("spendingSeries", () => {
 
     it("should handle null/undefined input", () => {
       expect(
-        extractCategories(null as unknown as CategorySpendingTrendChartData[])
+        extractCategories(null as unknown as CategorySpendingTrendChartData[]),
       ).toEqual([]);
       expect(
-        extractCategories(undefined as unknown as CategorySpendingTrendChartData[])
+        extractCategories(
+          undefined as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toEqual([]);
     });
 
@@ -158,11 +164,15 @@ describe("spendingSeries", () => {
       const dataWithGap: CategorySpendingTrendChartData[] = [
         {
           period: "2024-01",
-          categories: [{ categoryId: "1", categoryName: "Food", amount: 500000 }],
+          categories: [
+            { categoryId: "1", categoryName: "Food", amount: 500000 },
+          ],
         },
         {
           period: "2024-03",
-          categories: [{ categoryId: "1", categoryName: "Food", amount: 600000 }],
+          categories: [
+            { categoryId: "1", categoryName: "Food", amount: 600000 },
+          ],
         },
       ];
 
@@ -178,11 +188,15 @@ describe("spendingSeries", () => {
       const dataWithGap: CategorySpendingTrendChartData[] = [
         {
           period: "2024-01",
-          categories: [{ categoryId: "1", categoryName: "Food", amount: 500000 }],
+          categories: [
+            { categoryId: "1", categoryName: "Food", amount: 500000 },
+          ],
         },
         {
           period: "2024-03",
-          categories: [{ categoryId: "1", categoryName: "Food", amount: 600000 }],
+          categories: [
+            { categoryId: "1", categoryName: "Food", amount: 600000 },
+          ],
         },
       ];
 
@@ -251,10 +265,14 @@ describe("spendingSeries", () => {
 
     it("should return true for null/undefined", () => {
       expect(
-        isSpendingDataEmpty(null as unknown as CategorySpendingTrendChartData[])
+        isSpendingDataEmpty(
+          null as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toBe(true);
       expect(
-        isSpendingDataEmpty(undefined as unknown as CategorySpendingTrendChartData[])
+        isSpendingDataEmpty(
+          undefined as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toBe(true);
     });
 
@@ -299,7 +317,9 @@ describe("spendingSeries", () => {
 
     it("should handle null/undefined", () => {
       expect(
-        calculateTotalSpending(null as unknown as CategorySpendingTrendChartData[])
+        calculateTotalSpending(
+          null as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toBe(0);
     });
   });
@@ -348,7 +368,9 @@ describe("spendingSeries", () => {
 
       // First period: Entertainment was 200000
       const firstPeriod = result.find((r) => r.period === "2024-01");
-      const other = firstPeriod?.categories.find((c) => c.categoryName === "Other");
+      const other = firstPeriod?.categories.find(
+        (c) => c.categoryName === "Other",
+      );
       expect(other?.amount).toBe(200000);
     });
 

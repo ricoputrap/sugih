@@ -137,7 +137,10 @@ describe("TransactionsPage", () => {
 
     // Default mock responses
     mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/api/transactions") && !url.includes("/api/transactions/")) {
+      if (
+        url.includes("/api/transactions") &&
+        !url.includes("/api/transactions/")
+      ) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockTransactions),
@@ -211,7 +214,7 @@ describe("TransactionsPage", () => {
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining("/api/transactions")
+          expect.stringContaining("/api/transactions"),
         );
       });
     });
@@ -303,10 +306,14 @@ describe("TransactionsPage", () => {
   describe("error handling", () => {
     it("should show error toast when transactions fetch fails", async () => {
       mockFetch.mockImplementation((url: string) => {
-        if (url.includes("/api/transactions") && !url.includes("/api/transactions/")) {
+        if (
+          url.includes("/api/transactions") &&
+          !url.includes("/api/transactions/")
+        ) {
           return Promise.resolve({
             ok: false,
-            json: () => Promise.resolve({ error: { message: "Failed to fetch" } }),
+            json: () =>
+              Promise.resolve({ error: { message: "Failed to fetch" } }),
           });
         }
         return Promise.resolve({

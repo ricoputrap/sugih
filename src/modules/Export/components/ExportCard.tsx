@@ -60,7 +60,9 @@ export function ExportCard({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Export failed: ${response.statusText}`);
+        throw new Error(
+          errorData.message || `Export failed: ${response.statusText}`,
+        );
       }
 
       // Get the blob from response
@@ -107,7 +109,8 @@ export function ExportCard({
               <CardTitle className="text-base">{title}</CardTitle>
               {recordCount !== undefined && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {recordCount.toLocaleString()} record{recordCount !== 1 ? "s" : ""}
+                  {recordCount.toLocaleString()} record
+                  {recordCount !== 1 ? "s" : ""}
                 </p>
               )}
             </div>

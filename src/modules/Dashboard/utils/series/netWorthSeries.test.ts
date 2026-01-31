@@ -23,33 +23,67 @@ describe("netWorthSeries", () => {
     });
 
     it("should handle null/undefined input", () => {
-      expect(transformNetWorthData(null as unknown as NetWorthChartData[])).toEqual([]);
-      expect(transformNetWorthData(undefined as unknown as NetWorthChartData[])).toEqual([]);
+      expect(
+        transformNetWorthData(null as unknown as NetWorthChartData[]),
+      ).toEqual([]);
+      expect(
+        transformNetWorthData(undefined as unknown as NetWorthChartData[]),
+      ).toEqual([]);
     });
 
     it("should transform net worth data to chart data points", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 500000, totalNetWorth: 1500000 },
-        { period: "2024-02", walletBalance: 1200000, savingsBalance: 600000, totalNetWorth: 1800000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 500000,
+          totalNetWorth: 1500000,
+        },
+        {
+          period: "2024-02",
+          walletBalance: 1200000,
+          savingsBalance: 600000,
+          totalNetWorth: 1800000,
+        },
       ];
 
       const result = transformNetWorthData(data);
 
       expect(result).toEqual([
-        { bucket: "2024-01", walletBalance: 1000000, savingsBalance: 500000, totalNetWorth: 1500000 },
-        { bucket: "2024-02", walletBalance: 1200000, savingsBalance: 600000, totalNetWorth: 1800000 },
+        {
+          bucket: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 500000,
+          totalNetWorth: 1500000,
+        },
+        {
+          bucket: "2024-02",
+          walletBalance: 1200000,
+          savingsBalance: 600000,
+          totalNetWorth: 1800000,
+        },
       ]);
     });
 
     it("should preserve all numeric values including zero", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 0, savingsBalance: 0, totalNetWorth: 0 },
+        {
+          period: "2024-01",
+          walletBalance: 0,
+          savingsBalance: 0,
+          totalNetWorth: 0,
+        },
       ];
 
       const result = transformNetWorthData(data);
 
       expect(result).toEqual([
-        { bucket: "2024-01", walletBalance: 0, savingsBalance: 0, totalNetWorth: 0 },
+        {
+          bucket: "2024-01",
+          walletBalance: 0,
+          savingsBalance: 0,
+          totalNetWorth: 0,
+        },
       ]);
     });
   });
@@ -69,7 +103,11 @@ describe("netWorthSeries", () => {
       const series = buildNetWorthSeries(wallets, savings);
 
       expect(series).toHaveLength(3);
-      expect(series.map((s) => s.id)).toEqual(["wallet-total", "savings-total", "net-worth"]);
+      expect(series.map((s) => s.id)).toEqual([
+        "wallet-total",
+        "savings-total",
+        "net-worth",
+      ]);
     });
 
     it("should include individual wallet series when configured", () => {
@@ -128,8 +166,12 @@ describe("netWorthSeries", () => {
       const series = buildNetWorthSeries([], []);
 
       expect(series).toHaveLength(3);
-      expect(series.find((s) => s.id === "wallet-total")?.data[0].value).toBe(0);
-      expect(series.find((s) => s.id === "savings-total")?.data[0].value).toBe(0);
+      expect(series.find((s) => s.id === "wallet-total")?.data[0].value).toBe(
+        0,
+      );
+      expect(series.find((s) => s.id === "savings-total")?.data[0].value).toBe(
+        0,
+      );
       expect(series.find((s) => s.id === "net-worth")?.data[0].value).toBe(0);
     });
   });
@@ -142,8 +184,18 @@ describe("netWorthSeries", () => {
 
     it("should fill missing monthly buckets", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 500000, totalNetWorth: 1500000 },
-        { period: "2024-03", walletBalance: 1200000, savingsBalance: 600000, totalNetWorth: 1800000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 500000,
+          totalNetWorth: 1500000,
+        },
+        {
+          period: "2024-03",
+          walletBalance: 1200000,
+          savingsBalance: 600000,
+          totalNetWorth: 1800000,
+        },
       ];
 
       const result = fillNetWorthBuckets(data, range, "monthly");
@@ -156,8 +208,18 @@ describe("netWorthSeries", () => {
 
     it("should carry forward previous values for missing buckets", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 500000, totalNetWorth: 1500000 },
-        { period: "2024-03", walletBalance: 1200000, savingsBalance: 600000, totalNetWorth: 1800000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 500000,
+          totalNetWorth: 1500000,
+        },
+        {
+          period: "2024-03",
+          walletBalance: 1200000,
+          savingsBalance: 600000,
+          totalNetWorth: 1800000,
+        },
       ];
 
       const result = fillNetWorthBuckets(data, range, "monthly");
@@ -179,9 +241,24 @@ describe("netWorthSeries", () => {
 
     it("should preserve existing data when all buckets have values", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 500000, totalNetWorth: 1500000 },
-        { period: "2024-02", walletBalance: 1100000, savingsBalance: 550000, totalNetWorth: 1650000 },
-        { period: "2024-03", walletBalance: 1200000, savingsBalance: 600000, totalNetWorth: 1800000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 500000,
+          totalNetWorth: 1500000,
+        },
+        {
+          period: "2024-02",
+          walletBalance: 1100000,
+          savingsBalance: 550000,
+          totalNetWorth: 1650000,
+        },
+        {
+          period: "2024-03",
+          walletBalance: 1200000,
+          savingsBalance: 600000,
+          totalNetWorth: 1800000,
+        },
       ];
 
       const result = fillNetWorthBuckets(data, range, "monthly");
@@ -241,7 +318,12 @@ describe("netWorthSeries", () => {
   describe("getNetWorthSeriesKeys", () => {
     it("should extract series keys excluding bucket", () => {
       const data = [
-        { bucket: "2024-01", walletBalance: 1000000, savingsBalance: 500000, totalNetWorth: 1500000 },
+        {
+          bucket: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 500000,
+          totalNetWorth: 1500000,
+        },
       ];
 
       const keys = getNetWorthSeriesKeys(data);
@@ -302,14 +384,28 @@ describe("netWorthSeries", () => {
     });
 
     it("should return true for null/undefined", () => {
-      expect(isNetWorthDataEmpty(null as unknown as NetWorthChartData[])).toBe(true);
-      expect(isNetWorthDataEmpty(undefined as unknown as NetWorthChartData[])).toBe(true);
+      expect(isNetWorthDataEmpty(null as unknown as NetWorthChartData[])).toBe(
+        true,
+      );
+      expect(
+        isNetWorthDataEmpty(undefined as unknown as NetWorthChartData[]),
+      ).toBe(true);
     });
 
     it("should return true when all values are zero", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 0, savingsBalance: 0, totalNetWorth: 0 },
-        { period: "2024-02", walletBalance: 0, savingsBalance: 0, totalNetWorth: 0 },
+        {
+          period: "2024-01",
+          walletBalance: 0,
+          savingsBalance: 0,
+          totalNetWorth: 0,
+        },
+        {
+          period: "2024-02",
+          walletBalance: 0,
+          savingsBalance: 0,
+          totalNetWorth: 0,
+        },
       ];
 
       expect(isNetWorthDataEmpty(data)).toBe(true);
@@ -317,7 +413,12 @@ describe("netWorthSeries", () => {
 
     it("should return false when any value is non-zero", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 1000000, savingsBalance: 0, totalNetWorth: 1000000 },
+        {
+          period: "2024-01",
+          walletBalance: 1000000,
+          savingsBalance: 0,
+          totalNetWorth: 1000000,
+        },
       ];
 
       expect(isNetWorthDataEmpty(data)).toBe(false);
@@ -325,7 +426,12 @@ describe("netWorthSeries", () => {
 
     it("should return false when only savings has value", () => {
       const data: NetWorthChartData[] = [
-        { period: "2024-01", walletBalance: 0, savingsBalance: 500000, totalNetWorth: 500000 },
+        {
+          period: "2024-01",
+          walletBalance: 0,
+          savingsBalance: 500000,
+          totalNetWorth: 500000,
+        },
       ];
 
       expect(isNetWorthDataEmpty(data)).toBe(false);

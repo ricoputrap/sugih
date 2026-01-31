@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Wallet,
@@ -106,7 +101,9 @@ export function ExportStats({ stats, isLoading }: ExportStatsProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{item.value.toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              {item.value.toLocaleString()}
+            </div>
           </CardContent>
         </Card>
       ))}

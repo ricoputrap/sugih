@@ -19,14 +19,14 @@ vi.mock("@/lib/http", () => ({
       new Response(JSON.stringify({ error: { message, issues } }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
   ),
   serverError: vi.fn(
     (message, details) =>
       new Response(JSON.stringify({ error: { message, details } }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
   ),
 }));
 
@@ -41,7 +41,7 @@ import { exportTransactionsAsCsv } from "@/modules/Export/actions";
 // Helper to create mock NextRequest
 function createMockRequest(
   queryParams: Record<string, string> = {},
-  url: string = "http://localhost:3000/api/export/transactions"
+  url: string = "http://localhost:3000/api/export/transactions",
 ): NextRequest {
   const urlWithParams = new URL(url);
   Object.entries(queryParams).forEach(([key, value]) => {
@@ -73,13 +73,13 @@ describe("Export Transactions API Route", () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get("Content-Type")).toBe(
-        "text/csv; charset=utf-8"
+        "text/csv; charset=utf-8",
       );
       expect(response.headers.get("Content-Disposition")).toMatch(
-        /attachment; filename="sugih-transactions-\d{4}-\d{2}-\d{2}\.csv"/
+        /attachment; filename="sugih-transactions-\d{4}-\d{2}-\d{2}\.csv"/,
       );
       expect(response.headers.get("Cache-Control")).toBe(
-        "no-cache, no-store, must-revalidate"
+        "no-cache, no-store, must-revalidate",
       );
     });
 
@@ -103,7 +103,8 @@ txn_002,2024-01-14T15:00:00.000Z,income,1000000,,Main Wallet,,,,"ACME Corp",Sala
     });
 
     it("should pass date range filters to action", async () => {
-      const mockCsv = "ID,Date,Type,Amount (IDR),Category,Wallet,From Wallet,To Wallet,Savings Bucket,Payee,Note,Deleted\n";
+      const mockCsv =
+        "ID,Date,Type,Amount (IDR),Category,Wallet,From Wallet,To Wallet,Savings Bucket,Payee,Note,Deleted\n";
 
       vi.mocked(exportTransactionsAsCsv).mockResolvedValue(mockCsv);
 
@@ -121,7 +122,8 @@ txn_002,2024-01-14T15:00:00.000Z,income,1000000,,Main Wallet,,,,"ACME Corp",Sala
     });
 
     it("should pass includeDeleted filter to action", async () => {
-      const mockCsv = "ID,Date,Type,Amount (IDR),Category,Wallet,From Wallet,To Wallet,Savings Bucket,Payee,Note,Deleted\n";
+      const mockCsv =
+        "ID,Date,Type,Amount (IDR),Category,Wallet,From Wallet,To Wallet,Savings Bucket,Payee,Note,Deleted\n";
 
       vi.mocked(exportTransactionsAsCsv).mockResolvedValue(mockCsv);
 
@@ -137,7 +139,8 @@ txn_002,2024-01-14T15:00:00.000Z,income,1000000,,Main Wallet,,,,"ACME Corp",Sala
     });
 
     it("should not include deleted transactions by default", async () => {
-      const mockCsv = "ID,Date,Type,Amount (IDR),Category,Wallet,From Wallet,To Wallet,Savings Bucket,Payee,Note,Deleted\n";
+      const mockCsv =
+        "ID,Date,Type,Amount (IDR),Category,Wallet,From Wallet,To Wallet,Savings Bucket,Payee,Note,Deleted\n";
 
       vi.mocked(exportTransactionsAsCsv).mockResolvedValue(mockCsv);
 
@@ -165,7 +168,7 @@ txn_002,2024-01-14T15:00:00.000Z,income,1000000,,Main Wallet,,,,"ACME Corp",Sala
 
     it("should return 500 on database error", async () => {
       vi.mocked(exportTransactionsAsCsv).mockRejectedValue(
-        new Error("Database connection failed")
+        new Error("Database connection failed"),
       );
 
       const request = createMockRequest();
@@ -242,7 +245,8 @@ txn_005,2024-01-11T16:00:00.000Z,savings_withdrawal,50000,,Main Wallet,,,Emergen
     });
 
     it("should generate filename with current date", async () => {
-      const mockCsv = "ID,Date,Type,Amount (IDR),Category,Wallet,From Wallet,To Wallet,Savings Bucket,Payee,Note,Deleted\n";
+      const mockCsv =
+        "ID,Date,Type,Amount (IDR),Category,Wallet,From Wallet,To Wallet,Savings Bucket,Payee,Note,Deleted\n";
 
       vi.mocked(exportTransactionsAsCsv).mockResolvedValue(mockCsv);
 
@@ -250,7 +254,9 @@ txn_005,2024-01-11T16:00:00.000Z,savings_withdrawal,50000,,Main Wallet,,,Emergen
       const response = await GET(request);
 
       const contentDisposition = response.headers.get("Content-Disposition");
-      expect(contentDisposition).toMatch(/sugih-transactions-\d{4}-\d{2}-\d{2}\.csv/);
+      expect(contentDisposition).toMatch(
+        /sugih-transactions-\d{4}-\d{2}-\d{2}\.csv/,
+      );
     });
   });
 });

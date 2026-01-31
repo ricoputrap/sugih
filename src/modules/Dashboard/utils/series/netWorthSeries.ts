@@ -293,7 +293,8 @@ export function generateNetWorthChartConfig(
   for (const key of keys) {
     config[key] = {
       label: labelMap[key] || key,
-      color: colorMap[key] || `hsl(var(--chart-${(keys.indexOf(key) % 5) + 1}))`,
+      color:
+        colorMap[key] || `hsl(var(--chart-${(keys.indexOf(key) % 5) + 1}))`,
     };
   }
 

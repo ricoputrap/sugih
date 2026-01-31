@@ -1,14 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useCallback, useMemo, useState } from "react";
+import { ColumnDef } from "@tanstack/react-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,9 +20,11 @@ import {
   CheckCircle2,
   Wallet,
   PiggyBank,
+  ArrowUpDown,
 } from "lucide-react";
 import { BudgetWithCategory } from "../schema";
 import { toast } from "sonner";
+import { DataTable } from "@/components/ui/data-table";
 
 interface BudgetSummaryItem {
   categoryId: string | null;
@@ -66,55 +61,70 @@ export function BudgetTable({
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Create maps of summary data by category ID and savings bucket ID for quick lookup
-  const categorySummaryMap = new Map(
-    summary?.items
-      .filter((item) => item.categoryId != null)
-      .map((item) => [item.categoryId, item]) || [],
+  const categorySummaryMap = useMemo(
+    () =>
+      new Map(
+        summary?.items
+          .filter((item) => item.categoryId != null)
+          .map((item) => [item.categoryId, item]) || [],
+      ),
+    [summary],
   );
-  const bucketSummaryMap = new Map(
-    summary?.items
-      .filter((item) => item.savingsBucketId != null)
-      .map((item) => [item.savingsBucketId, item]) || [],
+
+  const bucketSummaryMap = useMemo(
+    () =>
+      new Map(
+        summary?.items
+          .filter((item) => item.savingsBucketId != null)
+          .map((item) => [item.savingsBucketId, item]) || [],
+      ),
+    [summary],
   );
 
-  const handleDelete = async (id: string, targetName: string) => {
-    if (!onDelete) return;
+  const handleDelete = useCallback(
+    async (id: string, targetName: string) => {
+      if (!onDelete) return;
 
-    if (
-      !confirm(
-        `Are you sure you want to delete the budget for "${targetName}"?`,
-      )
-    ) {
-      return;
-    }
+      if (
+        !confirm(
+          `Are you sure you want to delete the budget for "${targetName}"?`,
+        )
+      ) {
+        return;
+      }
 
-    try {
-      setActionLoading(id);
-      await onDelete(id);
-      toast.success(`Budget for "${targetName}" deleted successfully`);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to delete budget";
-      toast.error(errorMessage);
-    } finally {
-      setActionLoading(null);
-    }
-  };
+      try {
+        setActionLoading(id);
+        await onDelete(id);
+        toast.success(`Budget for "${targetName}" deleted successfully`);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to delete budget";
+        toast.error(errorMessage);
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [onDelete],
+  );
 
-  const handleEdit = (budget: BudgetWithCategory) => {
-    if (onEdit) {
-      onEdit(budget);
-    }
-  };
+  const handleEdit = useCallback(
+    (budget: BudgetWithCategory) => {
+      if (onEdit) {
+        onEdit(budget);
+      }
+    },
+    [onEdit],
+  );
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
-  };
+  }, []);
 
   const formatPercent = (percent: number) => {
     return `${percent.toFixed(1)}%`;
@@ -148,20 +158,209 @@ export function BudgetTable({
     }
   };
 
-  const formatDate = (date: Date | string | null) => {
-    if (!date) return "N/A";
+  const columns = useMemo<ColumnDef<BudgetWithCategory>[]>(
+    () => [
+      {
+        accessorKey: "display_name",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
+              className="-ml-4 h-8 data-[state=open]:bg-accent"
+            >
+              Category
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        accessorFn: (row) => {
+          const isSavingsBucket = row.target_type === "savings_bucket";
+          return isSavingsBucket
+            ? row.savings_bucket_name || "Unknown Savings Bucket"
+            : row.category_name || "Unknown Category";
+        },
+        cell: ({ row }) => {
+          const budget = row.original;
+          const isSavingsBucket = budget.target_type === "savings_bucket";
+          const displayName = isSavingsBucket
+            ? budget.savings_bucket_name || "Unknown Savings Bucket"
+            : budget.category_name || "Unknown Category";
 
-    try {
-      const d = typeof date === "string" ? new Date(date) : date;
-      return d.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return "Invalid date";
-    }
-  };
+          return (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                {isSavingsBucket ? (
+                  <PiggyBank className="h-4 w-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <Wallet className="h-4 w-4 text-blue-600 shrink-0" />
+                )}
+                <span className="font-medium">{displayName}</span>
+                {isSavingsBucket && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200"
+                  >
+                    Savings
+                  </Badge>
+                )}
+              </div>
+              {!displayName.includes("Unknown") ? null : (
+                <span className="text-xs text-red-500">
+                  {isSavingsBucket
+                    ? "Savings bucket not found"
+                    : "Category not found"}
+                </span>
+              )}
+              <span
+                className="text-xs text-muted-foreground font-normal line-clamp-2"
+                title={budget.note || "No note"}
+              >
+                {budget.note || "—"}
+              </span>
+            </div>
+          );
+        },
+        filterFn: (row, id, value) => {
+          const budget = row.original;
+          const displayName =
+            budget.target_type === "savings_bucket"
+              ? budget.savings_bucket_name
+              : budget.category_name;
+          return (displayName || "")
+            .toLowerCase()
+            .includes(value.toLowerCase());
+        },
+      },
+      {
+        accessorKey: "amount_idr",
+        header: ({ column }) => {
+          return (
+            <Button
+              variant="ghost"
+              onClick={() =>
+                column.toggleSorting(column.getIsSorted() === "asc")
+              }
+              className="-ml-4 h-8 data-[state=open]:bg-accent"
+            >
+              Budget Amount
+              <ArrowUpDown className="ml-2 h-4 w-4" />
+            </Button>
+          );
+        },
+        cell: ({ row }) => formatCurrency(row.original.amount_idr),
+      },
+      ...(summary
+        ? [
+            {
+              id: "spent",
+              header: "Spent",
+              cell: ({ row }: { row: { original: BudgetWithCategory } }) => {
+                const budget = row.original;
+                const budgetSummary = budget.category_id
+                  ? categorySummaryMap.get(budget.category_id)
+                  : bucketSummaryMap.get(budget.savings_bucket_id);
+                const spent = budgetSummary?.spentAmount || 0;
+                return formatCurrency(spent);
+              },
+            },
+            {
+              id: "remaining",
+              header: "Remaining",
+              cell: ({ row }: { row: { original: BudgetWithCategory } }) => {
+                const budget = row.original;
+                const budgetSummary = budget.category_id
+                  ? categorySummaryMap.get(budget.category_id)
+                  : bucketSummaryMap.get(budget.savings_bucket_id);
+                const remaining = budgetSummary?.remaining || budget.amount_idr;
+                return (
+                  <span
+                    className={remaining < 0 ? "text-red-600 font-medium" : ""}
+                  >
+                    {formatCurrency(remaining)}
+                  </span>
+                );
+              },
+            },
+            {
+              id: "usage",
+              header: "Usage",
+              cell: ({ row }: { row: { original: BudgetWithCategory } }) => {
+                const budget = row.original;
+                const budgetSummary = budget.category_id
+                  ? categorySummaryMap.get(budget.category_id)
+                  : bucketSummaryMap.get(budget.savings_bucket_id);
+                const percentUsed = budgetSummary?.percentUsed || 0;
+                return (
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(percentUsed)}
+                    <span className="text-sm text-muted-foreground">
+                      {formatPercent(percentUsed)}
+                    </span>
+                  </div>
+                );
+              },
+            },
+          ]
+        : []),
+      {
+        id: "actions",
+        cell: ({ row }) => {
+          const budget = row.original;
+          const isSavingsBucket = budget.target_type === "savings_bucket";
+          const displayName = isSavingsBucket
+            ? budget.savings_bucket_name || "Unknown Savings Bucket"
+            : budget.category_name || "Unknown Category";
+
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-8 w-8 p-0"
+                  disabled={actionLoading === budget.id}
+                >
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleEdit(budget)}
+                  disabled={actionLoading === budget.id}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit Budget
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleDelete(budget.id, displayName)}
+                  disabled={actionLoading === budget.id}
+                  className="text-red-600"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Budget
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
+      },
+    ],
+    [
+      summary,
+      actionLoading,
+      categorySummaryMap,
+      bucketSummaryMap,
+      handleEdit,
+      handleDelete,
+      formatCurrency,
+    ],
+  );
 
   if (isLoading) {
     return (
@@ -172,48 +371,7 @@ export function BudgetTable({
             <div className="h-4 w-96 bg-gray-200 rounded animate-pulse" />
           </div>
         </div>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Category</TableHead>
-                <TableHead>Budget Amount</TableHead>
-                <TableHead>Spent</TableHead>
-                <TableHead>Remaining</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last Updated</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 w-28 bg-gray-200 rounded animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-8 w-8 bg-gray-200 rounded animate-pulse" />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <div className="h-[400px] w-full bg-gray-100 rounded-md animate-pulse" />
       </div>
     );
   }
@@ -286,134 +444,12 @@ export function BudgetTable({
       )}
 
       {/* Budgets Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Category</TableHead>
-              <TableHead>Budget Amount</TableHead>
-              {summary && (
-                <>
-                  <TableHead>Spent</TableHead>
-                  <TableHead>Remaining</TableHead>
-                  <TableHead>Usage</TableHead>
-                </>
-              )}
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {budgets.map((budget) => {
-              // Get summary based on whether this is a category or savings bucket budget
-              const budgetSummary = budget.category_id
-                ? categorySummaryMap.get(budget.category_id)
-                : bucketSummaryMap.get(budget.savings_bucket_id);
-              const percentUsed = budgetSummary?.percentUsed || 0;
-              const spent = budgetSummary?.spentAmount || 0;
-              const remaining = budgetSummary?.remaining || budget.amount_idr;
-
-              // Determine display name and type
-              const isSavingsBucket = budget.target_type === "savings_bucket";
-              const displayName = isSavingsBucket
-                ? budget.savings_bucket_name || "Unknown Savings Bucket"
-                : budget.category_name || "Unknown Category";
-
-              return (
-                <TableRow key={budget.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        {isSavingsBucket ? (
-                          <PiggyBank className="h-4 w-4 text-emerald-600 shrink-0" />
-                        ) : (
-                          <Wallet className="h-4 w-4 text-blue-600 shrink-0" />
-                        )}
-                        <span>{displayName}</span>
-                        {isSavingsBucket && (
-                          <Badge
-                            variant="outline"
-                            className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200"
-                          >
-                            Savings
-                          </Badge>
-                        )}
-                      </div>
-                      {!displayName.includes("Unknown") ? null : (
-                        <span className="text-xs text-red-500">
-                          {isSavingsBucket
-                            ? "Savings bucket not found"
-                            : "Category not found"}
-                        </span>
-                      )}
-                      <span
-                        className="text-xs text-muted-foreground font-normal line-clamp-2"
-                        title={budget.note || "No note"}
-                      >
-                        {budget.note || "—"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{formatCurrency(budget.amount_idr)}</TableCell>
-                  {summary && (
-                    <>
-                      <TableCell>{formatCurrency(spent)}</TableCell>
-                      <TableCell
-                        className={
-                          remaining < 0 ? "text-red-600 font-medium" : ""
-                        }
-                      >
-                        {formatCurrency(remaining)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(percentUsed)}
-                          <span className="text-sm text-muted-foreground">
-                            {formatPercent(percentUsed)}
-                          </span>
-                        </div>
-                      </TableCell>
-                    </>
-                  )}
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-8 w-8 p-0"
-                          disabled={actionLoading === budget.id}
-                        >
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => handleEdit(budget)}
-                          disabled={actionLoading === budget.id}
-                        >
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit Budget
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(budget.id, displayName)}
-                          disabled={actionLoading === budget.id}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete Budget
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={budgets}
+        searchKey="display_name"
+        searchPlaceholder="Filter categories..."
+      />
     </div>
   );
 }

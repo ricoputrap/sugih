@@ -239,9 +239,11 @@ export function getLatestSavingsBalance(data: NetWorthChartData[]): number {
  * @param data - Savings chart data
  * @returns Growth metrics
  */
-export function calculateSavingsGrowth(
-  data: NetWorthChartData[],
-): { absolute: number; percentage: number; isPositive: boolean } {
+export function calculateSavingsGrowth(data: NetWorthChartData[]): {
+  absolute: number;
+  percentage: number;
+  isPositive: boolean;
+} {
   if (!data || data.length < 2) {
     return { absolute: 0, percentage: 0, isPositive: true };
   }
@@ -273,9 +275,7 @@ export function calculateSavingsGrowth(
  * @param data - Savings chart data points
  * @returns Array of series keys excluding 'bucket'
  */
-export function getSavingsSeriesKeys(
-  data: SavingsChartDataPoint[],
-): string[] {
+export function getSavingsSeriesKeys(data: SavingsChartDataPoint[]): string[] {
   if (!data || data.length === 0) {
     return [];
   }

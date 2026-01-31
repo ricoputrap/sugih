@@ -17,7 +17,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Download, Loader2, CheckCircle, AlertCircle, Database } from "lucide-react";
+import {
+  Download,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  Database,
+} from "lucide-react";
 
 interface DatabaseExportCardProps {
   totalRecords: number;
@@ -55,13 +61,18 @@ export function DatabaseExportCard({ totalRecords }: DatabaseExportCardProps) {
         params.set("tables", selectedTable);
       }
 
-      const response = await fetch(`/api/export/database?${params.toString()}`, {
-        method: "GET",
-      });
+      const response = await fetch(
+        `/api/export/database?${params.toString()}`,
+        {
+          method: "GET",
+        },
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Export failed: ${response.statusText}`);
+        throw new Error(
+          errorData.message || `Export failed: ${response.statusText}`,
+        );
       }
 
       // Get the blob from response
@@ -123,7 +134,10 @@ export function DatabaseExportCard({ totalRecords }: DatabaseExportCardProps) {
         <div className="grid gap-4 sm:grid-cols-2 mb-4">
           <div className="space-y-2">
             <Label htmlFor="format">Export Format</Label>
-            <Select value={format} onValueChange={(val) => setFormat(val as ExportFormat)}>
+            <Select
+              value={format}
+              onValueChange={(val) => setFormat(val as ExportFormat)}
+            >
               <SelectTrigger id="format" className="w-full">
                 <SelectValue placeholder="Select format" />
               </SelectTrigger>
@@ -137,7 +151,9 @@ export function DatabaseExportCard({ totalRecords }: DatabaseExportCardProps) {
                 <SelectItem value="sql">
                   <span className="flex items-center gap-2">
                     <span className="font-medium">SQL</span>
-                    <span className="text-muted-foreground">- Database restore</span>
+                    <span className="text-muted-foreground">
+                      - Database restore
+                    </span>
                   </span>
                 </SelectItem>
               </SelectContent>

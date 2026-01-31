@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type {
-  InsightTab,
-  ChartVariant,
-} from "../types";
+import type { InsightTab, ChartVariant } from "../types";
 import { INSIGHT_TAB_LABELS } from "../types";
-import type { NetWorthChartData, CategorySpendingTrendChartData } from "../schema";
+import type {
+  NetWorthChartData,
+  CategorySpendingTrendChartData,
+} from "../schema";
 import { NetWorthGrowthChart } from "./charts/NetWorthGrowthChart";
 import { SpendingTrendsChart } from "./charts/SpendingTrendsChart";
 import { IncomeTrendsChart } from "./charts/IncomeTrendsChart";

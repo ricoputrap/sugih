@@ -12,9 +12,7 @@ describe("ViewToggle", () => {
 
   describe("Rendering", () => {
     it("should render both toggle options", () => {
-      render(
-        <ViewToggle value="list" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="list" onChange={mockOnChange} />);
 
       const listButton = screen.getByLabelText("List view");
       const gridButton = screen.getByLabelText("Grid view");
@@ -24,9 +22,7 @@ describe("ViewToggle", () => {
     });
 
     it("should have proper role and aria-label for accessibility", () => {
-      render(
-        <ViewToggle value="list" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="list" onChange={mockOnChange} />);
 
       const toggleGroup = screen.getByRole("group", {
         name: "Budget view mode toggle",
@@ -47,36 +43,28 @@ describe("ViewToggle", () => {
 
   describe("Active State Styling", () => {
     it("should have default variant for active list view", () => {
-      render(
-        <ViewToggle value="list" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="list" onChange={mockOnChange} />);
 
       const listButton = screen.getByLabelText("List view");
       expect(listButton).toHaveClass("bg-primary");
     });
 
     it("should have ghost variant for inactive list view", () => {
-      render(
-        <ViewToggle value="grid" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="grid" onChange={mockOnChange} />);
 
       const listButton = screen.getByLabelText("List view");
       expect(listButton).toHaveClass("hover:bg-accent");
     });
 
     it("should have default variant for active grid view", () => {
-      render(
-        <ViewToggle value="grid" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="grid" onChange={mockOnChange} />);
 
       const gridButton = screen.getByLabelText("Grid view");
       expect(gridButton).toHaveClass("bg-primary");
     });
 
     it("should have ghost variant for inactive grid view", () => {
-      render(
-        <ViewToggle value="list" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="list" onChange={mockOnChange} />);
 
       const gridButton = screen.getByLabelText("Grid view");
       expect(gridButton).toHaveClass("hover:bg-accent");
@@ -86,9 +74,7 @@ describe("ViewToggle", () => {
   describe("onChange Callback", () => {
     it("should call onChange with 'list' when list button is clicked", async () => {
       const user = userEvent.setup();
-      render(
-        <ViewToggle value="grid" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="grid" onChange={mockOnChange} />);
 
       const listButton = screen.getByLabelText("List view");
       await user.click(listButton);
@@ -99,9 +85,7 @@ describe("ViewToggle", () => {
 
     it("should call onChange with 'grid' when grid button is clicked", async () => {
       const user = userEvent.setup();
-      render(
-        <ViewToggle value="list" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="list" onChange={mockOnChange} />);
 
       const gridButton = screen.getByLabelText("Grid view");
       await user.click(gridButton);
@@ -112,9 +96,7 @@ describe("ViewToggle", () => {
 
     it("should still allow clicking the already active button", async () => {
       const user = userEvent.setup();
-      render(
-        <ViewToggle value="list" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="list" onChange={mockOnChange} />);
 
       const listButton = screen.getByLabelText("List view");
       await user.click(listButton);
@@ -125,9 +107,7 @@ describe("ViewToggle", () => {
 
   describe("Accessibility Attributes", () => {
     it("should have aria-pressed attribute on buttons", () => {
-      render(
-        <ViewToggle value="list" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="list" onChange={mockOnChange} />);
 
       const listButton = screen.getByLabelText("List view");
       const gridButton = screen.getByLabelText("Grid view");
@@ -137,9 +117,7 @@ describe("ViewToggle", () => {
     });
 
     it("should have correct aria-pressed when grid is active", () => {
-      render(
-        <ViewToggle value="grid" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="grid" onChange={mockOnChange} />);
 
       const listButton = screen.getByLabelText("List view");
       const gridButton = screen.getByLabelText("Grid view");
@@ -149,9 +127,7 @@ describe("ViewToggle", () => {
     });
 
     it("should have title attribute for tooltips", () => {
-      render(
-        <ViewToggle value="list" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="list" onChange={mockOnChange} />);
 
       const listButton = screen.getByLabelText("List view");
       const gridButton = screen.getByLabelText("Grid view");
@@ -201,9 +177,7 @@ describe("ViewToggle", () => {
 
   describe("Button Sizing and Styling", () => {
     it("should have consistent button size", () => {
-      render(
-        <ViewToggle value="list" onChange={mockOnChange} />,
-      );
+      render(<ViewToggle value="list" onChange={mockOnChange} />);
 
       const listButton = screen.getByLabelText("List view");
       const gridButton = screen.getByLabelText("Grid view");

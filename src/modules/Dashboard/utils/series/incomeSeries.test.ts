@@ -53,10 +53,14 @@ describe("incomeSeries", () => {
 
     it("should handle null/undefined input", () => {
       expect(
-        transformIncomeData(null as unknown as CategorySpendingTrendChartData[])
+        transformIncomeData(
+          null as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toEqual([]);
       expect(
-        transformIncomeData(undefined as unknown as CategorySpendingTrendChartData[])
+        transformIncomeData(
+          undefined as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toEqual([]);
     });
 
@@ -96,10 +100,14 @@ describe("incomeSeries", () => {
 
     it("should handle null/undefined input", () => {
       expect(
-        extractIncomeCategories(null as unknown as CategorySpendingTrendChartData[])
+        extractIncomeCategories(
+          null as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toEqual([]);
       expect(
-        extractIncomeCategories(undefined as unknown as CategorySpendingTrendChartData[])
+        extractIncomeCategories(
+          undefined as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toEqual([]);
     });
 
@@ -158,11 +166,15 @@ describe("incomeSeries", () => {
       const dataWithGap: CategorySpendingTrendChartData[] = [
         {
           period: "2024-01",
-          categories: [{ categoryId: "1", categoryName: "Salary", amount: 5000000 }],
+          categories: [
+            { categoryId: "1", categoryName: "Salary", amount: 5000000 },
+          ],
         },
         {
           period: "2024-03",
-          categories: [{ categoryId: "1", categoryName: "Salary", amount: 5500000 }],
+          categories: [
+            { categoryId: "1", categoryName: "Salary", amount: 5500000 },
+          ],
         },
       ];
 
@@ -178,11 +190,15 @@ describe("incomeSeries", () => {
       const dataWithGap: CategorySpendingTrendChartData[] = [
         {
           period: "2024-01",
-          categories: [{ categoryId: "1", categoryName: "Salary", amount: 5000000 }],
+          categories: [
+            { categoryId: "1", categoryName: "Salary", amount: 5000000 },
+          ],
         },
         {
           period: "2024-03",
-          categories: [{ categoryId: "1", categoryName: "Salary", amount: 5500000 }],
+          categories: [
+            { categoryId: "1", categoryName: "Salary", amount: 5500000 },
+          ],
         },
       ];
 
@@ -251,10 +267,12 @@ describe("incomeSeries", () => {
 
     it("should return true for null/undefined", () => {
       expect(
-        isIncomeDataEmpty(null as unknown as CategorySpendingTrendChartData[])
+        isIncomeDataEmpty(null as unknown as CategorySpendingTrendChartData[]),
       ).toBe(true);
       expect(
-        isIncomeDataEmpty(undefined as unknown as CategorySpendingTrendChartData[])
+        isIncomeDataEmpty(
+          undefined as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toBe(true);
     });
 
@@ -299,7 +317,9 @@ describe("incomeSeries", () => {
 
     it("should handle null/undefined", () => {
       expect(
-        calculateTotalIncome(null as unknown as CategorySpendingTrendChartData[])
+        calculateTotalIncome(
+          null as unknown as CategorySpendingTrendChartData[],
+        ),
       ).toBe(0);
     });
   });
@@ -348,7 +368,9 @@ describe("incomeSeries", () => {
 
       // First period: Investments was 500000
       const firstPeriod = result.find((r) => r.period === "2024-01");
-      const other = firstPeriod?.categories.find((c) => c.categoryName === "Other");
+      const other = firstPeriod?.categories.find(
+        (c) => c.categoryName === "Other",
+      );
       expect(other?.amount).toBe(500000);
     });
 

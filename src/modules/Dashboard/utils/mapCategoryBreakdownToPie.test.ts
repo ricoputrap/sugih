@@ -59,7 +59,12 @@ describe("mapCategoryBreakdownToPie", () => {
 
   it("should filter out categories with zero amounts", () => {
     const input: CategoryBreakdownData[] = [
-      { categoryId: "1", categoryName: "Food", amount: 500000, percentage: 100 },
+      {
+        categoryId: "1",
+        categoryName: "Food",
+        amount: 500000,
+        percentage: 100,
+      },
       { categoryId: "2", categoryName: "Transport", amount: 0, percentage: 0 },
     ];
 

@@ -252,7 +252,9 @@ export function getCategoryTotal(
   }
 
   return data.reduce((total, item) => {
-    const category = item.categories.find((c) => c.categoryName === categoryName);
+    const category = item.categories.find(
+      (c) => c.categoryName === categoryName,
+    );
     return total + (category?.amount || 0);
   }, 0);
 }
@@ -278,9 +280,7 @@ export function limitCategories(
     return data;
   }
 
-  const topCategories = new Set(
-    categories.slice(0, limit).map((c) => c.name),
-  );
+  const topCategories = new Set(categories.slice(0, limit).map((c) => c.name));
 
   return data.map((item) => {
     const keptCategories: typeof item.categories = [];

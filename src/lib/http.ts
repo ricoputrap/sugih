@@ -3,10 +3,7 @@
  * Standardizes response formats across all API endpoints
  */
 
-export function jsonResponse<T>(
-  data: T,
-  init?: ResponseInit,
-): Response {
+export function jsonResponse<T>(data: T, init?: ResponseInit): Response {
   return new Response(JSON.stringify(data), {
     headers: {
       "Content-Type": "application/json",
@@ -24,10 +21,7 @@ export function created<T>(data: T): Response {
   return jsonResponse(data, { status: 201 });
 }
 
-export function badRequest(
-  message: string,
-  issues?: unknown,
-): Response {
+export function badRequest(message: string, issues?: unknown): Response {
   return jsonResponse(
     {
       error: {
@@ -105,9 +99,7 @@ export function serverError(
   // Don't leak internal details in production
   const error = {
     message,
-    ...(process.env.NODE_ENV === "development" && details
-      ? { details }
-      : {}),
+    ...(process.env.NODE_ENV === "development" && details ? { details } : {}),
   };
 
   return jsonResponse(
@@ -118,9 +110,7 @@ export function serverError(
   );
 }
 
-export function tooManyRequests(
-  message = "Too many requests",
-): Response {
+export function tooManyRequests(message = "Too many requests"): Response {
   return jsonResponse(
     {
       error: {

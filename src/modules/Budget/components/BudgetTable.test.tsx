@@ -308,16 +308,12 @@ describe("BudgetTable", () => {
         />,
       );
 
-      // Loading skeleton should be displayed
-      const skeletonRows = screen
-        .getAllByRole("row")
-        .filter(
-          (row) =>
-            row.classList.contains("animate-pulse") ||
-            row.querySelector(".animate-pulse"),
-        );
+      // Loading skeleton should be displayed with animate-pulse classes
+      const animatedElements = screen
+        .getAllByText("", { selector: ".animate-pulse" })
+        .filter((el) => el.className.includes("animate-pulse"));
 
-      expect(skeletonRows.length).toBeGreaterThan(0);
+      expect(animatedElements.length).toBeGreaterThan(0);
     });
   });
 

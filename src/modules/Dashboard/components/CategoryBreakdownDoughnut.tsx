@@ -114,10 +114,7 @@ export function CategoryBreakdownDoughnut({
             }
             disabled={isLoading}
           >
-            <SelectTrigger
-              className="w-[160px]"
-              aria-label="Select date range"
-            >
+            <SelectTrigger className="w-[160px]" aria-label="Select date range">
               <Calendar className="h-4 w-4 mr-2" />
               <SelectValue />
             </SelectTrigger>

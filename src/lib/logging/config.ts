@@ -33,9 +33,7 @@ export const LOG_LEVEL =
  *
  * Default: 1.0 (no sampling)
  */
-export const LOG_SAMPLE_RATE = parseFloat(
-  process.env.LOG_SAMPLE_RATE || "1.0",
-);
+export const LOG_SAMPLE_RATE = parseFloat(process.env.LOG_SAMPLE_RATE || "1.0");
 
 /**
  * Enable query timing logs (db:query events).
@@ -105,8 +103,7 @@ export const LOG_TRANSACTIONS =
  *
  * Default: true (recommended for production observability)
  */
-export const LOG_ACTIONS =
-  process.env.LOG_ACTIONS !== "false"; // Opt-out (enabled by default)
+export const LOG_ACTIONS = process.env.LOG_ACTIONS !== "false"; // Opt-out (enabled by default)
 
 /**
  * Include stack traces in production error logs.
@@ -138,7 +135,9 @@ export const LOG_MAX_QUERY_PARAMS = parseInt(
  * - Always emit ERROR and WARN logs (never sample)
  * - For INFO logs, use random sampling based on LOG_SAMPLE_RATE
  */
-export function shouldSample(level: "debug" | "info" | "warn" | "error"): boolean {
+export function shouldSample(
+  level: "debug" | "info" | "warn" | "error",
+): boolean {
   // Never sample errors or warnings
   if (level === "error" || level === "warn") {
     return true;
