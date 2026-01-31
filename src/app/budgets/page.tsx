@@ -135,10 +135,7 @@ function BudgetsPageContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <BudgetsPageHeader
-        onCopyClick={openCopyDialog}
-        onCreateClick={openCreateDialog}
-      />
+      <BudgetsPageHeader />
 
       {/* Budget Details Card */}
       <BudgetDetailsCard
