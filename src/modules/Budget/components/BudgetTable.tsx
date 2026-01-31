@@ -1,7 +1,21 @@
 "use client";
 
+import type { ColumnDef, HeaderContext } from "@tanstack/react-table";
+import {
+  AlertCircle,
+  ArrowUpDown,
+  CheckCircle2,
+  MoreHorizontal,
+  Pencil,
+  PiggyBank,
+  Trash2,
+  Wallet,
+} from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { ColumnDef } from "@tanstack/react-table";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,21 +24,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  MoreHorizontal,
-  Trash2,
-  Pencil,
-  AlertCircle,
-  CheckCircle2,
-  Wallet,
-  PiggyBank,
-  ArrowUpDown,
-} from "lucide-react";
-import { BudgetWithCategory } from "../schema";
-import { toast } from "sonner";
-import { DataTable } from "@/components/ui/data-table";
+import { cn } from "@/lib/utils";
+import type { BudgetWithCategory } from "../schema";
+import { getBudgetStatus, getStatusBadgeConfig } from "../utils/gradients";
 
 interface BudgetSummaryItem {
   categoryId: string | null;
@@ -126,37 +128,28 @@ export function BudgetTable({
     }).format(amount);
   }, []);
 
-  const formatPercent = (percent: number) => {
-    return `${percent.toFixed(1)}%`;
-  };
+  const getStatusBadge = useCallback((percentUsed: number) => {
+    const status = getBudgetStatus(percentUsed);
+    const config = getStatusBadgeConfig(status);
 
-  const getStatusBadge = (percentUsed: number) => {
-    if (percentUsed > 100) {
-      return (
-        <Badge variant="destructive" className="flex items-center gap-1">
-          <AlertCircle className="h-3 w-3" />
-          Over Budget
-        </Badge>
-      );
-    } else if (percentUsed >= 80) {
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-orange-100 text-orange-800 hover:bg-orange-100 flex items-center gap-1"
-        >
-          <AlertCircle className="h-3 w-3" />
-          Near Limit
-        </Badge>
-      );
-    } else {
-      return (
-        <Badge variant="secondary" className="flex items-center gap-1">
-          <CheckCircle2 className="h-3 w-3" />
-          On Track
-        </Badge>
-      );
-    }
-  };
+    const IconComponent =
+      config.icon === "CheckCircle2" ? CheckCircle2 : AlertCircle;
+
+    return (
+      <Badge
+        variant="outline"
+        className={cn(
+          "flex items-center gap-1",
+          config.gradient,
+          config.text,
+          config.border,
+        )}
+      >
+        <IconComponent className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
+  }, []);
 
   const columns = useMemo<ColumnDef<BudgetWithCategory>[]>(
     () => [
@@ -223,7 +216,7 @@ export function BudgetTable({
             </div>
           );
         },
-        filterFn: (row, id, value) => {
+        filterFn: (row, _id, value) => {
           const budget = row.original;
           const displayName =
             budget.target_type === "savings_bucket"
@@ -256,19 +249,60 @@ export function BudgetTable({
         ? [
             {
               id: "spent",
-              header: "Spent",
+              header: ({
+                column,
+              }: HeaderContext<BudgetWithCategory, unknown>) => (
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    column.toggleSorting(column.getIsSorted() === "asc")
+                  }
+                  className="-ml-4 h-8 data-[state=open]:bg-accent"
+                >
+                  Spent
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              ),
+              accessorFn: (row: BudgetWithCategory) => {
+                const budgetSummary = row.category_id
+                  ? categorySummaryMap.get(row.category_id)
+                  : bucketSummaryMap.get(row.savings_bucket_id);
+                return budgetSummary?.spentAmount || 0;
+              },
               cell: ({ row }: { row: { original: BudgetWithCategory } }) => {
                 const budget = row.original;
                 const budgetSummary = budget.category_id
                   ? categorySummaryMap.get(budget.category_id)
                   : bucketSummaryMap.get(budget.savings_bucket_id);
                 const spent = budgetSummary?.spentAmount || 0;
-                return formatCurrency(spent);
+                return (
+                  <div className="font-medium">{formatCurrency(spent)}</div>
+                );
               },
+              enableSorting: true,
             },
             {
               id: "remaining",
-              header: "Remaining",
+              header: ({
+                column,
+              }: HeaderContext<BudgetWithCategory, unknown>) => (
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    column.toggleSorting(column.getIsSorted() === "asc")
+                  }
+                  className="-ml-4 h-8 data-[state=open]:bg-accent"
+                >
+                  Remaining
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              ),
+              accessorFn: (row: BudgetWithCategory) => {
+                const budgetSummary = row.category_id
+                  ? categorySummaryMap.get(row.category_id)
+                  : bucketSummaryMap.get(row.savings_bucket_id);
+                return budgetSummary?.remaining || row.amount_idr;
+              },
               cell: ({ row }: { row: { original: BudgetWithCategory } }) => {
                 const budget = row.original;
                 const budgetSummary = budget.category_id
@@ -276,13 +310,17 @@ export function BudgetTable({
                   : bucketSummaryMap.get(budget.savings_bucket_id);
                 const remaining = budgetSummary?.remaining || budget.amount_idr;
                 return (
-                  <span
-                    className={remaining < 0 ? "text-red-600 font-medium" : ""}
+                  <div
+                    className={cn(
+                      "font-medium",
+                      remaining < 0 && "text-destructive",
+                    )}
                   >
                     {formatCurrency(remaining)}
-                  </span>
+                  </div>
                 );
               },
+              enableSorting: true,
             },
             {
               id: "usage",
@@ -296,9 +334,6 @@ export function BudgetTable({
                 return (
                   <div className="flex items-center gap-2">
                     {getStatusBadge(percentUsed)}
-                    <span className="text-sm text-muted-foreground">
-                      {formatPercent(percentUsed)}
-                    </span>
                   </div>
                 );
               },
@@ -359,6 +394,7 @@ export function BudgetTable({
       handleEdit,
       handleDelete,
       formatCurrency,
+      getStatusBadge,
     ],
   );
 
@@ -385,6 +421,8 @@ export function BudgetTable({
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+            role="img"
+            aria-label="No budgets"
           >
             <path
               strokeLinecap="round"

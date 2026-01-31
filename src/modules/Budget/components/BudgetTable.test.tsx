@@ -274,7 +274,9 @@ describe("BudgetTable", () => {
 
       // Summary data should also be displayed
       expect(screen.getByText("Food")).toBeInTheDocument();
-      expect(screen.getByText("75.0%")).toBeInTheDocument();
+      expect(screen.getAllByText("Rp 2.000.000").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Rp 1.500.000").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Rp 500.000").length).toBeGreaterThan(0);
     });
   });
 
@@ -549,8 +551,9 @@ describe("BudgetTable", () => {
       );
 
       expect(screen.getByText("Emergency Fund")).toBeInTheDocument();
-      expect(screen.getByText("40.0%")).toBeInTheDocument();
-      expect(screen.getByText("On Track")).toBeInTheDocument();
+      expect(screen.getAllByText("Rp 500.000").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Rp 200.000").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Rp 300.000").length).toBeGreaterThan(0);
     });
   });
 });

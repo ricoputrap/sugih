@@ -8,5 +8,5 @@ import { generateMonthOptions } from "../utils/months";
  * @returns Array of { value: string, label: string } for month selector
  */
 export function useBudgetMonthOptions() {
-  return useMemo(() => generateMonthOptions({ past: 6, future: 11 }), []);
+  return useMemo(() => generateMonthOptions({ past: 6, future: 6 }), []);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Plus } from "lucide-react";
 import { Suspense } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import {
   useBudgetsData,
   useBudgetView,
 } from "@/modules/Budget/hooks";
+import { useBudgetMonthNavigation } from "@/modules/Budget/hooks/useBudgetMonthNavigation";
 import { useBudgetsPageStore } from "@/modules/Budget/stores";
 
 export default function BudgetsPage() {
@@ -67,6 +68,7 @@ function BudgetsPageContent() {
   const [month, setMonth] = useBudgetMonth();
   const [viewMode, setViewMode] = useBudgetView();
   const monthOptions = useBudgetMonthOptions();
+  const monthNavigation = useBudgetMonthNavigation(month);
 
   // Server state (TanStack Query)
   const { data, isLoading } = useBudgetsData(month);
@@ -219,22 +221,52 @@ function BudgetsPageContent() {
               <span className="text-sm font-medium text-muted-foreground">
                 Month:
               </span>
-              <Select value={month} onValueChange={setMonth}>
-                <SelectTrigger
-                  className="w-full md:w-48"
-                  data-testid="month-select"
-                  aria-label="Select month"
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (monthNavigation.previousMonth) {
+                      setMonth(monthNavigation.previousMonth);
+                    }
+                  }}
+                  disabled={isLoading || !monthNavigation.canGoToPrevious}
+                  aria-label="Previous month"
                 >
-                  <SelectValue placeholder="Select a month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {monthOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <Select value={month} onValueChange={setMonth}>
+                  <SelectTrigger
+                    className="w-full sm:w-48"
+                    data-testid="month-select"
+                    aria-label="Select month"
+                  >
+                    <SelectValue placeholder="Select a month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (monthNavigation.nextMonth) {
+                      setMonth(monthNavigation.nextMonth);
+                    }
+                  }}
+                  disabled={isLoading || !monthNavigation.canGoToNext}
+                  aria-label="Next month"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <ViewToggle
               value={viewMode}

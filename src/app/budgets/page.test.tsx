@@ -143,8 +143,12 @@ describe("BudgetsPage", () => {
       // Find the month select
       const monthSelect = screen.getByTestId("month-select");
 
-      // Get the parent container that should have the label
-      const container = monthSelect.closest("div");
+      // Get the parent flex container (with buttons and select)
+      let container = monthSelect.closest("div");
+      // Go up to the parent that includes the Month: label
+      while (container && !container.textContent?.includes("Month:")) {
+        container = container.parentElement as HTMLElement;
+      }
       const parentText = container?.textContent || "";
 
       // Verify "Month:" label is present
@@ -300,9 +304,9 @@ describe("BudgetsPage", () => {
 
       const monthSelect = screen.getByTestId("month-select");
 
-      // Should be full width on mobile (w-full) and fixed width on desktop (md:w-48)
+      // Should be full width on mobile (w-full) and fixed width on desktop (sm:w-48)
       expect(monthSelect).toHaveClass("w-full");
-      expect(monthSelect).toHaveClass("md:w-48");
+      expect(monthSelect).toHaveClass("sm:w-48");
     });
   });
 });

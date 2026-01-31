@@ -5,9 +5,9 @@ import {
   CheckCircle2,
   MoreHorizontal,
   Pencil,
+  PiggyBank,
   Trash2,
   Wallet,
-  PiggyBank,
 } from "lucide-react";
 import { useState } from "react";
 import { PolarAngleAxis, RadialBar, RadialBarChart } from "recharts";
@@ -15,7 +15,6 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 import {
   DropdownMenu,
@@ -25,9 +24,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import type { BudgetWithCategory } from "../schema";
 import type { BudgetSummaryItem } from "../types";
 import { formatCurrency, formatPercentage } from "../utils/formatters";
+import {
+  getBudgetStatus,
+  getChartGradientColor,
+  getStatusBadgeConfig,
+} from "../utils/gradients";
 
 interface BudgetCardGridProps {
   budgets: BudgetWithCategory[];
@@ -99,41 +104,30 @@ export function BudgetCardGrid({
   };
 
   const getStatusBadge = (percentUsed: number) => {
-    if (percentUsed > 100) {
-      return (
-        <Badge variant="destructive" className="flex items-center gap-1">
-          <AlertCircle className="h-3 w-3" />
-          Over Budget
-        </Badge>
-      );
-    } else if (percentUsed >= 80) {
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-orange-100 text-orange-800 hover:bg-orange-100 flex items-center gap-1"
-        >
-          <AlertCircle className="h-3 w-3" />
-          Near Limit
-        </Badge>
-      );
-    } else {
-      return (
-        <Badge variant="secondary" className="flex items-center gap-1">
-          <CheckCircle2 className="h-3 w-3" />
-          On Track
-        </Badge>
-      );
-    }
+    const status = getBudgetStatus(percentUsed);
+    const config = getStatusBadgeConfig(status);
+
+    const IconComponent =
+      config.icon === "CheckCircle2" ? CheckCircle2 : AlertCircle;
+
+    return (
+      <Badge
+        variant="outline"
+        className={cn(
+          "flex items-center gap-1",
+          config.gradient,
+          config.text,
+          config.border,
+        )}
+      >
+        <IconComponent className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
   };
 
   const getChartColor = (percentUsed: number) => {
-    if (percentUsed > 100) {
-      return "#ef4444"; // Red for over budget
-    } else if (percentUsed >= 80) {
-      return "#f97316"; // Orange for near limit
-    } else {
-      return "#10b981"; // Green for on track
-    }
+    return getChartGradientColor(percentUsed);
   };
 
   if (isLoading) {
