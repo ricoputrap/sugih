@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Wallet,
-  WalletCreateInput,
-  WalletUpdateInput,
-} from "@/modules/Wallet/schema";
+import { useEffect } from "react";
+import { WalletCreateInput, WalletUpdateInput } from "@/modules/Wallet/schema";
+import { useWalletsPageStore } from "@/modules/Wallet/stores";
+import { useWalletMutations } from "@/modules/Wallet/hooks";
 import {
   Dialog,
   DialogContent,
@@ -38,21 +36,19 @@ import {
 } from "@/modules/Wallet/schema";
 import { toast } from "sonner";
 
-interface WalletDialogFormProps {
-  wallet?: Wallet | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
-}
+export function WalletDialogForm() {
+  const {
+    isCreateDialogOpen,
+    isEditDialogOpen,
+    selectedWallet,
+    closeCreateDialog,
+    closeEditDialog,
+  } = useWalletsPageStore();
+  const { createWallet, updateWallet } = useWalletMutations();
 
-export function WalletDialogForm({
-  wallet,
-  open,
-  onOpenChange,
-  onSuccess,
-}: WalletDialogFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const isEditing = !!wallet;
+  const isOpen = isCreateDialogOpen || isEditDialogOpen;
+  const isEditing = isEditDialogOpen && !!selectedWallet;
+  const isLoading = createWallet.isPending || updateWallet.isPending;
 
   const form = useForm<WalletCreateInput | WalletUpdateInput>({
     resolver: zodResolver(isEditing ? WalletUpdateSchema : WalletCreateSchema),
@@ -65,12 +61,12 @@ export function WalletDialogForm({
 
   // Reset form when dialog opens/closes or wallet changes
   useEffect(() => {
-    if (open) {
-      if (isEditing && wallet) {
+    if (isOpen) {
+      if (isEditing && selectedWallet) {
         form.reset({
-          name: wallet.name,
-          type: wallet.type,
-          currency: wallet.currency,
+          name: selectedWallet.name,
+          type: selectedWallet.type,
+          currency: selectedWallet.currency,
         });
       } else {
         form.reset({
@@ -80,45 +76,41 @@ export function WalletDialogForm({
         });
       }
     }
-  }, [open, isEditing, wallet, form]);
+  }, [isOpen, isEditing, selectedWallet, form]);
 
   const onSubmit = async (data: WalletCreateInput | WalletUpdateInput) => {
-    setIsSubmitting(true);
-
     try {
-      const url = isEditing ? `/api/wallets/${wallet!.id}` : "/api/wallets";
-      const method = isEditing ? "PATCH" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || "Failed to save wallet");
+      if (isEditing && selectedWallet) {
+        await updateWallet.mutateAsync({
+          id: selectedWallet.id,
+          ...(data as WalletUpdateInput),
+        });
+        toast.success(`Wallet "${selectedWallet.name}" updated successfully`);
+      } else {
+        const result = await createWallet.mutateAsync(data as WalletCreateInput);
+        toast.success(`Wallet "${result.name}" created successfully`);
       }
 
-      const savedWallet = await response.json();
-
-      toast.success(
-        `Wallet "${savedWallet.name}" ${isEditing ? "updated" : "created"} successfully`,
-      );
-
-      onSuccess();
+      form.reset();
+      handleOpenChange(false);
     } catch (error: any) {
-      console.error("Error saving wallet:", error);
       toast.error(error.message || "Failed to save wallet");
-    } finally {
-      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      form.reset();
+      if (isEditDialogOpen) {
+        closeEditDialog();
+      } else {
+        closeCreateDialog();
+      }
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
@@ -143,6 +135,7 @@ export function WalletDialogForm({
                     <Input
                       placeholder="e.g., BCA Savings, Cash, GoPay"
                       {...field}
+                      disabled={isLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -156,7 +149,11 @@ export function WalletDialogForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={isLoading}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select wallet type" />
@@ -180,7 +177,11 @@ export function WalletDialogForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Currency</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={isLoading}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select currency" />
@@ -201,13 +202,13 @@ export function WalletDialogForm({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
+                onClick={() => handleOpenChange(false)}
+                disabled={isLoading}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting
+              <Button type="submit" disabled={isLoading}>
+                {isLoading
                   ? "Saving..."
                   : isEditing
                     ? "Update Wallet"

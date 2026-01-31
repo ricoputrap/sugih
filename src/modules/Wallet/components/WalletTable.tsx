@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Wallet } from "@/modules/Wallet/schema";
-import { WalletDialogForm } from "./WalletDialogForm";
+import type { Wallet } from "@/modules/Wallet/schema";
+import type { WalletWithBalance } from "@/modules/Wallet/hooks";
+import { useWalletMutations } from "@/modules/Wallet/hooks";
+import { useWalletsPageStore } from "@/modules/Wallet/stores";
 import {
   Table,
   TableBody,
@@ -29,36 +30,19 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Extended wallet type with balance from API
-type WalletWithBalance = Wallet & { balance: number };
-
 interface WalletTableProps {
   wallets: WalletWithBalance[];
-  onRefresh: () => void;
+  isLoading?: boolean;
 }
 
-export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
-  const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const handleEdit = (wallet: Wallet) => {
-    setEditingWallet(wallet);
-    setIsDialogOpen(true);
-  };
+export function WalletTable({ wallets, isLoading = false }: WalletTableProps) {
+  const { openEditDialog } = useWalletsPageStore();
+  const { archiveWallet, restoreWallet, deleteWallet } = useWalletMutations();
 
   const handleArchive = async (wallet: Wallet) => {
     try {
-      const response = await fetch(`/api/wallets/${wallet.id}?action=archive`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || "Failed to archive wallet");
-      }
-
+      await archiveWallet.mutateAsync(wallet.id);
       toast.success(`Wallet "${wallet.name}" archived successfully`);
-      onRefresh();
     } catch (error: any) {
       toast.error(error.message || "Failed to archive wallet");
     }
@@ -66,21 +50,8 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
 
   const handleRestore = async (wallet: Wallet) => {
     try {
-      const response = await fetch(`/api/wallets/${wallet.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ archived: false }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || "Failed to restore wallet");
-      }
-
+      await restoreWallet.mutateAsync(wallet.id);
       toast.success(`Wallet "${wallet.name}" restored successfully`);
-      onRefresh();
     } catch (error: any) {
       toast.error(error.message || "Failed to restore wallet");
     }
@@ -96,17 +67,8 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
     }
 
     try {
-      const response = await fetch(`/api/wallets/${wallet.id}?action=delete`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || "Failed to delete wallet");
-      }
-
+      await deleteWallet.mutateAsync(wallet.id);
       toast.success(`Wallet "${wallet.name}" deleted successfully`);
-      onRefresh();
     } catch (error: any) {
       toast.error(error.message || "Failed to delete wallet");
     }
@@ -133,6 +95,16 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
     }).format(amount);
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-12 w-full animate-pulse rounded bg-gray-200" />
+        ))}
+      </div>
+    );
+  }
+
   const activeWallets = wallets.filter((wallet) => !wallet.archived);
   const archivedWallets = wallets.filter((wallet) => wallet.archived);
 
@@ -140,19 +112,9 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
     <div className="space-y-6">
       {/* Active Wallets */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium">
-            Active Wallets ({activeWallets.length})
-          </h3>
-          <Button
-            onClick={() => {
-              setEditingWallet(null);
-              setIsDialogOpen(true);
-            }}
-          >
-            Add Wallet
-          </Button>
-        </div>
+        <h3 className="text-lg font-medium">
+          Active Wallets ({activeWallets.length})
+        </h3>
 
         {activeWallets.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
@@ -200,7 +162,7 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(wallet)}>
+                          <DropdownMenuItem onClick={() => openEditDialog(wallet)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
@@ -297,18 +259,6 @@ export function WalletTable({ wallets, onRefresh }: WalletTableProps) {
           </div>
         </div>
       )}
-
-      {/* Edit/Create Dialog */}
-      <WalletDialogForm
-        wallet={editingWallet}
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onSuccess={() => {
-          setIsDialogOpen(false);
-          setEditingWallet(null);
-          onRefresh();
-        }}
-      />
     </div>
   );
 }
