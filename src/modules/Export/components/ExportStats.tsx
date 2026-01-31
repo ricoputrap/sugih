@@ -10,6 +10,7 @@ import {
   FileText,
   PieChart,
 } from "lucide-react";
+import { useExportStats } from "../hooks";
 
 export interface ExportStatsData {
   wallets: number;
@@ -20,12 +21,9 @@ export interface ExportStatsData {
   budgets: number;
 }
 
-interface ExportStatsProps {
-  stats: ExportStatsData | null;
-  isLoading: boolean;
-}
+export function ExportStats() {
+  const { data: stats, isLoading } = useExportStats();
 
-export function ExportStats({ stats, isLoading }: ExportStatsProps) {
   const statItems = [
     {
       label: "Wallets",
