@@ -23,75 +23,82 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { SavingsBucket, SavingsBucketCreateSchema } from "../schema";
+import { SavingsBucketCreateSchema } from "../schema";
+import { useSavingsPageStore } from "../stores";
+import { useSavingsBucketMutations } from "../hooks";
 import { toast } from "sonner";
 
 const formSchema = SavingsBucketCreateSchema;
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface SavingsBucketDialogFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (values: FormValues) => Promise<void>;
-  isLoading?: boolean;
-  mode: "create" | "edit";
-  initialData?: SavingsBucket | null;
-}
+export function SavingsBucketDialogForm() {
+  const {
+    isCreateDialogOpen,
+    isEditDialogOpen,
+    selectedBucket,
+    closeCreateDialog,
+    closeEditDialog,
+  } = useSavingsPageStore();
+  const { createBucket, updateBucket } = useSavingsBucketMutations();
 
-export function SavingsBucketDialogForm({
-  open,
-  onOpenChange,
-  onSubmit,
-  isLoading = false,
-  mode,
-  initialData,
-}: SavingsBucketDialogFormProps) {
-  const isEditing = mode === "edit" && !!initialData;
+  const isOpen = isCreateDialogOpen || isEditDialogOpen;
+  const isEditing = isEditDialogOpen && !!selectedBucket;
+  const isLoading = createBucket.isPending || updateBucket.isPending;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: initialData?.name || "",
-      description: initialData?.description || "",
+      name: "",
+      description: "",
     },
   });
 
   useEffect(() => {
-    if (open) {
+    if (isOpen) {
       form.reset({
-        name: initialData?.name || "",
-        description: initialData?.description || "",
+        name: selectedBucket?.name || "",
+        description: selectedBucket?.description || "",
       });
     }
-  }, [open, initialData, form]);
+  }, [isOpen, selectedBucket, form]);
 
   const handleSubmit = async (values: FormValues) => {
     try {
-      await onSubmit(values);
+      if (isEditing && selectedBucket) {
+        await updateBucket.mutateAsync({
+          id: selectedBucket.id,
+          name: values.name,
+          description: values.description,
+        });
+        toast.success("Savings bucket updated successfully");
+      } else {
+        await createBucket.mutateAsync(values);
+        toast.success("Savings bucket created successfully");
+      }
       form.reset();
-      onOpenChange(false);
-      toast.success(
-        `Savings bucket ${isEditing ? "updated" : "created"} successfully`,
-      );
+      handleOpenChange(false);
     } catch (error: any) {
       toast.error(
         error.message ||
           `Failed to ${isEditing ? "update" : "create"} savings bucket`,
       );
-      throw error;
     }
   };
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       form.reset();
+      if (isEditDialogOpen) {
+        closeEditDialog();
+      } else {
+        closeCreateDialog();
+      }
     }
-    onOpenChange(newOpen);
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
