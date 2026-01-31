@@ -1,0 +1,1 @@
+export { useCategoriesPageStore } from "./useCategoriesPageStore";

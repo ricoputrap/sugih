@@ -21,73 +21,80 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Category, CategoryCreateSchema, CategoryType } from "../schema";
+import { CategoryCreateSchema, CategoryType } from "../schema";
+import { useCategoriesPageStore } from "../stores";
+import { useCategoryMutations } from "../hooks";
 import { toast } from "sonner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
-interface CategoryDialogFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (values: { name: string; type: CategoryType }) => Promise<void>;
-  isLoading?: boolean;
-  mode: "create" | "edit";
-  initialData?: Category | null;
-}
+export function CategoryDialogForm() {
+  const {
+    isCreateDialogOpen,
+    isEditDialogOpen,
+    selectedCategory,
+    closeCreateDialog,
+    closeEditDialog,
+  } = useCategoriesPageStore();
+  const { createCategory, updateCategory } = useCategoryMutations();
 
-export function CategoryDialogForm({
-  open,
-  onOpenChange,
-  onSubmit,
-  isLoading = false,
-  mode,
-  initialData,
-}: CategoryDialogFormProps) {
-  const isEditing = mode === "edit" && !!initialData;
+  const isOpen = isCreateDialogOpen || isEditDialogOpen;
+  const isEditing = isEditDialogOpen && !!selectedCategory;
+  const isLoading = createCategory.isPending || updateCategory.isPending;
 
   const form = useForm<{ name: string; type: CategoryType }>({
     resolver: zodResolver(CategoryCreateSchema),
     defaultValues: {
-      name: initialData?.name || "",
-      type: initialData?.type || "expense",
+      name: "",
+      type: "expense",
     },
   });
 
   useEffect(() => {
-    if (open) {
+    if (isOpen) {
       form.reset({
-        name: initialData?.name || "",
-        type: initialData?.type || "expense",
+        name: selectedCategory?.name || "",
+        type: selectedCategory?.type || "expense",
       });
     }
-  }, [open, initialData, form]);
+  }, [isOpen, selectedCategory, form]);
 
   const handleSubmit = async (values: { name: string; type: CategoryType }) => {
     try {
-      await onSubmit(values);
+      if (isEditing && selectedCategory) {
+        await updateCategory.mutateAsync({
+          id: selectedCategory.id,
+          name: values.name,
+          type: values.type,
+        });
+        toast.success("Category updated successfully");
+      } else {
+        await createCategory.mutateAsync(values);
+        toast.success("Category created successfully");
+      }
       form.reset();
-      onOpenChange(false);
-      toast.success(
-        `Category ${isEditing ? "updated" : "created"} successfully`,
-      );
+      handleOpenChange(false);
     } catch (error: any) {
       toast.error(
         error.message ||
           `Failed to ${isEditing ? "update" : "create"} category`,
       );
-      throw error;
     }
   };
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       form.reset();
+      if (isEditDialogOpen) {
+        closeEditDialog();
+      } else {
+        closeCreateDialog();
+      }
     }
-    onOpenChange(newOpen);
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
