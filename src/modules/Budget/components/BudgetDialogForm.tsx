@@ -35,6 +35,8 @@ import { Label } from "@/components/ui/label";
 import { BudgetUpsertSchema } from "../schema";
 import { toast } from "sonner";
 import { Wallet, PiggyBank } from "lucide-react";
+import { useBudgetMonth, useBudgetMutations } from "@/modules/Budget/hooks";
+import { useBudgetsPageStore } from "@/modules/Budget/stores";
 
 interface Category {
   id: string;
@@ -48,31 +50,6 @@ interface SavingsBucket {
   name: string;
   description?: string | null;
   archived: boolean;
-}
-
-interface BudgetDialogFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (values: {
-    month: string;
-    categoryId?: string | null;
-    savingsBucketId?: string | null;
-    amountIdr: number;
-    note?: string | null;
-  }) => Promise<void>;
-  isLoading?: boolean;
-  mode: "create" | "edit";
-  initialData?: {
-    id: string;
-    month: string;
-    category_id?: string | null;
-    savings_bucket_id?: string | null;
-    category_name?: string | null;
-    savings_bucket_name?: string | null;
-    amount_idr: number;
-    note?: string | null;
-    target_type?: "category" | "savings_bucket";
-  } | null;
 }
 
 // Form schema that handles both category and savings bucket targets
@@ -106,15 +83,28 @@ const BudgetFormSchema = z
 
 type BudgetFormValues = z.infer<typeof BudgetFormSchema>;
 
-export function BudgetDialogForm({
-  open,
-  onOpenChange,
-  onSubmit,
-  isLoading = false,
-  mode,
-  initialData,
-}: BudgetDialogFormProps) {
-  const isEditing = mode === "edit" && !!initialData;
+export function BudgetDialogForm() {
+  // Extract state from store
+  const {
+    isCreateDialogOpen,
+    isEditDialogOpen,
+    selectedBudget,
+    closeCreateDialog,
+    closeEditDialog,
+  } = useBudgetsPageStore();
+
+  // Get current month from URL
+  const [month] = useBudgetMonth();
+
+  // Get mutations
+  const { createBudget, updateBudget } = useBudgetMutations();
+
+  // Determine mode and open state
+  const isOpen = isCreateDialogOpen || isEditDialogOpen;
+  const mode = isEditDialogOpen && selectedBudget ? "edit" : "create";
+  const isEditing = mode === "edit" && !!selectedBudget;
+  const initialData = isEditing ? selectedBudget : null;
+  const isLoading = createBudget.isPending || updateBudget.isPending;
   const [categories, setCategories] = useState<Category[]>([]);
   const [savingsBuckets, setSavingsBuckets] = useState<SavingsBucket[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -150,11 +140,11 @@ export function BudgetDialogForm({
 
   // Fetch categories when dialog opens
   useEffect(() => {
-    if (open) {
+    if (isOpen) {
       fetchCategories();
       fetchSavingsBuckets();
     }
-  }, [open]);
+  }, [isOpen]);
 
   const fetchCategories = async () => {
     try {
@@ -207,7 +197,7 @@ export function BudgetDialogForm({
   };
 
   useEffect(() => {
-    if (open) {
+    if (isOpen) {
       form.reset({
         month: initialData?.month || getCurrentMonthFirst(),
         targetType: getInitialTargetType(),
@@ -217,7 +207,7 @@ export function BudgetDialogForm({
         note: initialData?.note || "",
       });
     }
-  }, [open, initialData, form]);
+  }, [isOpen, initialData, form]);
 
   const handleSubmit = async (values: BudgetFormValues) => {
     try {
@@ -232,9 +222,26 @@ export function BudgetDialogForm({
         amountIdr: values.amountIdr,
         note: values.note && values.note.trim() !== "" ? values.note : null,
       };
-      await onSubmit(submitValues);
+
+      if (isEditing && selectedBudget) {
+        await updateBudget.mutateAsync({
+          id: selectedBudget.id,
+          month,
+          amountIdr: submitValues.amountIdr,
+          note: submitValues.note,
+        });
+      } else {
+        await createBudget.mutateAsync({
+          month: submitValues.month,
+          categoryId: submitValues.categoryId,
+          savingsBucketId: submitValues.savingsBucketId,
+          amountIdr: submitValues.amountIdr,
+          note: submitValues.note,
+        });
+      }
+
       form.reset();
-      onOpenChange(false);
+      handleOpenChange(false);
       toast.success(`Budget ${isEditing ? "updated" : "created"} successfully`);
     } catch (error) {
       const errorMessage =
@@ -249,8 +256,12 @@ export function BudgetDialogForm({
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       form.reset();
+      if (isEditDialogOpen) {
+        closeEditDialog();
+      } else {
+        closeCreateDialog();
+      }
     }
-    onOpenChange(newOpen);
   };
 
   // Generate month options (current month + 11 previous + 6 next)
@@ -284,7 +295,7 @@ export function BudgetDialogForm({
   const dataLoading = categoriesLoading || bucketsLoading;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>

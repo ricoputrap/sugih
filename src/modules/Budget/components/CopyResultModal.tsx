@@ -11,29 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useBudgetsPageStore } from "@/modules/Budget/stores";
 import { BudgetWithCategory } from "../schema";
 
-interface CopyResultModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  created: BudgetWithCategory[];
-  skipped: Array<{
-    categoryId: string | null;
-    savingsBucketId: string | null;
-    targetName: string;
-  }>;
-  fromMonth?: string;
-  toMonth?: string;
-}
+export function CopyResultModal() {
+  const { copyResultModalOpen, copyResult, closeCopyResultModal } =
+    useBudgetsPageStore();
 
-export function CopyResultModal({
-  open,
-  onOpenChange,
-  created,
-  skipped,
-  fromMonth,
-  toMonth,
-}: CopyResultModalProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -63,11 +47,21 @@ export function CopyResultModal({
     return budget.category_name || "Unknown Category";
   };
 
+  // Early return if no copy result
+  if (!copyResult) {
+    return null;
+  }
+
+  const { created, skipped, fromMonth, toMonth } = copyResult;
   const fromMonthDisplay = formatMonth(fromMonth);
   const toMonthDisplay = formatMonth(toMonth);
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) closeCopyResultModal();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={copyResultModalOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Copy Results</DialogTitle>
@@ -143,7 +137,7 @@ export function CopyResultModal({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => handleOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

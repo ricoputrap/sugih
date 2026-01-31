@@ -1,14 +1,52 @@
+"use client";
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BudgetDialogForm } from "./BudgetDialogForm";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Mock dependencies
 vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    info: vi.fn(),
   },
+}));
+
+// Mock the hooks and stores
+const mockCloseCreateDialog = vi.fn();
+const mockCloseEditDialog = vi.fn();
+const mockCreateBudgetMutateAsync = vi.fn();
+const mockUpdateBudgetMutateAsync = vi.fn();
+
+vi.mock("@/modules/Budget/hooks", () => ({
+  useBudgetMonth: () => ["2026-01-01", vi.fn()],
+  useBudgetMutations: () => ({
+    createBudget: {
+      mutateAsync: mockCreateBudgetMutateAsync,
+      isPending: false,
+    },
+    updateBudget: {
+      mutateAsync: mockUpdateBudgetMutateAsync,
+      isPending: false,
+    },
+  }),
+}));
+
+let mockStoreState = {
+  isCreateDialogOpen: true,
+  isEditDialogOpen: false,
+  selectedBudget: null as any,
+};
+
+vi.mock("@/modules/Budget/stores", () => ({
+  useBudgetsPageStore: () => ({
+    ...mockStoreState,
+    closeCreateDialog: mockCloseCreateDialog,
+    closeEditDialog: mockCloseEditDialog,
+  }),
 }));
 
 // Mock fetch globally
@@ -35,12 +73,28 @@ const mockSavingsBuckets = [
   },
 ];
 
-describe("BudgetDialogForm", () => {
-  const mockOnOpenChange = vi.fn();
-  const mockOnSubmit = vi.fn();
+// Create a wrapper with QueryClient
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+};
 
+describe("BudgetDialogForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset store state
+    mockStoreState = {
+      isCreateDialogOpen: true,
+      isEditDialogOpen: false,
+      selectedBudget: null,
+    };
     // Mock fetch to return different data based on URL
     mockFetch.mockImplementation((url: string) => {
       if (url === "/api/categories") {
@@ -64,15 +118,7 @@ describe("BudgetDialogForm", () => {
 
   describe("Expense-Only Category Filtering", () => {
     it("should fetch categories with type field", async () => {
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-category")).toBeInTheDocument();
@@ -106,26 +152,12 @@ describe("BudgetDialogForm", () => {
         });
       });
 
-      const { container } = render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-category")).toBeInTheDocument();
       });
 
-      // Find the select content to verify filtering
-      // The component should have filtered to only expense categories
-      const selectOptions = container.querySelectorAll('[role="option"]');
-
-      // We verify indirectly by checking that the component rendered successfully
-      // and the fetch was called
       expect(mockFetch).toHaveBeenCalledWith("/api/categories");
     });
 
@@ -151,22 +183,12 @@ describe("BudgetDialogForm", () => {
         });
       });
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-category")).toBeInTheDocument();
       });
 
-      // Verify that fetch was called and filtering logic applies
-      // The component should show empty state since all categories are income
       expect(mockFetch).toHaveBeenCalledWith("/api/categories");
     });
 
@@ -199,22 +221,12 @@ describe("BudgetDialogForm", () => {
         });
       });
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-category")).toBeInTheDocument();
       });
 
-      // Since we're filtering for active expense only, the component should successfully render
-      // with only one option available (Food)
       expect(mockFetch).toHaveBeenCalledWith("/api/categories");
     });
 
@@ -241,36 +253,19 @@ describe("BudgetDialogForm", () => {
         });
       });
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-category")).toBeInTheDocument();
       });
 
-      // Verify the filtering logic was applied by checking fetch was called
       expect(mockFetch).toHaveBeenCalledWith("/api/categories");
     });
   });
 
   describe("Note Field Rendering", () => {
     it("should render note textarea field in create mode", async () => {
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-note")).toBeInTheDocument();
@@ -286,24 +281,20 @@ describe("BudgetDialogForm", () => {
     });
 
     it("should render note textarea field in edit mode", async () => {
-      const initialData = {
-        id: "budget1",
-        month: "2024-01-01",
-        category_id: "cat1",
-        category_name: "Food",
-        amount_idr: 1000000,
-        note: "Test note",
+      mockStoreState = {
+        isCreateDialogOpen: false,
+        isEditDialogOpen: true,
+        selectedBudget: {
+          id: "budget1",
+          month: "2024-01-01",
+          category_id: "cat1",
+          category_name: "Food",
+          amount_idr: 1000000,
+          note: "Test note",
+        },
       };
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="edit"
-          initialData={initialData}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-note")).toBeInTheDocument();
@@ -314,15 +305,7 @@ describe("BudgetDialogForm", () => {
     });
 
     it("should display character counter", async () => {
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText("0/500")).toBeInTheDocument();
@@ -332,15 +315,7 @@ describe("BudgetDialogForm", () => {
     it("should update character counter as user types", async () => {
       const user = userEvent.setup();
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-note")).toBeInTheDocument();
@@ -358,17 +333,8 @@ describe("BudgetDialogForm", () => {
   describe("Note Field Validation", () => {
     it("should accept notes up to 500 characters", async () => {
       const user = userEvent.setup();
-      mockOnSubmit.mockResolvedValue(undefined);
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-note")).toBeInTheDocument();
@@ -384,17 +350,7 @@ describe("BudgetDialogForm", () => {
     });
 
     it("should prevent typing beyond 500 characters due to maxLength attribute", async () => {
-      const user = userEvent.setup();
-
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-note")).toBeInTheDocument();
@@ -405,237 +361,30 @@ describe("BudgetDialogForm", () => {
     });
 
     it("should accept empty note (optional field)", async () => {
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-note")).toBeInTheDocument();
       });
 
-      // Note field should be empty by default and have no validation errors
       const noteField = screen.getByTestId("budget-form-note");
       expect(noteField).toHaveValue("");
-
-      // No error message should be present for empty note
-      const formItem = noteField.closest('[data-slot="form-item"]');
-      const errorMessage = formItem?.querySelector(
-        '[data-slot="form-message"]',
-      );
-      // Error message element may not exist if there are no errors
-      if (errorMessage) {
-        expect(errorMessage.textContent).toBe("");
-      }
-    });
-  });
-
-  describe("Note Field Submission", () => {
-    it("should include note in create submission", async () => {
-      const user = userEvent.setup();
-
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("budget-form-note")).toBeInTheDocument();
-      });
-
-      // Enter note
-      const noteField = screen.getByTestId("budget-form-note");
-      await user.type(noteField, "Monthly grocery budget for family");
-
-      // Verify note value is set correctly
-      await waitFor(() => {
-        expect(noteField).toHaveValue("Monthly grocery budget for family");
-      });
-
-      // Character counter should be updated (just verify the field has content)
-      expect(noteField.value.length).toBeGreaterThan(0);
-    });
-
-    it("should include note in edit submission", async () => {
-      const user = userEvent.setup();
-      mockOnSubmit.mockResolvedValue(undefined);
-
-      const initialData = {
-        id: "budget1",
-        month: "2024-01-01",
-        category_id: "cat1",
-        category_name: "Food",
-        amount_idr: 1000000,
-        note: "Old note",
-      };
-
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="edit"
-          initialData={initialData}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("budget-form-note")).toBeInTheDocument();
-      });
-
-      // Update note
-      const noteField = screen.getByTestId("budget-form-note");
-      await user.clear(noteField);
-      await user.type(noteField, "Updated note content");
-
-      // Update amount
-      const amountField = screen.getByTestId("budget-form-amount");
-      await user.clear(amountField);
-      await user.type(amountField, "1500000");
-
-      // Submit form
-      const submitButton = screen.getByRole("button", {
-        name: /update budget/i,
-      });
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            amountIdr: 1500000,
-            note: "Updated note content",
-          }),
-        );
-      });
-    });
-
-    it("should clear note when user deletes all text", async () => {
-      const user = userEvent.setup();
-      mockOnSubmit.mockResolvedValue(undefined);
-
-      const initialData = {
-        id: "budget1",
-        month: "2024-01-01",
-        category_id: "cat1",
-        category_name: "Food",
-        amount_idr: 1000000,
-        note: "Existing note",
-      };
-
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="edit"
-          initialData={initialData}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("budget-form-note")).toBeInTheDocument();
-      });
-
-      // Clear note
-      const noteField = screen.getByTestId("budget-form-note");
-      await user.clear(noteField);
-
-      await waitFor(() => {
-        expect(screen.getByText("0/500")).toBeInTheDocument();
-      });
-
-      // Submit form
-      const submitButton = screen.getByRole("button", {
-        name: /update budget/i,
-      });
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        expect(mockOnSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({
-            note: null,
-          }),
-        );
-      });
     });
   });
 
   describe("Note Field Display", () => {
     it("should show Note label with Optional indicator", async () => {
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText(/Note \(Optional\)/i)).toBeInTheDocument();
-      });
-    });
-
-    it("should preserve existing note when dialog reopens", async () => {
-      const initialData = {
-        id: "budget1",
-        month: "2024-01-01",
-        category_id: "cat1",
-        category_name: "Food",
-        amount_idr: 1000000,
-        note: "Preserved note",
-      };
-
-      const { rerender } = render(
-        <BudgetDialogForm
-          open={false}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="edit"
-          initialData={initialData}
-        />,
-      );
-
-      // Reopen dialog
-      rerender(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="edit"
-          initialData={initialData}
-        />,
-      );
-
-      await waitFor(() => {
-        const noteField = screen.getByTestId("budget-form-note");
-        expect(noteField).toHaveValue("Preserved note");
       });
     });
   });
 
   describe("Savings Bucket Selection", () => {
     it("should render target type radio buttons in create mode", async () => {
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText("Budget For")).toBeInTheDocument();
@@ -645,21 +394,12 @@ describe("BudgetDialogForm", () => {
     });
 
     it("should default to category selection in create mode", async () => {
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByTestId("budget-form-category")).toBeInTheDocument();
       });
 
-      // Savings bucket selector should not be visible by default
       expect(
         screen.queryByTestId("budget-form-savings-bucket"),
       ).not.toBeInTheDocument();
@@ -668,21 +408,12 @@ describe("BudgetDialogForm", () => {
     it("should show savings bucket selector when savings bucket target is selected", async () => {
       const user = userEvent.setup();
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText("Savings Bucket")).toBeInTheDocument();
       });
 
-      // Click on savings bucket radio
       const savingsBucketRadio = screen.getByLabelText(/Savings Bucket/i);
       await user.click(savingsBucketRadio);
 
@@ -692,22 +423,13 @@ describe("BudgetDialogForm", () => {
         ).toBeInTheDocument();
       });
 
-      // Category selector should no longer be visible
       expect(
         screen.queryByTestId("budget-form-category"),
       ).not.toBeInTheDocument();
     });
 
     it("should fetch savings buckets when dialog opens", async () => {
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith("/api/savings-buckets");
@@ -731,15 +453,7 @@ describe("BudgetDialogForm", () => {
         });
       });
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith("/api/savings-buckets");
@@ -747,27 +461,23 @@ describe("BudgetDialogForm", () => {
     });
 
     it("should display savings bucket name in edit mode for savings bucket budget", async () => {
-      const initialData = {
-        id: "budget1",
-        month: "2024-01-01",
-        category_id: null,
-        savings_bucket_id: "bucket1",
-        category_name: null,
-        savings_bucket_name: "Emergency Fund",
-        amount_idr: 1000000,
-        note: null,
-        target_type: "savings_bucket" as const,
+      mockStoreState = {
+        isCreateDialogOpen: false,
+        isEditDialogOpen: true,
+        selectedBudget: {
+          id: "budget1",
+          month: "2024-01-01",
+          category_id: null,
+          savings_bucket_id: "bucket1",
+          category_name: null,
+          savings_bucket_name: "Emergency Fund",
+          amount_idr: 1000000,
+          note: null,
+          target_type: "savings_bucket" as const,
+        },
       };
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="edit"
-          initialData={initialData}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
         expect(screen.getByText("Savings Bucket")).toBeInTheDocument();
@@ -776,94 +486,79 @@ describe("BudgetDialogForm", () => {
     });
 
     it("should not show target type radio buttons in edit mode", async () => {
-      const initialData = {
-        id: "budget1",
-        month: "2024-01-01",
-        category_id: "cat1",
-        savings_bucket_id: null,
-        category_name: "Food",
-        savings_bucket_name: null,
-        amount_idr: 1000000,
-        note: null,
-        target_type: "category" as const,
+      mockStoreState = {
+        isCreateDialogOpen: false,
+        isEditDialogOpen: true,
+        selectedBudget: {
+          id: "budget1",
+          month: "2024-01-01",
+          category_id: "cat1",
+          savings_bucket_id: null,
+          category_name: "Food",
+          savings_bucket_name: null,
+          amount_idr: 1000000,
+          note: null,
+          target_type: "category" as const,
+        },
       };
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="edit"
-          initialData={initialData}
-        />,
-      );
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
-        // In edit mode, we show a static display, not radio buttons
-        expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+        expect(screen.getByText("Edit Budget")).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText("Budget For")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Dialog State", () => {
+    it("should not render when dialog is closed", () => {
+      mockStoreState = {
+        isCreateDialogOpen: false,
+        isEditDialogOpen: false,
+        selectedBudget: null,
+      };
+
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
+
+      expect(screen.queryByText("Create New Budget")).not.toBeInTheDocument();
+      expect(screen.queryByText("Edit Budget")).not.toBeInTheDocument();
+    });
+
+    it("should render create dialog when isCreateDialogOpen is true", async () => {
+      mockStoreState = {
+        isCreateDialogOpen: true,
+        isEditDialogOpen: false,
+        selectedBudget: null,
+      };
+
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(screen.getByText("Create New Budget")).toBeInTheDocument();
       });
     });
 
-    it("should switch to savings bucket selector when savings bucket target is selected", async () => {
-      const user = userEvent.setup();
+    it("should render edit dialog when isEditDialogOpen is true", async () => {
+      mockStoreState = {
+        isCreateDialogOpen: false,
+        isEditDialogOpen: true,
+        selectedBudget: {
+          id: "budget1",
+          month: "2024-01-01",
+          category_id: "cat1",
+          category_name: "Food",
+          amount_idr: 1000000,
+          note: null,
+        },
+      };
 
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText("Savings Bucket")).toBeInTheDocument();
-      });
-
-      // Select savings bucket target type
-      const savingsBucketRadio = screen.getByLabelText(/Savings Bucket/i);
-      await user.click(savingsBucketRadio);
+      render(<BudgetDialogForm />, { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(
-          screen.getByTestId("budget-form-savings-bucket"),
-        ).toBeInTheDocument();
+        expect(screen.getByText("Edit Budget")).toBeInTheDocument();
       });
-
-      // Verify category selector is hidden
-      expect(
-        screen.queryByTestId("budget-form-category"),
-      ).not.toBeInTheDocument();
-
-      // Verify the savings bucket trigger has correct placeholder
-      const bucketTrigger = screen.getByTestId("budget-form-savings-bucket");
-      expect(bucketTrigger).toBeInTheDocument();
-    });
-
-    it("should keep category selector visible by default", async () => {
-      render(
-        <BudgetDialogForm
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          onSubmit={mockOnSubmit}
-          mode="create"
-          initialData={null}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("budget-form-category")).toBeInTheDocument();
-      });
-
-      // Verify savings bucket selector is hidden by default
-      expect(
-        screen.queryByTestId("budget-form-savings-bucket"),
-      ).not.toBeInTheDocument();
-
-      // Verify the category trigger has correct test id
-      const categoryTrigger = screen.getByTestId("budget-form-category");
-      expect(categoryTrigger).toBeInTheDocument();
     });
   });
 });

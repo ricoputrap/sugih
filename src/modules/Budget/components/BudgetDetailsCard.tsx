@@ -7,38 +7,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type {
-  BudgetSummary,
-  BudgetViewMode,
-  BudgetWithCategory,
-} from "../types";
+import {
+  useBudgetMonth,
+  useBudgetMonthOptions,
+  useBudgetMutations,
+  useBudgetsData,
+  useBudgetView,
+} from "@/modules/Budget/hooks";
+import { useBudgetMonthNavigation } from "@/modules/Budget/hooks/useBudgetMonthNavigation";
+import { useBudgetsPageStore } from "@/modules/Budget/stores";
 import { BudgetCardGrid } from "./BudgetCardGrid";
 import { BudgetTable } from "./BudgetTable";
 import { MonthSelector } from "./MonthSelector";
 import { ViewToggle } from "./ViewToggle";
-
-interface BudgetDetailsCardProps {
-  // Month selector
-  month: string;
-  onMonthChange: (month: string) => void;
-  monthOptions: Array<{ value: string; label: string }>;
-  monthNavigation: {
-    canGoToPrevious: boolean;
-    canGoToNext: boolean;
-    previousMonth: string | null;
-    nextMonth: string | null;
-  };
-  // View toggle
-  viewMode: BudgetViewMode;
-  onViewModeChange: (mode: BudgetViewMode) => void;
-  // Budget data
-  budgets: BudgetWithCategory[];
-  summary: BudgetSummary | null;
-  isLoading: boolean;
-  // Actions
-  onEdit: (budget: BudgetWithCategory) => void;
-  onDelete: (id: string) => Promise<void>;
-}
 
 function getSelectedMonthDisplay(
   month: string,
@@ -48,19 +29,29 @@ function getSelectedMonthDisplay(
   return option?.label || "Select a month";
 }
 
-export function BudgetDetailsCard({
-  month,
-  onMonthChange,
-  monthOptions,
-  monthNavigation,
-  viewMode,
-  onViewModeChange,
-  budgets,
-  summary,
-  isLoading,
-  onEdit,
-  onDelete,
-}: BudgetDetailsCardProps) {
+export function BudgetDetailsCard() {
+  // URL state (NUQS)
+  const [month, setMonth] = useBudgetMonth();
+  const [viewMode, setViewMode] = useBudgetView();
+  const monthOptions = useBudgetMonthOptions();
+  const monthNavigation = useBudgetMonthNavigation(month);
+
+  // Server state (TanStack Query)
+  const { data, isLoading } = useBudgetsData(month);
+  const budgets = data?.budgets ?? [];
+  const summary = data?.summary ?? null;
+
+  // UI state (Zustand)
+  const { openEditDialog } = useBudgetsPageStore();
+
+  // Mutations
+  const { deleteBudget } = useBudgetMutations();
+
+  // Handle delete budget
+  const handleDeleteBudget = async (id: string) => {
+    await deleteBudget.mutateAsync({ id, month });
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -75,14 +66,14 @@ export function BudgetDetailsCard({
         <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:gap-4">
           <MonthSelector
             month={month}
-            onMonthChange={onMonthChange}
+            onMonthChange={setMonth}
             monthOptions={monthOptions}
             isLoading={isLoading}
             navigation={monthNavigation}
           />
           <ViewToggle
             value={viewMode}
-            onChange={onViewModeChange}
+            onChange={setViewMode}
             disabled={isLoading}
             data-testid="view-toggle"
           />
@@ -93,16 +84,16 @@ export function BudgetDetailsCard({
           <BudgetTable
             budgets={budgets}
             summary={summary || undefined}
-            onEdit={onEdit}
-            onDelete={onDelete}
+            onEdit={openEditDialog}
+            onDelete={handleDeleteBudget}
             isLoading={isLoading}
           />
         ) : (
           <BudgetCardGrid
             budgets={budgets}
             summary={summary || undefined}
-            onEdit={onEdit}
-            onDelete={onDelete}
+            onEdit={openEditDialog}
+            onDelete={handleDeleteBudget}
             isLoading={isLoading}
           />
         )}

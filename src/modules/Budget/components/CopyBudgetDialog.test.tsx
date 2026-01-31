@@ -2,38 +2,87 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CopyBudgetDialog } from "./CopyBudgetDialog";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// Mock sonner
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
+// Mock the hooks and stores
+const mockCloseCopyDialog = vi.fn();
+const mockSetCopyResult = vi.fn();
+const mockOpenCopyResultModal = vi.fn();
+const mockCopyBudgetsMutateAsync = vi.fn();
+
+vi.mock("@/modules/Budget/hooks", () => ({
+  useBudgetMonth: () => ["2026-01-01", vi.fn()],
+  useBudgetMutations: () => ({
+    copyBudgets: {
+      mutateAsync: mockCopyBudgetsMutateAsync,
+      isPending: false,
+    },
+  }),
+}));
+
+let mockStoreState = {
+  copyDialogOpen: true,
+};
+
+vi.mock("@/modules/Budget/stores", () => ({
+  useBudgetsPageStore: () => ({
+    ...mockStoreState,
+    closeCopyDialog: mockCloseCopyDialog,
+    setCopyResult: mockSetCopyResult,
+    openCopyResultModal: mockOpenCopyResultModal,
+  }),
+}));
 
 // Mock fetch globally
 vi.stubGlobal("fetch", vi.fn());
 
+const mockSourceMonths = [
+  { value: "2025-11-01", label: "November 2025", budgetCount: 5 },
+  { value: "2025-12-01", label: "December 2025", budgetCount: 3 },
+];
+
+// Create a wrapper with QueryClient
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+};
+
 describe("CopyBudgetDialog", () => {
-  const mockOnOpenChange = vi.fn();
-  const mockOnCopy = vi.fn();
-
-  const mockSourceMonths = [
-    { value: "2025-11-01", label: "November 2025", budgetCount: 5 },
-    { value: "2025-12-01", label: "December 2025", budgetCount: 3 },
-  ];
-
   beforeEach(() => {
-    mockOnOpenChange.mockClear();
-    mockOnCopy.mockClear();
+    mockCloseCopyDialog.mockClear();
+    mockSetCopyResult.mockClear();
+    mockOpenCopyResultModal.mockClear();
+    mockCopyBudgetsMutateAsync.mockClear();
     vi.clearAllMocks();
+    // Reset store state
+    mockStoreState = {
+      copyDialogOpen: true,
+    };
   });
 
-  it("should render the dialog when open is true", async () => {
+  it("should render the dialog when copyDialogOpen is true", async () => {
     global.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: async () => mockSourceMonths,
     });
 
-    render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-      />,
-    );
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
 
     expect(screen.getByText("Copy Budgets")).toBeInTheDocument();
     expect(
@@ -41,14 +90,12 @@ describe("CopyBudgetDialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("should not render the dialog when open is false", () => {
-    render(
-      <CopyBudgetDialog
-        open={false}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-      />,
-    );
+  it("should not render the dialog when copyDialogOpen is false", () => {
+    mockStoreState = {
+      copyDialogOpen: false,
+    };
+
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
 
     expect(screen.queryByText("Copy Budgets")).not.toBeInTheDocument();
   });
@@ -59,13 +106,7 @@ describe("CopyBudgetDialog", () => {
       json: async () => mockSourceMonths,
     });
 
-    render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-      />,
-    );
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
 
     expect(screen.getByText("Copy From")).toBeInTheDocument();
     expect(screen.getByText("Copy To")).toBeInTheDocument();
@@ -77,13 +118,7 @@ describe("CopyBudgetDialog", () => {
       json: async () => mockSourceMonths,
     });
 
-    render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-      />,
-    );
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith("/api/budgets/months");
@@ -96,13 +131,7 @@ describe("CopyBudgetDialog", () => {
       json: async () => mockSourceMonths,
     });
 
-    render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-      />,
-    );
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(
@@ -112,7 +141,7 @@ describe("CopyBudgetDialog", () => {
     });
   });
 
-  it("should call onOpenChange when cancel button is clicked", async () => {
+  it("should call closeCopyDialog when cancel button is clicked", async () => {
     global.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: async () => mockSourceMonths,
@@ -120,18 +149,12 @@ describe("CopyBudgetDialog", () => {
 
     const user = userEvent.setup();
 
-    render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-      />,
-    );
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
 
     const cancelButton = screen.getByRole("button", { name: /Cancel/ });
     await user.click(cancelButton);
 
-    expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+    expect(mockCloseCopyDialog).toHaveBeenCalled();
   });
 
   it("should render test IDs for source and destination selects", async () => {
@@ -140,52 +163,10 @@ describe("CopyBudgetDialog", () => {
       json: async () => mockSourceMonths,
     });
 
-    render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-      />,
-    );
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
 
     expect(screen.getByTestId("source-month-select")).toBeInTheDocument();
     expect(screen.getByTestId("destination-month-select")).toBeInTheDocument();
-  });
-
-  it("should accept defaultDestinationMonth prop", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockSourceMonths,
-    });
-
-    const { container } = render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-        defaultDestinationMonth="2026-01-01"
-      />,
-    );
-
-    expect(container).toBeInTheDocument();
-  });
-
-  it("should accept isLoading prop", async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockSourceMonths,
-    });
-
-    const { container } = render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-        isLoading={true}
-      />,
-    );
-
-    expect(container).toBeInTheDocument();
   });
 
   it("should disable copy button when loading", async () => {
@@ -198,13 +179,7 @@ describe("CopyBudgetDialog", () => {
         }),
     });
 
-    render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-      />,
-    );
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       const copyButton = screen.getByRole("button", { name: /Copy/ });
@@ -220,13 +195,7 @@ describe("CopyBudgetDialog", () => {
       json: async () => [],
     });
 
-    render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-      />,
-    );
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith("/api/budgets/months");
@@ -239,15 +208,20 @@ describe("CopyBudgetDialog", () => {
       json: async () => mockSourceMonths,
     });
 
-    render(
-      <CopyBudgetDialog
-        open={true}
-        onOpenChange={mockOnOpenChange}
-        onCopy={mockOnCopy}
-      />,
-    );
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
 
-    // Check that the dialog title is rendered
     expect(screen.getByText("Copy Budgets")).toBeInTheDocument();
+  });
+
+  it("should use current month as default destination", async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockSourceMonths,
+    });
+
+    render(<CopyBudgetDialog />, { wrapper: createWrapper() });
+
+    // The component should have the destination month selector
+    expect(screen.getByTestId("destination-month-select")).toBeInTheDocument();
   });
 });

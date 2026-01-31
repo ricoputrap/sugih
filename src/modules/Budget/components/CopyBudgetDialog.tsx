@@ -2,6 +2,7 @@
 
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useBudgetMonth, useBudgetMutations } from "@/modules/Budget/hooks";
+import { useBudgetsPageStore } from "@/modules/Budget/stores";
 
 interface MonthOption {
   value: string; // "YYYY-MM-01" format
@@ -27,21 +30,16 @@ interface MonthOption {
   budgetCount?: number; // For source dropdown
 }
 
-interface CopyBudgetDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onCopy: (fromMonth: string, toMonth: string) => Promise<void>;
-  defaultDestinationMonth?: string;
-  isLoading?: boolean;
-}
+export function CopyBudgetDialog() {
+  const [month] = useBudgetMonth();
+  const {
+    copyDialogOpen,
+    closeCopyDialog,
+    setCopyResult,
+    openCopyResultModal,
+  } = useBudgetsPageStore();
+  const { copyBudgets } = useBudgetMutations();
 
-export function CopyBudgetDialog({
-  open,
-  onOpenChange,
-  onCopy,
-  defaultDestinationMonth,
-  isLoading = false,
-}: CopyBudgetDialogProps) {
   const [sourceMonth, setSourceMonth] = useState<string>("");
   const [destinationMonth, setDestinationMonth] = useState<string>("");
   const [sourceMonths, setSourceMonths] = useState<MonthOption[]>([]);
@@ -61,8 +59,8 @@ export function CopyBudgetDialog({
     for (let i = 0; i <= 11; i++) {
       const date = new Date(currentYear, currentMonth + i, 1);
       const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const monthValue = `${year}-${month}-01`;
+      const monthNum = String(date.getMonth() + 1).padStart(2, "0");
+      const monthValue = `${year}-${monthNum}-01`;
       const monthDisplay = date.toLocaleDateString("en-US", {
         month: "long",
         year: "numeric",
@@ -125,14 +123,14 @@ export function CopyBudgetDialog({
 
   // Initialize dialog when opened
   useEffect(() => {
-    if (open) {
+    if (copyDialogOpen) {
       fetchSourceMonths();
       const destMonths = generateDestinationMonths();
       setDestinationMonths(destMonths);
 
-      // Pre-select destination month
-      if (defaultDestinationMonth) {
-        setDestinationMonth(defaultDestinationMonth);
+      // Pre-select destination month (current month from URL)
+      if (month) {
+        setDestinationMonth(month);
       } else if (destMonths.length > 0) {
         setDestinationMonth(destMonths[0].value);
       }
@@ -142,12 +140,7 @@ export function CopyBudgetDialog({
       setDestinationMonth("");
       setError("");
     }
-  }, [
-    open,
-    defaultDestinationMonth,
-    fetchSourceMonths,
-    generateDestinationMonths,
-  ]);
+  }, [copyDialogOpen, month, fetchSourceMonths, generateDestinationMonths]);
 
   // Handle copy
   const handleCopy = async () => {
@@ -164,8 +157,31 @@ export function CopyBudgetDialog({
     try {
       setIsCopying(true);
       setError("");
-      await onCopy(sourceMonth, destinationMonth);
-      onOpenChange(false);
+      const result = await copyBudgets.mutateAsync({
+        fromMonth: sourceMonth,
+        toMonth: destinationMonth,
+      });
+
+      // Show appropriate feedback
+      if (result.created.length === 0 && result.skipped.length > 0) {
+        toast.info("All budgets already exist in destination month");
+      } else if (result.skipped.length === 0) {
+        toast.success(
+          `Copied ${result.created.length} budget${result.created.length !== 1 ? "s" : ""}`,
+        );
+      } else {
+        toast.success(
+          `Copied ${result.created.length} budget${result.created.length !== 1 ? "s" : ""}`,
+        );
+        setCopyResult({
+          ...result,
+          fromMonth: sourceMonth,
+          toMonth: destinationMonth,
+        });
+        openCopyResultModal();
+      }
+
+      closeCopyDialog();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to copy budgets");
     } finally {
@@ -173,17 +189,20 @@ export function CopyBudgetDialog({
     }
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) closeCopyDialog();
+  };
+
   const isDisabled =
     !sourceMonth ||
     !destinationMonth ||
     sourceMonth === destinationMonth ||
-    isLoading ||
     isCopying ||
     loadingMonths;
   const isSourceDestinationSame = sourceMonth === destinationMonth;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={copyDialogOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Copy Budgets</DialogTitle>
@@ -214,10 +233,10 @@ export function CopyBudgetDialog({
                     No months with budgets found
                   </div>
                 ) : (
-                  sourceMonths.map((month) => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
-                      {month.budgetCount ? ` (${month.budgetCount})` : ""}
+                  sourceMonths.map((monthOption) => (
+                    <SelectItem key={monthOption.value} value={monthOption.value}>
+                      {monthOption.label}
+                      {monthOption.budgetCount ? ` (${monthOption.budgetCount})` : ""}
                     </SelectItem>
                   ))
                 )}
@@ -239,9 +258,9 @@ export function CopyBudgetDialog({
                 <SelectValue placeholder="Select destination month" />
               </SelectTrigger>
               <SelectContent>
-                {destinationMonths.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>
-                    {month.label}
+                {destinationMonths.map((monthOption) => (
+                  <SelectItem key={monthOption.value} value={monthOption.value}>
+                    {monthOption.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -268,7 +287,7 @@ export function CopyBudgetDialog({
         <DialogFooter className="gap-2">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={isCopying}
           >
             Cancel
