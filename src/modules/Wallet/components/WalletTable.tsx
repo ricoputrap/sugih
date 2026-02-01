@@ -4,14 +4,6 @@ import type { Wallet } from "@/modules/Wallet/schema";
 import type { WalletWithBalance } from "@/modules/Wallet/hooks";
 import { useWalletMutations } from "@/modules/Wallet/hooks";
 import { useWalletsPageStore } from "@/modules/Wallet/stores";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,6 +21,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { DataTable } from "@/components/ui/data-table";
+import type { ColumnDef } from "@tanstack/react-table";
 
 interface WalletTableProps {
   wallets: WalletWithBalance[];
@@ -95,6 +89,157 @@ export function WalletTable({ wallets, isLoading = false }: WalletTableProps) {
     }).format(amount);
   };
 
+  const formatDate = (date: Date | string | null) => {
+    if (!date) return "N/A";
+    try {
+      const d = typeof date === "string" ? new Date(date) : date;
+      return d.toLocaleDateString("id-ID");
+    } catch {
+      return "Invalid date";
+    }
+  };
+
+  const activeColumns: ColumnDef<WalletWithBalance>[] = [
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => (
+        <span className="font-medium">{row.getValue("name")}</span>
+      ),
+    },
+    {
+      accessorKey: "type",
+      header: "Type",
+      cell: ({ row }) => {
+        const type = row.getValue("type") as string;
+        return (
+          <Badge className={getWalletTypeColor(type)}>
+            {type.charAt(0).toUpperCase() + type.slice(1)}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "balance",
+      header: "Balance",
+      cell: ({ row }) => (
+        <span className="font-medium">
+          {formatCurrency(row.getValue("balance") as number || 0)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "currency",
+      header: "Currency",
+    },
+    {
+      accessorKey: "created_at",
+      header: "Created",
+      cell: ({ row }) => formatDate(row.getValue("created_at")),
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const wallet = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openEditDialog(wallet)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleArchive(wallet)}
+              >
+                <Archive className="mr-2 h-4 w-4" />
+                Archive
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDelete(wallet)}
+                className="text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
+  const archivedColumns: ColumnDef<WalletWithBalance>[] = [
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => (
+        <span className="font-medium">{row.getValue("name")}</span>
+      ),
+    },
+    {
+      accessorKey: "type",
+      header: "Type",
+      cell: ({ row }) => (
+        <Badge variant="secondary">{row.getValue("type") as string}</Badge>
+      ),
+    },
+    {
+      accessorKey: "balance",
+      header: "Balance",
+      cell: ({ row }) => (
+        <span className="font-medium">
+          {formatCurrency(row.getValue("balance") as number || 0)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "currency",
+      header: "Currency",
+    },
+    {
+      accessorKey: "updated_at",
+      header: "Archived",
+      cell: ({ row }) => formatDate(row.getValue("updated_at")),
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const wallet = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => handleRestore(wallet)}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Restore
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDelete(wallet)}
+                className="text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -121,73 +266,12 @@ export function WalletTable({ wallets, isLoading = false }: WalletTableProps) {
             No active wallets found. Create your first wallet to get started.
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Currency</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {activeWallets.map((wallet) => (
-                  <TableRow key={wallet.id}>
-                    <TableCell className="font-medium">{wallet.name}</TableCell>
-                    <TableCell>
-                      <Badge className={getWalletTypeColor(wallet.type)}>
-                        {wallet.type.charAt(0).toUpperCase() +
-                          wallet.type.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(wallet.balance || 0)}
-                    </TableCell>
-                    <TableCell>{wallet.currency}</TableCell>
-                    <TableCell>
-                      {wallet.created_at
-                        ? new Date(wallet.created_at).toLocaleDateString(
-                            "id-ID",
-                          )
-                        : "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(wallet)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleArchive(wallet)}
-                          >
-                            <Archive className="mr-2 h-4 w-4" />
-                            Archive
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(wallet)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            columns={activeColumns}
+            data={activeWallets}
+            searchKey="name"
+            searchPlaceholder="Search wallets..."
+          />
         )}
       </div>
 
@@ -197,66 +281,13 @@ export function WalletTable({ wallets, isLoading = false }: WalletTableProps) {
           <h3 className="text-lg font-medium">
             Archived Wallets ({archivedWallets.length})
           </h3>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Currency</TableHead>
-                  <TableHead>Archived</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {archivedWallets.map((wallet) => (
-                  <TableRow key={wallet.id} className="opacity-60">
-                    <TableCell className="font-medium">{wallet.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{wallet.type}</Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(wallet.balance || 0)}
-                    </TableCell>
-                    <TableCell>{wallet.currency}</TableCell>
-                    <TableCell>
-                      {wallet.updated_at
-                        ? new Date(wallet.updated_at).toLocaleDateString(
-                            "id-ID",
-                          )
-                        : "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleRestore(wallet)}
-                          >
-                            <RotateCcw className="mr-2 h-4 w-4" />
-                            Restore
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(wallet)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            columns={archivedColumns}
+            data={archivedWallets}
+            searchKey="name"
+            searchPlaceholder="Search wallets..."
+            rowClassName={() => "opacity-60"}
+          />
         </div>
       )}
     </div>

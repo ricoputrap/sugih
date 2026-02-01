@@ -11,6 +11,9 @@ import {
   type SortingState,
   useReactTable,
   type VisibilityState,
+  type Row,
+  type OnChangeFn,
+  type RowSelectionState,
 } from "@tanstack/react-table";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import * as React from "react";
@@ -30,6 +33,11 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   searchKey?: string;
   searchPlaceholder?: string;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+  getRowId?: (originalRow: TData, index: number) => string;
+  rowClassName?: (row: Row<TData>) => string;
+  initialSorting?: SortingState;
 }
 
 export function DataTable<TData, TValue>({
@@ -37,14 +45,39 @@ export function DataTable<TData, TValue>({
   data,
   searchKey,
   searchPlaceholder = "Search...",
+  rowSelection: externalRowSelection,
+  onRowSelectionChange,
+  getRowId,
+  rowClassName,
+  initialSorting,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>(
+    initialSorting || [],
+  );
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [internalRowSelection, setInternalRowSelection] =
+    React.useState<RowSelectionState>({});
+
+  // Use external row selection if provided, otherwise use internal state
+  const rowSelection = externalRowSelection || internalRowSelection;
+  const handleRowSelectionChange: OnChangeFn<RowSelectionState> = (
+    updaterOrValue,
+  ) => {
+    const newState =
+      typeof updaterOrValue === "function"
+        ? updaterOrValue(rowSelection)
+        : updaterOrValue;
+
+    if (onRowSelectionChange) {
+      onRowSelectionChange(newState);
+    } else {
+      setInternalRowSelection(newState);
+    }
+  };
 
   const table = useReactTable({
     data,
@@ -56,12 +89,14 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: handleRowSelectionChange,
+    ...(getRowId && { getRowId }),
     initialState: {
       pagination: {
         pageIndex: 0,
         pageSize: 5,
       },
+      sorting: initialSorting,
     },
     state: {
       sorting,
@@ -116,6 +151,7 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={rowClassName?.(row)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

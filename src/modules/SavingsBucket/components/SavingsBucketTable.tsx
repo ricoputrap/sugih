@@ -1,14 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useMemo, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +11,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   MoreHorizontal,
   Archive,
@@ -29,6 +20,9 @@ import {
 } from "lucide-react";
 import { SavingsBucket } from "../schema";
 import { toast } from "sonner";
+import { DataTable } from "@/components/ui/data-table";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { RowSelectionState } from "@tanstack/react-table";
 
 interface SavingsBucketTableProps {
   buckets: SavingsBucket[];
@@ -63,32 +57,6 @@ export function SavingsBucketTable({
       setInternalSelectedIds(ids);
     }
   };
-
-  // Handle select all checkbox
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds([...buckets.map((b) => b.id)]);
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  // Handle individual checkbox
-  const handleSelectOne = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedIds([...selectedIds, id]);
-    } else {
-      setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id));
-    }
-  };
-
-  // Check if all rows are selected
-  const areAllSelected =
-    buckets.length > 0 && selectedIds.length === buckets.length;
-
-  // Check if some rows are selected
-  const areSomeSelected =
-    selectedIds.length > 0 && selectedIds.length < buckets.length;
 
   const handleArchive = async (id: string, name: string) => {
     if (!onArchive) return;
@@ -147,177 +115,203 @@ export function SavingsBucketTable({
     }
   };
 
+  // Bridge selectedIds string[] <-> RowSelectionState
+  const rowSelection = useMemo(() => {
+    const state: RowSelectionState = {};
+    for (const id of selectedIds) {
+      state[id] = true;
+    }
+    return state;
+  }, [selectedIds]);
+
+  const handleRowSelectionChange = (newState: RowSelectionState) => {
+    const newIds = Object.keys(newState).filter(k => newState[k]);
+    setSelectedIds(newIds);
+  };
+
+  const columns: ColumnDef<SavingsBucket>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <button
+          onClick={() => table.toggleAllPageRowsSelected()}
+          className="flex items-center justify-center"
+          title="Select all"
+        >
+          <input
+            type="checkbox"
+            checked={
+              table.getIsAllPageRowsSelected()
+                ? true
+                : table.getIsSomePageRowsSelected()
+                  ? "indeterminate"
+                  : false
+            }
+            onChange={(e) => table.toggleAllPageRowsSelected(!!e.target.checked)}
+            className="cursor-pointer"
+            aria-label="Select all savings buckets"
+          />
+        </button>
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={row.getIsSelected()}
+          onChange={(e) => row.toggleSelected(!!e.target.checked)}
+          className="cursor-pointer"
+          aria-label={`Select ${row.original.name}`}
+        />
+      ),
+      size: 50,
+    },
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => (
+        <span className="font-medium">{row.getValue("name")}</span>
+      ),
+    },
+    {
+      accessorKey: "description",
+      header: "Description",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {(row.getValue("description") as string) || "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "archived",
+      header: "Status",
+      cell: ({ row }) => {
+        const archived = row.getValue("archived") as boolean;
+        return archived ? (
+          <Badge variant="secondary">Archived</Badge>
+        ) : (
+          <Badge variant="default">Active</Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "created_at",
+      header: "Created",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {formatDate(row.getValue("created_at"))}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const bucket = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-8 w-8 p-0"
+                disabled={actionLoading === bucket.id}
+              >
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {!bucket.archived ? (
+                <>
+                  {onEdit && (
+                    <DropdownMenuItem
+                      onClick={() => handleEdit(bucket)}
+                      disabled={actionLoading === bucket.id}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
+                  {onArchive && (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        handleArchive(bucket.id, bucket.name)
+                      }
+                      disabled={actionLoading === bucket.id}
+                    >
+                      <Archive className="mr-2 h-4 w-4" />
+                      Archive
+                    </DropdownMenuItem>
+                  )}
+                </>
+              ) : (
+                <>
+                  {onArchive && (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        handleArchive(bucket.id, bucket.name)
+                      }
+                      disabled={actionLoading === bucket.id}
+                    >
+                      <ArchiveRestore className="mr-2 h-4 w-4" />
+                      Restore
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
+              <DropdownMenuSeparator />
+              {onDelete && (
+                <DropdownMenuItem
+                  onClick={() => handleDelete(bucket.id, bucket.name)}
+                  className="text-red-600"
+                  disabled={
+                    actionLoading === bucket.id || !bucket.archived
+                  }
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
   if (isLoading) {
     return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <div className="space-y-4">
+        <div className="rounded-md border">
+          <div className="space-y-2 p-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell className="animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-32"></div>
-                </TableCell>
-                <TableCell className="animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-48"></div>
-                </TableCell>
-                <TableCell className="animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-16"></div>
-                </TableCell>
-                <TableCell className="animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-24"></div>
-                </TableCell>
-                <TableCell></TableCell>
-              </TableRow>
+              <div
+                key={i}
+                className="h-10 w-full animate-pulse rounded bg-gray-200"
+              />
             ))}
-          </TableBody>
-        </Table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (buckets.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No savings buckets found. Create your first bucket to get started.
       </div>
     );
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[50px]">
-              <Checkbox
-                checked={areSomeSelected ? "indeterminate" : areAllSelected}
-                onCheckedChange={handleSelectAll}
-                aria-label="Select all savings buckets"
-              />
-            </TableHead>
-            <TableHead className="w-[200px]">Name</TableHead>
-            <TableHead className="w-[300px]">Description</TableHead>
-            <TableHead className="w-[100px]">Status</TableHead>
-            <TableHead className="w-[150px]">Created</TableHead>
-            <TableHead className="w-[50px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {buckets.length === 0 ? (
-            <TableRow>
-              <TableCell
-                colSpan={6}
-                className="text-center text-muted-foreground py-8"
-              >
-                No savings buckets found. Create your first bucket to get
-                started.
-              </TableCell>
-            </TableRow>
-          ) : (
-            buckets.map((bucket) => (
-              <TableRow
-                key={bucket.id}
-                data-selected={selectedIds.includes(bucket.id)}
-                className={selectedIds.includes(bucket.id) ? "bg-muted/50" : ""}
-              >
-                <TableCell>
-                  <Checkbox
-                    checked={selectedIds.includes(bucket.id)}
-                    onCheckedChange={(checked) =>
-                      handleSelectOne(bucket.id, checked as boolean)
-                    }
-                    aria-label={`Select ${bucket.name}`}
-                  />
-                </TableCell>
-                <TableCell className="font-medium">{bucket.name}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {bucket.description || "—"}
-                </TableCell>
-                <TableCell>
-                  {bucket.archived ? (
-                    <Badge variant="secondary">Archived</Badge>
-                  ) : (
-                    <Badge variant="default">Active</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDate(bucket.created_at)}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="h-8 w-8 p-0"
-                        disabled={actionLoading === bucket.id}
-                      >
-                        <span className="sr-only">Open menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {!bucket.archived ? (
-                        <>
-                          {onEdit && (
-                            <DropdownMenuItem
-                              onClick={() => handleEdit(bucket)}
-                              disabled={actionLoading === bucket.id}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                          )}
-                          {onArchive && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleArchive(bucket.id, bucket.name)
-                              }
-                              disabled={actionLoading === bucket.id}
-                            >
-                              <Archive className="mr-2 h-4 w-4" />
-                              Archive
-                            </DropdownMenuItem>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          {onArchive && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleArchive(bucket.id, bucket.name)
-                              }
-                              disabled={actionLoading === bucket.id}
-                            >
-                              <ArchiveRestore className="mr-2 h-4 w-4" />
-                              Restore
-                            </DropdownMenuItem>
-                          )}
-                        </>
-                      )}
-                      <DropdownMenuSeparator />
-                      {onDelete && (
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(bucket.id, bucket.name)}
-                          className="text-red-600"
-                          disabled={
-                            actionLoading === bucket.id || !bucket.archived
-                          }
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={buckets}
+      rowSelection={rowSelection}
+      onRowSelectionChange={handleRowSelectionChange}
+      getRowId={(row) => row.id}
+      searchKey="name"
+      searchPlaceholder="Search buckets..."
+    />
   );
 }

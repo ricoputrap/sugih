@@ -1,14 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -19,7 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { Checkbox } from "@/components/ui/checkbox";
+import { DataTable } from "@/components/ui/data-table";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { RowSelectionState } from "@tanstack/react-table";
 
 interface Posting {
   id: string;
@@ -87,18 +81,6 @@ export function TransactionTable({
   selectedIds: externalSelectedIds,
   onSelectionChange,
 }: TransactionTableProps) {
-  const [internalSelectedIds, setInternalSelectedIds] = useState<string[]>([]);
-
-  // Use external selection state if provided, otherwise use internal
-  const selectedIds = externalSelectedIds || internalSelectedIds;
-  const setSelectedIds = (ids: string[]) => {
-    if (onSelectionChange) {
-      onSelectionChange(ids);
-    } else {
-      setInternalSelectedIds(ids);
-    }
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -112,46 +94,161 @@ export function TransactionTable({
     return format(new Date(date), "dd MMM yyyy, HH:mm");
   };
 
-  const sortedTransactions = useMemo(() => {
-    return [...transactions].sort(
-      (a, b) =>
-        new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
-    );
-  }, [transactions]);
+  // Bridge selectedIds string[] <-> RowSelectionState
+  const rowSelection = useMemo(() => {
+    const state: RowSelectionState = {};
+    if (externalSelectedIds) {
+      for (const id of externalSelectedIds) {
+        state[id] = true;
+      }
+    }
+    return state;
+  }, [externalSelectedIds]);
 
-  // Handle select all checkbox
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds([...transactions.map((t) => t.id)]);
-    } else {
-      setSelectedIds([]);
+  const handleRowSelectionChange = (newState: RowSelectionState) => {
+    const newIds = Object.keys(newState).filter(k => newState[k]);
+    if (onSelectionChange) {
+      onSelectionChange(newIds);
     }
   };
 
-  // Handle individual checkbox
-  const handleSelectOne = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedIds([...selectedIds, id]);
-    } else {
-      setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id));
-    }
-  };
-
-  // Check if all rows are selected
-  const areAllSelected =
-    transactions.length > 0 && selectedIds.length === transactions.length;
-
-  // Check if some rows are selected
-  const areSomeSelected =
-    selectedIds.length > 0 && selectedIds.length < transactions.length;
-
-  // Handle bulk delete
-  const handleBulkDelete = () => {
-    if (selectedIds.length > 0 && onBulkDelete) {
-      onBulkDelete(selectedIds);
-      setSelectedIds([]);
-    }
-  };
+  const columns: ColumnDef<Transaction>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <button
+          onClick={() => table.toggleAllPageRowsSelected()}
+          className="flex items-center justify-center"
+          title="Select all"
+        >
+          <input
+            type="checkbox"
+            checked={
+              table.getIsAllPageRowsSelected()
+                ? true
+                : table.getIsSomePageRowsSelected()
+                  ? "indeterminate"
+                  : false
+            }
+            onChange={(e) => table.toggleAllPageRowsSelected(!!e.target.checked)}
+            className="cursor-pointer"
+            aria-label="Select all transactions"
+          />
+        </button>
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={row.getIsSelected()}
+          onChange={(e) => row.toggleSelected(!!e.target.checked)}
+          className="cursor-pointer"
+          aria-label={`Select transaction ${row.original.id}`}
+        />
+      ),
+      size: 50,
+    },
+    {
+      accessorKey: "occurred_at",
+      header: "Date",
+      cell: ({ row }) => (
+        <span className="font-medium">
+          {formatDate(row.getValue("occurred_at"))}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "type",
+      header: "Type",
+      cell: ({ row }) => {
+        const type = row.getValue("type") as Transaction["type"];
+        return (
+          <Badge variant={typeColors[type] as any}>
+            {typeLabels[type]}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "display_account",
+      header: "Account",
+      cell: ({ row }) => (
+        <span className="max-w-[200px] truncate">
+          {row.getValue("display_account") as string}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "category_name",
+      header: "Category",
+      cell: ({ row }) => (
+        <span className="max-w-[150px] truncate">
+          {(row.getValue("category_name") as string | null) || "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "display_amount_idr",
+      header: "Amount",
+      cell: ({ row }) => {
+        const amount = row.getValue("display_amount_idr") as number;
+        const type = row.original.type;
+        return (
+          <div className="text-right font-medium">
+            <span
+              className={
+                type === "expense"
+                  ? "text-red-600 dark:text-red-400"
+                  : type === "income"
+                    ? "text-green-600 dark:text-green-400"
+                    : ""
+              }
+            >
+              {type === "expense" && "-"}
+              {type === "income" && "+"}
+              {formatCurrency(amount)}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "note",
+      header: "Note",
+      cell: ({ row }) => (
+        <span className="max-w-[200px] truncate">
+          {(row.getValue("note") as string | null) || "-"}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const transaction = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onEdit?.(transaction)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDelete?.(transaction.id)}
+                className="text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -175,102 +272,13 @@ export function TransactionTable({
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[50px]">
-              <Checkbox
-                checked={areSomeSelected ? "indeterminate" : areAllSelected}
-                onCheckedChange={handleSelectAll}
-                aria-label="Select all transactions"
-              />
-            </TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Account</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-            <TableHead>Note</TableHead>
-            <TableHead className="w-[50px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedTransactions.map((transaction) => (
-            <TableRow
-              key={transaction.id}
-              data-selected={selectedIds.includes(transaction.id)}
-              className={
-                selectedIds.includes(transaction.id) ? "bg-muted/50" : ""
-              }
-            >
-              <TableCell>
-                <Checkbox
-                  checked={selectedIds.includes(transaction.id)}
-                  onCheckedChange={(checked) =>
-                    handleSelectOne(transaction.id, checked as boolean)
-                  }
-                  aria-label={`Select transaction ${transaction.id}`}
-                />
-              </TableCell>
-              <TableCell className="font-medium">
-                {formatDate(transaction.occurred_at)}
-              </TableCell>
-              <TableCell>
-                <Badge variant={typeColors[transaction.type] as any}>
-                  {typeLabels[transaction.type]}
-                </Badge>
-              </TableCell>
-              <TableCell className="max-w-[200px] truncate">
-                {transaction.display_account}
-              </TableCell>
-              <TableCell className="max-w-[150px] truncate">
-                {transaction.category_name || "-"}
-              </TableCell>
-              <TableCell className="text-right font-medium">
-                <span
-                  className={
-                    transaction.type === "expense"
-                      ? "text-red-600 dark:text-red-400"
-                      : transaction.type === "income"
-                        ? "text-green-600 dark:text-green-400"
-                        : ""
-                  }
-                >
-                  {transaction.type === "expense" && "-"}
-                  {transaction.type === "income" && "+"}
-                  {formatCurrency(transaction.display_amount_idr)}
-                </span>
-              </TableCell>
-              <TableCell className="max-w-[200px] truncate">
-                {transaction.note || "-"}
-              </TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onEdit?.(transaction)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onDelete?.(transaction.id)}
-                      className="text-red-600"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={transactions}
+      rowSelection={rowSelection}
+      onRowSelectionChange={handleRowSelectionChange}
+      getRowId={(row) => row.id}
+      initialSorting={[{ id: "occurred_at", desc: true }]}
+    />
   );
 }
