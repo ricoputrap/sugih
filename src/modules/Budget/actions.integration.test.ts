@@ -22,6 +22,12 @@ import {
   createSavingsBucket,
   deleteSavingsBucket,
 } from "@/modules/SavingsBucket/actions";
+import { createWallet, deleteWallet } from "@/modules/Wallet/actions";
+import {
+  createSavingsContribution,
+  createSavingsWithdrawal,
+  deleteTransaction,
+} from "@/modules/Transaction/actions";
 import { getPool, closeDb } from "@/db/drizzle-client";
 
 describe("Budget Integration Tests", () => {
@@ -1145,6 +1151,121 @@ describe("Budget Integration Tests", () => {
       for (const id of testBudgetIds) {
         await cleanupTestBudget(id);
       }
+      testBudgetIds.length = 0;
+    });
+  });
+
+  describe("Savings Budget Spent Calculation", () => {
+    const testTransactionIds: string[] = [];
+    const testWalletIds: string[] = [];
+
+    async function createTestWallet() {
+      const wallet = await createWallet({
+        name: `Budget Test Wallet ${nanoid()}`,
+        initialBalanceIdr: 10000000,
+      });
+      testWalletIds.push(wallet.id);
+      return wallet;
+    }
+
+    afterEach(async () => {
+      // Clean up transactions first
+      for (const id of testTransactionIds) {
+        try {
+          await deleteTransaction(id);
+        } catch (_error) {
+          // Transaction may already be deleted
+        }
+      }
+      testTransactionIds.length = 0;
+
+      // Clean up wallets
+      for (const id of testWalletIds) {
+        try {
+          await deleteWallet(id);
+        } catch (_error) {
+          // Wallet may already be deleted
+        }
+      }
+      testWalletIds.length = 0;
+    });
+
+    it("should count savings contributions toward budget spent amount", async () => {
+      const wallet = await createTestWallet();
+      const bucket = await createTestSavingsBucket();
+      const budget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(budget.id);
+
+      // Create a savings contribution in the test month
+      const contribution = await createSavingsContribution({
+        occurredAt: new Date(`${testMonth}T12:00:00Z`),
+        walletId: wallet.id,
+        bucketId: bucket.id,
+        amountIdr: 400000,
+        note: "Test contribution for budget",
+      });
+      testTransactionIds.push(contribution.id);
+
+      const summary = await getBudgetSummary(testMonth);
+      const bucketItem = summary.items.find(
+        (i) => i.savingsBucketId === bucket.id,
+      );
+
+      expect(bucketItem).toBeDefined();
+      expect(bucketItem?.spentAmount).toBe(400000);
+      expect(bucketItem?.remaining).toBe(600000);
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
+      testBudgetIds.length = 0;
+    });
+
+    it("should not count savings withdrawals toward budget spent amount", async () => {
+      const wallet = await createTestWallet();
+      const bucket = await createTestSavingsBucket();
+      const budget = await createBudget({
+        month: testMonth,
+        savingsBucketId: bucket.id,
+        amountIdr: 1000000,
+      });
+      testBudgetIds.push(budget.id);
+
+      // Create a contribution first
+      const contribution = await createSavingsContribution({
+        occurredAt: new Date(`${testMonth}T12:00:00Z`),
+        walletId: wallet.id,
+        bucketId: bucket.id,
+        amountIdr: 400000,
+        note: "Contribution",
+      });
+      testTransactionIds.push(contribution.id);
+
+      // Create a withdrawal — should NOT affect budget
+      const withdrawal = await createSavingsWithdrawal({
+        occurredAt: new Date(`${testMonth}T13:00:00Z`),
+        walletId: wallet.id,
+        bucketId: bucket.id,
+        amountIdr: 100000,
+        note: "Withdrawal",
+      });
+      testTransactionIds.push(withdrawal.id);
+
+      const summary = await getBudgetSummary(testMonth);
+      const bucketItem = summary.items.find(
+        (i) => i.savingsBucketId === bucket.id,
+      );
+
+      expect(bucketItem).toBeDefined();
+      // Spent should still be 400K — withdrawal has no impact
+      expect(bucketItem?.spentAmount).toBe(400000);
+      expect(bucketItem?.remaining).toBe(600000);
+
+      // Cleanup
+      await cleanupTestBudget(budget.id);
       testBudgetIds.length = 0;
     });
   });

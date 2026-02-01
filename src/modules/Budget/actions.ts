@@ -507,14 +507,14 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
     );
 
     // Get actual savings contributions by savings bucket for the month
-    // Note: savings_bucket_id is on the postings table, not transaction_events
+    // Only contributions count toward budget spent — withdrawals don't affect budget progress
     const savingsResult = await pool.query(
       `SELECT
         p.savings_bucket_id,
-        COALESCE(SUM(ABS(p.amount_idr)), 0)::numeric as saved_amount
+        COALESCE(SUM(p.amount_idr), 0)::numeric as saved_amount
       FROM transaction_events te
       JOIN postings p ON te.id = p.event_id
-      WHERE te.type = 'savings'
+      WHERE te.type = 'savings_contribution'
         AND te.deleted_at IS NULL
         AND te.occurred_at >= $1
         AND te.occurred_at < $2
