@@ -18,8 +18,6 @@ export interface DashboardData {
   timeSeries: {
     netWorth: NetWorthChartData[];
     spending: CategorySpendingTrendChartData[];
-    income: CategorySpendingTrendChartData[];
-    savings: NetWorthChartData[];
   };
   categoryBreakdown: {
     expenses: CategoryBreakdownData[];

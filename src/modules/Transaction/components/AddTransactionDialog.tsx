@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -39,15 +41,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-
-interface AddTransactionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
-  wallets?: Array<{ id: string; name: string }>;
-  categories?: Array<{ id: string; name: string; type: "income" | "expense" }>;
-  savingsBuckets?: Array<{ id: string; name: string }>;
-}
+import { useTransactionsPageStore } from "@/modules/Transaction/stores";
+import { useTransactionReferenceData } from "@/modules/Transaction/hooks";
+import { transactionKeys } from "@/modules/Transaction/utils/queryKeys";
 
 const expenseSchema = z.object({
   occurredAt: z.date(),
@@ -90,14 +86,15 @@ const savingsWithdrawSchema = z.object({
   note: z.string().optional(),
 });
 
-export function AddTransactionDialog({
-  open,
-  onOpenChange,
-  onSuccess,
-  wallets = [],
-  categories = [],
-  savingsBuckets = [],
-}: AddTransactionDialogProps) {
+export function AddTransactionDialog() {
+  const { isAddDialogOpen, closeAddDialog } = useTransactionsPageStore();
+  const { data: referenceData } = useTransactionReferenceData();
+  const queryClient = useQueryClient();
+
+  const wallets = referenceData?.wallets ?? [];
+  const categories = referenceData?.categories ?? [];
+  const savingsBuckets = referenceData?.savingsBuckets ?? [];
+
   // Filter categories by type
   const expenseCategories = categories.filter((cat) => cat.type === "expense");
   const incomeCategories = categories.filter((cat) => cat.type === "income");
@@ -224,18 +221,19 @@ export function AddTransactionDialog({
           break;
       }
 
-      onSuccess?.();
-      onOpenChange(false);
+      toast.success("Transaction created successfully");
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+      closeAddDialog();
     } catch (error: any) {
       console.error("Error creating transaction:", error);
-      alert(error.message || "Failed to create transaction");
+      toast.error(error.message || "Failed to create transaction");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isAddDialogOpen} onOpenChange={closeAddDialog}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Add Transaction</DialogTitle>
@@ -411,7 +409,7 @@ export function AddTransactionDialog({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => onOpenChange(false)}
+                    onClick={() => closeAddDialog()}
                   >
                     Cancel
                   </Button>
@@ -598,7 +596,7 @@ export function AddTransactionDialog({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => onOpenChange(false)}
+                    onClick={() => closeAddDialog()}
                   >
                     Cancel
                   </Button>
@@ -768,7 +766,7 @@ export function AddTransactionDialog({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => onOpenChange(false)}
+                    onClick={() => closeAddDialog()}
                   >
                     Cancel
                   </Button>
@@ -938,7 +936,7 @@ export function AddTransactionDialog({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => onOpenChange(false)}
+                    onClick={() => closeAddDialog()}
                   >
                     Cancel
                   </Button>
@@ -1108,7 +1106,7 @@ export function AddTransactionDialog({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => onOpenChange(false)}
+                    onClick={() => closeAddDialog()}
                   >
                     Cancel
                   </Button>

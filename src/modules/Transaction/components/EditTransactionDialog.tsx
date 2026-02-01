@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +41,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useTransactionsPageStore } from "@/modules/Transaction/stores";
+import { useTransactionReferenceData, type Transaction } from "@/modules/Transaction/hooks";
+import { transactionKeys } from "@/modules/Transaction/utils/queryKeys";
 
 interface Posting {
   id: string;
@@ -47,38 +52,6 @@ interface Posting {
   savings_bucket_id: string | null;
   amount_idr: number;
   created_at: string | Date;
-}
-
-interface Transaction {
-  id: string;
-  occurred_at: string | Date;
-  type:
-    | "expense"
-    | "income"
-    | "transfer"
-    | "savings_contribution"
-    | "savings_withdrawal";
-  note: string | null;
-  payee: string | null;
-  category_id: string | null;
-  category_name?: string | null;
-  deleted_at: string | Date | null;
-  created_at: string | Date;
-  updated_at: string | Date;
-  idempotency_key: string | null;
-  display_amount_idr: number;
-  display_account: string;
-  postings: Posting[];
-}
-
-interface EditTransactionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
-  transaction: Transaction | null;
-  wallets?: Array<{ id: string; name: string }>;
-  categories?: Array<{ id: string; name: string; type: "income" | "expense" }>;
-  savingsBuckets?: Array<{ id: string; name: string }>;
 }
 
 const typeLabels: Record<Transaction["type"], string> = {
@@ -143,15 +116,17 @@ const savingsWithdrawUpdateSchema = z.object({
   note: z.string().optional().nullable(),
 });
 
-export function EditTransactionDialog({
-  open,
-  onOpenChange,
-  onSuccess,
-  transaction,
-  wallets = [],
-  categories = [],
-  savingsBuckets = [],
-}: EditTransactionDialogProps) {
+export function EditTransactionDialog() {
+  const { isEditDialogOpen, transactionToEdit, closeEditDialog } =
+    useTransactionsPageStore();
+  const { data: referenceData } = useTransactionReferenceData();
+  const queryClient = useQueryClient();
+
+  const transaction = transactionToEdit;
+  const wallets = referenceData?.wallets ?? [];
+  const categories = referenceData?.categories ?? [];
+  const savingsBuckets = referenceData?.savingsBuckets ?? [];
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [amountDisplay, setAmountDisplay] = useState("");
 
@@ -305,11 +280,12 @@ export function EditTransactionDialog({
         throw new Error(error.error?.message || "Failed to update transaction");
       }
 
-      onSuccess?.();
-      onOpenChange(false);
+      toast.success("Transaction updated successfully");
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+      closeEditDialog();
     } catch (error: any) {
       console.error("Error updating transaction:", error);
-      alert(error.message || "Failed to update transaction");
+      toast.error(error.message || "Failed to update transaction");
     } finally {
       setIsSubmitting(false);
     }
@@ -318,7 +294,7 @@ export function EditTransactionDialog({
   if (!transaction) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isEditDialogOpen} onOpenChange={closeEditDialog}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -587,64 +563,64 @@ export function EditTransactionDialog({
             {/* Savings Contribution/Withdrawal Fields */}
             {(transaction.type === "savings_contribution" ||
               transaction.type === "savings_withdrawal") && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="walletId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Wallet</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select wallet" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {wallets.map((wallet) => (
-                            <SelectItem key={wallet.id} value={wallet.id}>
-                              {wallet.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <>
+                  <FormField
+                    control={form.control}
+                    name="walletId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Wallet</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select wallet" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {wallets.map((wallet) => (
+                              <SelectItem key={wallet.id} value={wallet.id}>
+                                {wallet.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="bucketId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Savings Bucket</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select savings bucket" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {savingsBuckets.map((bucket) => (
-                            <SelectItem key={bucket.id} value={bucket.id}>
-                              {bucket.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
+                  <FormField
+                    control={form.control}
+                    name="bucketId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Savings Bucket</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select savings bucket" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {savingsBuckets.map((bucket) => (
+                              <SelectItem key={bucket.id} value={bucket.id}>
+                                {bucket.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
 
             {/* Amount Field - Common to all types */}
             <FormField
@@ -702,7 +678,7 @@ export function EditTransactionDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => closeEditDialog()}
               >
                 Cancel
               </Button>

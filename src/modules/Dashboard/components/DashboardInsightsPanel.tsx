@@ -49,8 +49,8 @@ export function DashboardInsightsPanel() {
         <DashboardInsights
           netWorthData={data?.timeSeries?.netWorth || []}
           spendingData={data?.timeSeries?.spending || []}
-          incomeData={data?.timeSeries?.income || []}
-          savingsData={data?.timeSeries?.savings || []}
+          incomeData={[]}
+          savingsData={data?.timeSeries?.netWorth || []}
           variant={chartVariant}
           isLoading={isLoading}
           defaultTab={selectedInsightTab}

@@ -34,11 +34,11 @@ interface Transaction {
   id: string;
   occurred_at: string | Date;
   type:
-    | "expense"
-    | "income"
-    | "transfer"
-    | "savings_contribution"
-    | "savings_withdrawal";
+  | "expense"
+  | "income"
+  | "transfer"
+  | "savings_contribution"
+  | "savings_withdrawal";
   note: string | null;
   payee: string | null;
   category_id: string | null;

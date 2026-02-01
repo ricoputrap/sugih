@@ -1,15 +1,25 @@
-import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { DATE_RANGE_PRESETS, PERIODS } from "../types";
+import { useQueryState, parseAsStringLiteral } from "nuqs";
+
+const periodOptions = ["daily", "weekly", "monthly"] as const;
+const dateRangePresetOptions = [
+  "last_7_days",
+  "last_30_days",
+  "last_3_months",
+  "last_6_months",
+  "last_year",
+  "this_month",
+  "this_year",
+] as const;
 
 export function useDashboardFilters() {
   const [period, setPeriod] = useQueryState(
     "period",
-    parseAsStringLiteral(PERIODS).withDefault("monthly"),
+    parseAsStringLiteral(periodOptions).withDefault("monthly"),
   );
 
   const [dateRangePreset, setDateRangePreset] = useQueryState(
     "dateRangePreset",
-    parseAsStringLiteral(DATE_RANGE_PRESETS).withDefault("last_3_months"),
+    parseAsStringLiteral(dateRangePresetOptions).withDefault("last_3_months"),
   );
 
   return {
