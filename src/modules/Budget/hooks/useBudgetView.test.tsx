@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useBudgetView } from "./useBudgetView";
 
 function createWrapper(initialSearchParams?: Record<string, string>) {
@@ -17,14 +17,9 @@ function createWrapper(initialSearchParams?: Record<string, string>) {
 describe("useBudgetView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
   });
 
-  afterEach(() => {
-    localStorage.clear();
-  });
-
-  it("returns 'list' as default when no URL param or localStorage", () => {
+  it("returns 'list' as default when no URL param", () => {
     const { result } = renderHook(() => useBudgetView(), {
       wrapper: createWrapper(),
     });
@@ -42,52 +37,47 @@ describe("useBudgetView", () => {
     expect(view).toBe("grid");
   });
 
-  it("uses localStorage value when no URL param", () => {
-    localStorage.setItem("budgetViewMode", "grid");
-
-    const { result } = renderHook(() => useBudgetView(), {
-      wrapper: createWrapper(),
-    });
-
-    const [view] = result.current;
-    expect(view).toBe("grid");
-  });
-
-  it("URL param takes precedence over localStorage", () => {
-    localStorage.setItem("budgetViewMode", "grid");
-
-    const { result } = renderHook(() => useBudgetView(), {
-      wrapper: createWrapper({ view: "list" }),
-    });
-
-    const [view] = result.current;
-    expect(view).toBe("list");
-  });
-
-  it("updates view and localStorage when setView is called", async () => {
+  it("updates view to grid when setView is called", async () => {
     const { result } = renderHook(() => useBudgetView(), {
       wrapper: createWrapper(),
     });
 
     const [, setView] = result.current;
-
     await act(async () => {
       await setView("grid");
     });
 
     const [updatedView] = result.current;
     expect(updatedView).toBe("grid");
-    expect(localStorage.getItem("budgetViewMode")).toBe("grid");
   });
 
-  it("falls back to 'list' for invalid localStorage value", () => {
-    localStorage.setItem("budgetViewMode", "invalid");
-
+  it("updates view from grid to list", async () => {
     const { result } = renderHook(() => useBudgetView(), {
-      wrapper: createWrapper(),
+      wrapper: createWrapper({ view: "grid" }),
     });
 
-    const [view] = result.current;
-    expect(view).toBe("list");
+    const [, setView] = result.current;
+    await act(async () => {
+      await setView("list");
+    });
+
+    const [updatedView] = result.current;
+    expect(updatedView).toBe("list");
+  });
+
+  it("handles setting the same view value idempotently", async () => {
+    const { result } = renderHook(() => useBudgetView(), {
+      wrapper: createWrapper({ view: "list" }),
+    });
+
+    const [, setView] = result.current;
+
+    // Should not error when setting same value
+    await act(async () => {
+      await setView("list");
+    });
+
+    const [updatedView] = result.current;
+    expect(updatedView).toBe("list");
   });
 });

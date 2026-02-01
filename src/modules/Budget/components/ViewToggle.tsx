@@ -31,7 +31,7 @@ export function ViewToggle({
         size="sm"
         onClick={() => onChange("list")}
         disabled={disabled}
-        className="h-8 w-8 p-0"
+        className="h-8 w-8 p-0 cursor-pointer"
         aria-pressed={value === "list"}
         aria-label="List view"
         title="List View"
@@ -43,7 +43,7 @@ export function ViewToggle({
         size="sm"
         onClick={() => onChange("grid")}
         disabled={disabled}
-        className="h-8 w-8 p-0"
+        className="h-8 w-8 p-0 cursor-pointer"
         aria-pressed={value === "grid"}
         aria-label="Grid view"
         title="Grid View"
