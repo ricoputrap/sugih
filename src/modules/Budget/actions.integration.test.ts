@@ -28,7 +28,7 @@ import {
   createSavingsWithdrawal,
   deleteTransaction,
 } from "@/modules/Transaction/actions";
-import { getPool, closeDb } from "@/db/drizzle-client";
+import { closeDb } from "@/db/drizzle-client";
 
 describe("Budget Integration Tests", () => {
   const testCategoryIds: string[] = [];
@@ -55,47 +55,34 @@ describe("Budget Integration Tests", () => {
     return bucket;
   }
 
-  async function cleanupTestBudget(id: string) {
-    const pool = getPool();
-    try {
-      await pool.query(`DELETE FROM budgets WHERE id = $1`, [id]);
-    } catch (error) {
-      console.error("Cleanup error:", error);
-    }
-  }
-
-  async function cleanupTestCategory(id: string) {
-    try {
-      await deleteCategory(id);
-    } catch (error) {
-      console.error("Category cleanup error:", error);
-    }
-  }
-
-  async function cleanupTestSavingsBucket(id: string) {
-    try {
-      await deleteSavingsBucket(id);
-    } catch (error) {
-      console.error("Savings bucket cleanup error:", error);
-    }
-  }
-
   afterEach(async () => {
     // Clean up budgets first (foreign key constraint)
     for (const id of testBudgetIds) {
-      await cleanupTestBudget(id);
+      try {
+        await deleteBudget(id);
+      } catch (_error) {
+        // Budget may already be deleted
+      }
     }
     testBudgetIds.length = 0;
 
     // Clean up categories
     for (const id of testCategoryIds) {
-      await cleanupTestCategory(id);
+      try {
+        await deleteCategory(id);
+      } catch (_error) {
+        // Category may already be deleted
+      }
     }
     testCategoryIds.length = 0;
 
     // Clean up savings buckets
     for (const id of testSavingsBucketIds) {
-      await cleanupTestSavingsBucket(id);
+      try {
+        await deleteSavingsBucket(id);
+      } catch (_error) {
+        // Savings bucket may already be deleted
+      }
     }
     testSavingsBucketIds.length = 0;
   });
@@ -121,10 +108,6 @@ describe("Budget Integration Tests", () => {
       expect(budget.category_name).toBe(category.name);
       expect(budget.created_at).toBeTruthy();
       expect(budget.updated_at).toBeTruthy();
-
-      // Cleanup immediately after assertions
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should reject budget for non-existent category", async () => {
@@ -153,10 +136,6 @@ describe("Budget Integration Tests", () => {
           amountIdr: 1000000,
         }),
       ).rejects.toThrow("already exists");
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should allow same category in different months", async () => {
@@ -178,11 +157,6 @@ describe("Budget Integration Tests", () => {
 
       expect(budget1.amount_idr).toBe(1000000);
       expect(budget2.amount_idr).toBe(2000000);
-
-      // Cleanup
-      await cleanupTestBudget(budget1.id);
-      await cleanupTestBudget(budget2.id);
-      testBudgetIds.length = 0;
     });
   });
 
@@ -201,10 +175,6 @@ describe("Budget Integration Tests", () => {
 
       expect(found).toBeDefined();
       expect(Number(found?.amount_idr)).toBe(1500000);
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should return empty array for month with no budgets", async () => {
@@ -225,10 +195,6 @@ describe("Budget Integration Tests", () => {
       const found = budgets.find((b) => b.id === budget.id);
 
       expect(found).toBeDefined();
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
   });
 
@@ -249,10 +215,6 @@ describe("Budget Integration Tests", () => {
       expect(retrieved?.month).toBe(testMonth);
       expect(Number(retrieved?.amount_idr)).toBe(2000000);
       expect(retrieved?.category_name).toBe(category.name);
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should return null when ID does not exist", async () => {
@@ -286,11 +248,6 @@ describe("Budget Integration Tests", () => {
       expect(budgets.map((b) => b.category_id).sort()).toEqual(
         [cat1.id, cat2.id].sort(),
       );
-
-      // Cleanup
-      await cleanupTestBudget(budget1.id);
-      await cleanupTestBudget(budget2.id);
-      testBudgetIds.length = 0;
     });
 
     it("should order budgets by category name", async () => {
@@ -322,11 +279,6 @@ describe("Budget Integration Tests", () => {
 
       expect(budgets[0].category_name).toContain("Alpha");
       expect(budgets[1].category_name).toContain("Zebra");
-
-      // Cleanup
-      await cleanupTestBudget(budgetZ.id);
-      await cleanupTestBudget(budgetA.id);
-      testBudgetIds.length = 0;
     });
   });
 
@@ -344,10 +296,6 @@ describe("Budget Integration Tests", () => {
 
       expect(updated.amount_idr).toBe(3000000);
       expect(updated.id).toBe(budget.id);
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should reject updating non-existent budget", async () => {
@@ -371,10 +319,6 @@ describe("Budget Integration Tests", () => {
       await expect(updateBudget(budget.id, 0)).rejects.toThrow(
         "positive integer",
       );
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
   });
 
@@ -387,10 +331,8 @@ describe("Budget Integration Tests", () => {
         amountIdr: 1000000,
       });
       testBudgetIds.push(budget.id);
-      testBudgetIds.push(budget.id);
 
       await deleteBudget(budget.id);
-      testBudgetIds.length = 0;
 
       const retrieved = await getBudgetById(budget.id);
       expect(retrieved).toBeNull();
@@ -422,10 +364,6 @@ describe("Budget Integration Tests", () => {
       expect(summary.items).toHaveLength(1);
       expect(summary.items[0].categoryId).toBe(category.id);
       expect(summary.items[0].budgetAmount).toBe(1000000);
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should return zero spent for month with no transactions", async () => {
@@ -442,10 +380,6 @@ describe("Budget Integration Tests", () => {
       expect(summary.totalBudget).toBe(500000);
       expect(summary.totalSpent).toBe(0);
       expect(summary.remaining).toBe(500000);
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should return empty summary for month with no budgets", async () => {
@@ -476,14 +410,7 @@ describe("Budget Integration Tests", () => {
       expect(Number(result.created[0].amount_idr)).toBe(1000000);
       expect(result.created[0].id).not.toBe(budget.id);
 
-      // Cleanup source and destination budgets
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      for (const b of result.created) {
-        await cleanupTestBudget(b.id);
-      }
-      testBudgetIds.length = 0;
+      testBudgetIds.push(...result.created.map((b) => b.id));
     });
 
     it("should copy multiple budgets", async () => {
@@ -509,14 +436,7 @@ describe("Budget Integration Tests", () => {
       expect(result.created).toHaveLength(2);
       expect(result.skipped).toHaveLength(0);
 
-      // Cleanup all budgets
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      for (const b of result.created) {
-        await cleanupTestBudget(b.id);
-      }
-      testBudgetIds.length = 0;
+      testBudgetIds.push(...result.created.map((b) => b.id));
     });
 
     it("should skip copying to month with existing budgets", async () => {
@@ -536,17 +456,10 @@ describe("Budget Integration Tests", () => {
       });
       testBudgetIds.push(destBudget.id);
 
-      // Should succeed but skip the existing budget
       const result = await copyBudgets(testMonth, testMonth2);
       expect(result.created).toHaveLength(0);
       expect(result.skipped).toHaveLength(1);
       expect(result.skipped[0].categoryId).toBe(category.id);
-
-      // Cleanup
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      testBudgetIds.length = 0;
     });
 
     it("should copy only missing budgets when some exist", async () => {
@@ -554,7 +467,6 @@ describe("Budget Integration Tests", () => {
       const cat2 = await createTestCategory();
       const cat3 = await createTestCategory();
 
-      // Create budgets in source month (cat1, cat2, cat3)
       const budget1 = await createBudget({
         month: testMonth,
         categoryId: cat1.id,
@@ -576,7 +488,6 @@ describe("Budget Integration Tests", () => {
       });
       testBudgetIds.push(budget3.id);
 
-      // Create existing budget in destination (cat2 only)
       const destBudget = await createBudget({
         month: testMonth2,
         categoryId: cat2.id,
@@ -584,7 +495,6 @@ describe("Budget Integration Tests", () => {
       });
       testBudgetIds.push(destBudget.id);
 
-      // Should copy cat1 and cat3, skip cat2
       const result = await copyBudgets(testMonth, testMonth2);
       expect(result.created).toHaveLength(2);
       expect(result.skipped).toHaveLength(1);
@@ -595,14 +505,7 @@ describe("Budget Integration Tests", () => {
       expect(createdCategoryIds).toContain(cat3.id);
       expect(createdCategoryIds).not.toContain(cat2.id);
 
-      // Cleanup all budgets
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      for (const b of result.created) {
-        await cleanupTestBudget(b.id);
-      }
-      testBudgetIds.length = 0;
+      testBudgetIds.push(...result.created.map((b) => b.id));
     });
 
     it("should reject copying from month with no budgets", async () => {
@@ -635,9 +538,6 @@ describe("Budget Integration Tests", () => {
 
       expect(budget.id).toBeDefined();
       expect(budget.category_id).toBe(expenseCategory.id);
-
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should reject budget with income category", async () => {
@@ -670,13 +570,8 @@ describe("Budget Integration Tests", () => {
 
       expect(budget.note).toBe("Apartment only");
 
-      // Verify note is persisted
       const retrieved = await getBudgetById(budget.id);
       expect(retrieved?.note).toBe("Apartment only");
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should create budget without note (null)", async () => {
@@ -689,10 +584,6 @@ describe("Budget Integration Tests", () => {
       testBudgetIds.push(budget.id);
 
       expect(budget.note).toBeNull();
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should update budget to add note", async () => {
@@ -712,13 +603,8 @@ describe("Budget Integration Tests", () => {
 
       expect(updated.note).toBe("Apartment, Water, and Electricity");
 
-      // Verify note is persisted
       const retrieved = await getBudgetById(budget.id);
       expect(retrieved?.note).toBe("Apartment, Water, and Electricity");
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should update budget to remove note (set to null)", async () => {
@@ -735,13 +621,8 @@ describe("Budget Integration Tests", () => {
 
       expect(updated.note).toBeNull();
 
-      // Verify note is removed
       const retrieved = await getBudgetById(budget.id);
       expect(retrieved?.note).toBeNull();
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should preserve note when updating amount only", async () => {
@@ -754,15 +635,10 @@ describe("Budget Integration Tests", () => {
       });
       testBudgetIds.push(budget.id);
 
-      // Update without passing note (undefined)
       const updated = await updateBudget(budget.id, 2000000);
 
       expect(updated.amount_idr).toBe(2000000);
       expect(updated.note).toBe("My note");
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should copy budgets with notes preserved", async () => {
@@ -781,18 +657,11 @@ describe("Budget Integration Tests", () => {
       expect(result.created[0].note).toBe("Note to copy");
       testBudgetIds.push(result.created[0].id);
 
-      // Verify note in destination
       const copiedBudgets = await getBudgetsByMonth(testMonth2);
       const copiedBudget = copiedBudgets.find(
         (b) => b.category_id === category.id,
       );
       expect(copiedBudget?.note).toBe("Note to copy");
-
-      // Cleanup
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      testBudgetIds.length = 0;
     });
 
     it("should list budgets with notes", async () => {
@@ -809,10 +678,6 @@ describe("Budget Integration Tests", () => {
       const found = budgets.find((b) => b.id === budget.id);
 
       expect(found?.note).toBe("Listed note");
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
   });
 
@@ -833,10 +698,6 @@ describe("Budget Integration Tests", () => {
       expect(budget.amount_idr).toBe(2000000);
       expect(budget.savings_bucket_name).toBe(bucket.name);
       expect(budget.target_type).toBe("savings_bucket");
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should reject budget for non-existent savings bucket", async () => {
@@ -865,10 +726,6 @@ describe("Budget Integration Tests", () => {
           amountIdr: 2000000,
         }),
       ).rejects.toThrow("already exists");
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should reject budget with both categoryId and savingsBucketId", async () => {
@@ -913,11 +770,6 @@ describe("Budget Integration Tests", () => {
 
       expect(budget1.amount_idr).toBe(1000000);
       expect(budget2.amount_idr).toBe(2000000);
-
-      // Cleanup
-      await cleanupTestBudget(budget1.id);
-      await cleanupTestBudget(budget2.id);
-      testBudgetIds.length = 0;
     });
 
     it("should get savings bucket budget by ID", async () => {
@@ -938,10 +790,6 @@ describe("Budget Integration Tests", () => {
       expect(retrieved?.savings_bucket_name).toBe(bucket.name);
       expect(retrieved?.target_type).toBe("savings_bucket");
       expect(retrieved?.note).toBe("Savings goal");
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should list both category and savings bucket budgets for a month", async () => {
@@ -973,11 +821,6 @@ describe("Budget Integration Tests", () => {
 
       expect(foundCategoryBudget?.target_type).toBe("category");
       expect(foundBucketBudget?.target_type).toBe("savings_bucket");
-
-      // Cleanup
-      await cleanupTestBudget(categoryBudget.id);
-      await cleanupTestBudget(bucketBudget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should update savings bucket budget amount", async () => {
@@ -994,10 +837,6 @@ describe("Budget Integration Tests", () => {
       expect(updated.amount_idr).toBe(2500000);
       expect(updated.savings_bucket_id).toBe(bucket.id);
       expect(updated.target_type).toBe("savings_bucket");
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should delete savings bucket budget", async () => {
@@ -1007,6 +846,7 @@ describe("Budget Integration Tests", () => {
         savingsBucketId: bucket.id,
         amountIdr: 1000000,
       });
+      testBudgetIds.push(budget.id);
 
       await deleteBudget(budget.id);
 
@@ -1032,13 +872,7 @@ describe("Budget Integration Tests", () => {
       expect(result.created[0].savings_bucket_id).toBe(bucket.id);
       expect(result.created[0].target_type).toBe("savings_bucket");
       expect(result.created[0].note).toBe("Monthly savings");
-      testBudgetIds.push(result.created[0].id);
-
-      // Cleanup
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      testBudgetIds.length = 0;
+      testBudgetIds.push(...result.created.map((b) => b.id));
     });
 
     it("should copy mixed category and savings bucket budgets", async () => {
@@ -1074,12 +908,6 @@ describe("Budget Integration Tests", () => {
       expect(copiedBucketBudget?.target_type).toBe("savings_bucket");
 
       testBudgetIds.push(...result.created.map((b) => b.id));
-
-      // Cleanup
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      testBudgetIds.length = 0;
     });
 
     it("should skip existing savings bucket budgets when copying", async () => {
@@ -1104,12 +932,6 @@ describe("Budget Integration Tests", () => {
       expect(result.created.length).toBe(0);
       expect(result.skipped.length).toBe(1);
       expect(result.skipped[0].savingsBucketId).toBe(bucket.id);
-
-      // Cleanup
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      testBudgetIds.length = 0;
     });
   });
 
@@ -1146,12 +968,6 @@ describe("Budget Integration Tests", () => {
 
       expect(categoryItem?.targetType).toBe("category");
       expect(bucketItem?.targetType).toBe("savings_bucket");
-
-      // Cleanup
-      for (const id of testBudgetIds) {
-        await cleanupTestBudget(id);
-      }
-      testBudgetIds.length = 0;
     });
   });
 
@@ -1169,7 +985,6 @@ describe("Budget Integration Tests", () => {
     }
 
     afterEach(async () => {
-      // Clean up transactions first
       for (const id of testTransactionIds) {
         try {
           await deleteTransaction(id);
@@ -1179,7 +994,6 @@ describe("Budget Integration Tests", () => {
       }
       testTransactionIds.length = 0;
 
-      // Clean up wallets
       for (const id of testWalletIds) {
         try {
           await deleteWallet(id);
@@ -1200,7 +1014,6 @@ describe("Budget Integration Tests", () => {
       });
       testBudgetIds.push(budget.id);
 
-      // Create a savings contribution in the test month
       const contribution = await createSavingsContribution({
         occurredAt: new Date(`${testMonth}T12:00:00Z`),
         walletId: wallet.id,
@@ -1218,10 +1031,6 @@ describe("Budget Integration Tests", () => {
       expect(bucketItem).toBeDefined();
       expect(bucketItem?.spentAmount).toBe(400000);
       expect(bucketItem?.remaining).toBe(600000);
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
 
     it("should not count savings withdrawals toward budget spent amount", async () => {
@@ -1234,7 +1043,6 @@ describe("Budget Integration Tests", () => {
       });
       testBudgetIds.push(budget.id);
 
-      // Create a contribution first
       const contribution = await createSavingsContribution({
         occurredAt: new Date(`${testMonth}T12:00:00Z`),
         walletId: wallet.id,
@@ -1244,7 +1052,6 @@ describe("Budget Integration Tests", () => {
       });
       testTransactionIds.push(contribution.id);
 
-      // Create a withdrawal — should NOT affect budget
       const withdrawal = await createSavingsWithdrawal({
         occurredAt: new Date(`${testMonth}T13:00:00Z`),
         walletId: wallet.id,
@@ -1260,13 +1067,8 @@ describe("Budget Integration Tests", () => {
       );
 
       expect(bucketItem).toBeDefined();
-      // Spent should still be 400K — withdrawal has no impact
       expect(bucketItem?.spentAmount).toBe(400000);
       expect(bucketItem?.remaining).toBe(600000);
-
-      // Cleanup
-      await cleanupTestBudget(budget.id);
-      testBudgetIds.length = 0;
     });
   });
 });
