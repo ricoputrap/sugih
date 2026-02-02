@@ -361,14 +361,14 @@ export function BudgetTable({
                 const budgetSummary = row.category_id
                   ? categorySummaryMap.get(row.category_id)
                   : bucketSummaryMap.get(row.savings_bucket_id);
-                return budgetSummary?.remaining || row.amount_idr;
+                return budgetSummary?.remaining ?? row.amount_idr;
               },
               cell: ({ row }: { row: { original: BudgetWithCategory } }) => {
                 const budget = row.original;
                 const budgetSummary = budget.category_id
                   ? categorySummaryMap.get(budget.category_id)
                   : bucketSummaryMap.get(budget.savings_bucket_id);
-                const remaining = budgetSummary?.remaining || budget.amount_idr;
+                const remaining = budgetSummary?.remaining ?? budget.amount_idr;
                 return (
                   <div
                     className={cn(

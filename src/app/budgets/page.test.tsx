@@ -43,6 +43,8 @@ vi.mock("@/modules/Budget/stores", () => ({
     copyResultModalOpen: false,
     selectedBudget: null,
     copyResult: null,
+    selectedBudgetIds: new Set(),
+    isBulkDeleteDialogOpen: false,
     openCreateDialog: vi.fn(),
     closeCreateDialog: vi.fn(),
     openEditDialog: vi.fn(),
@@ -52,6 +54,14 @@ vi.mock("@/modules/Budget/stores", () => ({
     setCopyResult: vi.fn(),
     openCopyResultModal: vi.fn(),
     closeCopyResultModal: vi.fn(),
+    selectBudget: vi.fn(),
+    deselectBudget: vi.fn(),
+    selectAllBudgets: vi.fn(),
+    deselectAllBudgets: vi.fn(),
+    clearSelection: vi.fn(),
+    setSelectedBudgetIds: vi.fn(),
+    openBulkDeleteDialog: vi.fn(),
+    closeBulkDeleteDialog: vi.fn(),
   }),
 }));
 

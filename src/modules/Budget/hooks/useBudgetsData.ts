@@ -33,5 +33,6 @@ export function useBudgetsData(month: string) {
     queryKey: budgetKeys.month(month),
     queryFn: () => fetchBudgetsData(month),
     enabled: !!month,
+    staleTime: 0,
   });
 }
