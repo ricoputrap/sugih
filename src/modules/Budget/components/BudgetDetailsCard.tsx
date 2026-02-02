@@ -53,10 +53,18 @@ export function BudgetDetailsCard() {
     await deleteBudget.mutateAsync({ id, month });
   };
 
-  // Clear selection when month changes
+  // Clear selection when month changes or when switching FROM list view TO grid view
+  // (Grid view doesn't support multi-select)
   useEffect(() => {
     clearSelection();
   }, [month, clearSelection]);
+
+  // Clear selection when switching from list to grid view
+  useEffect(() => {
+    if (viewMode !== "list" && selectedBudgetIds.size > 0) {
+      clearSelection();
+    }
+  }, [viewMode, selectedBudgetIds, clearSelection]);
 
   return (
     <Card>
@@ -103,8 +111,6 @@ export function BudgetDetailsCard() {
             onEdit={openEditDialog}
             onDelete={handleDeleteBudget}
             isLoading={isLoading}
-            selectedIds={Array.from(selectedBudgetIds)}
-            onSelectionChange={setSelectedBudgetIds}
           />
         )}
       </CardContent>

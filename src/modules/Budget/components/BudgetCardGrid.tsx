@@ -8,7 +8,6 @@ import {
   PiggyBank,
   Trash2,
   Wallet,
-  Check,
 } from "lucide-react";
 import { useState } from "react";
 import { PolarAngleAxis, RadialBar, RadialBarChart } from "recharts";
@@ -46,8 +45,6 @@ interface BudgetCardGridProps {
   onEdit?: (budget: BudgetWithCategory) => void;
   onDelete?: (id: string) => Promise<void>;
   isLoading?: boolean;
-  selectedIds?: string[];
-  onSelectionChange?: (ids: string[]) => void;
 }
 
 /**
@@ -61,22 +58,8 @@ export function BudgetCardGrid({
   onEdit,
   onDelete,
   isLoading = false,
-  selectedIds: externalSelectedIds,
-  onSelectionChange,
 }: BudgetCardGridProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-
-  const selectedSet = new Set(externalSelectedIds || []);
-
-  const handleToggleSelection = (id: string) => {
-    const newSelection = new Set(selectedSet);
-    if (newSelection.has(id)) {
-      newSelection.delete(id);
-    } else {
-      newSelection.add(id);
-    }
-    onSelectionChange?.(Array.from(newSelection));
-  };
 
   // Create maps of summary data by category ID and savings bucket ID for quick lookup
   const categorySummaryMap = new Map(
@@ -286,21 +269,10 @@ export function BudgetCardGrid({
             <div
               key={budget.id}
               className={cn(
-                "rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col relative",
+                "rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden flex flex-col",
                 isSavingsBucket && "border-emerald-200",
-                selectedSet.has(budget.id) && "ring-2 ring-blue-500",
               )}
             >
-              {/* Selection Checkbox - Top Right Corner */}
-              <button
-                onClick={() => handleToggleSelection(budget.id)}
-                className="absolute top-2 right-2 z-10 flex items-center justify-center w-6 h-6 rounded border border-gray-300 bg-white hover:bg-gray-50"
-                title={selectedSet.has(budget.id) ? "Deselect" : "Select"}
-              >
-                {selectedSet.has(budget.id) && (
-                  <Check className="h-4 w-4 text-blue-600" />
-                )}
-              </button>
 
               {/* Card Header with Menu */}
               <div
