@@ -1,6 +1,7 @@
 export { BudgetCardGrid } from "./BudgetCardGrid";
 export { BudgetDetailsCard } from "./BudgetDetailsCard";
 export { BudgetDialogForm } from "./BudgetDialogForm";
+export { BudgetBulkDeleteDialog } from "./BudgetBulkDeleteDialog";
 export { BudgetsPageHeader } from "./BudgetsPageHeader";
 export { BudgetsPageSkeleton } from "./BudgetsPageSkeleton";
 export { BudgetTable } from "./BudgetTable";

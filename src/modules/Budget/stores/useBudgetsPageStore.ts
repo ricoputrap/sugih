@@ -24,10 +24,12 @@ interface BudgetsPageState {
   isEditDialogOpen: boolean;
   copyDialogOpen: boolean;
   copyResultModalOpen: boolean;
+  isBulkDeleteDialogOpen: boolean;
 
   // Selection state
   selectedBudget: BudgetWithCategory | null;
   copyResult: CopyResult | null;
+  selectedBudgetIds: Set<string>;
 
   // Actions
   openCreateDialog: () => void;
@@ -39,6 +41,12 @@ interface BudgetsPageState {
   setCopyResult: (result: CopyResult | null) => void;
   openCopyResultModal: () => void;
   closeCopyResultModal: () => void;
+  setSelectedBudgetIds: (ids: string[]) => void;
+  toggleBudgetSelection: (id: string) => void;
+  selectAllVisibleBudgets: (ids: string[]) => void;
+  clearSelection: () => void;
+  openBulkDeleteDialog: () => void;
+  closeBulkDeleteDialog: () => void;
   reset: () => void;
 }
 
@@ -47,8 +55,10 @@ const initialState = {
   isEditDialogOpen: false,
   copyDialogOpen: false,
   copyResultModalOpen: false,
+  isBulkDeleteDialogOpen: false,
   selectedBudget: null,
   copyResult: null,
+  selectedBudgetIds: new Set<string>(),
 };
 
 /**
@@ -72,6 +82,23 @@ export const useBudgetsPageStore = create<BudgetsPageState>((set) => ({
   openCopyResultModal: () => set({ copyResultModalOpen: true }),
   closeCopyResultModal: () =>
     set({ copyResultModalOpen: false, copyResult: null }),
+
+  setSelectedBudgetIds: (ids) => set({ selectedBudgetIds: new Set(ids) }),
+  toggleBudgetSelection: (id) =>
+    set((state) => {
+      const newSelection = new Set(state.selectedBudgetIds);
+      if (newSelection.has(id)) {
+        newSelection.delete(id);
+      } else {
+        newSelection.add(id);
+      }
+      return { selectedBudgetIds: newSelection };
+    }),
+  selectAllVisibleBudgets: (ids) => set({ selectedBudgetIds: new Set(ids) }),
+  clearSelection: () => set({ selectedBudgetIds: new Set() }),
+
+  openBulkDeleteDialog: () => set({ isBulkDeleteDialogOpen: true }),
+  closeBulkDeleteDialog: () => set({ isBulkDeleteDialogOpen: false }),
 
   reset: () => set(initialState),
 }));

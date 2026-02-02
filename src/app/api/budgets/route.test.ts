@@ -9,6 +9,7 @@ vi.mock("@/modules/Budget/actions", () => ({
   getBudgetSummary: vi.fn(),
   updateBudget: vi.fn(),
   deleteBudget: vi.fn(),
+  bulkDeleteBudgets: vi.fn(),
   copyBudgets: vi.fn(),
 }));
 
@@ -79,12 +80,13 @@ vi.mock("@/lib/http", () => ({
   ),
 }));
 
-import { GET, POST } from "./route";
+import { GET, POST, DELETE } from "./route";
 
 import {
   listBudgets,
   createBudget,
   getBudgetSummary,
+  bulkDeleteBudgets,
 } from "@/modules/Budget/actions";
 
 // Helper to create mock NextRequest
@@ -716,6 +718,230 @@ describe("Budgets API Routes", () => {
 
       expect(status).toBe(200);
       expect(data.note).toBeNull();
+    });
+  });
+
+  describe("DELETE /api/budgets", () => {
+    it("should successfully delete multiple budgets", async () => {
+      vi.mocked(bulkDeleteBudgets).mockResolvedValue({
+        deletedCount: 2,
+        failedIds: [],
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/budgets",
+        {
+          ids: ["budget1", "budget2"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.message).toBe("Budgets deleted successfully");
+      expect(data.deletedCount).toBe(2);
+      expect(bulkDeleteBudgets).toHaveBeenCalledWith(["budget1", "budget2"]);
+    });
+
+    it("should return 400 when ids field is missing", async () => {
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/budgets",
+        {},
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Missing required field: ids");
+    });
+
+    it("should return 400 when ids is not an array", async () => {
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/budgets",
+        {
+          ids: "budget1",
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Field 'ids' must be an array");
+    });
+
+    it("should return 400 for invalid JSON body", async () => {
+      const request = new NextRequest("http://localhost:3000/api/budgets", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: "invalid json",
+      });
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Invalid JSON body");
+    });
+
+    it("should return 400 when some budgets could not be deleted", async () => {
+      vi.mocked(bulkDeleteBudgets).mockResolvedValue({
+        deletedCount: 1,
+        failedIds: ["budget999"],
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/budgets",
+        {
+          ids: ["budget1", "budget999"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.message).toBe("Some budgets could not be deleted");
+      expect(data.error.issues.code).toBe("VALIDATION_ERROR");
+      expect(data.error.issues.details.deletedCount).toBe(1);
+      expect(data.error.issues.details.failedIds).toContain("budget999");
+    });
+
+    it("should handle large batch deletions", async () => {
+      const ids = Array.from({ length: 50 }, (_, i) => `budget${i}`);
+
+      vi.mocked(bulkDeleteBudgets).mockResolvedValue({
+        deletedCount: 50,
+        failedIds: [],
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/budgets",
+        {
+          ids,
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.deletedCount).toBe(50);
+      expect(bulkDeleteBudgets).toHaveBeenCalledWith(ids);
+    });
+
+    it("should return 422 for validation errors", async () => {
+      const validationError = new Error("Invalid budget IDs");
+      validationError.name = "ZodError";
+      (validationError as any).status = 422;
+
+      vi.mocked(bulkDeleteBudgets).mockRejectedValue(validationError);
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/budgets",
+        {
+          ids: ["budget1"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status } = await parseResponse(response);
+
+      expect(status).toBe(422);
+    });
+
+    it("should return 500 on database error", async () => {
+      vi.mocked(bulkDeleteBudgets).mockRejectedValue(
+        new Error("Database connection failed"),
+      );
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/budgets",
+        {
+          ids: ["budget1"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(500);
+      expect(data.error.message).toBe("Failed to delete budgets");
+    });
+
+    it("should handle PostgreSQL errors", async () => {
+      vi.mocked(bulkDeleteBudgets).mockRejectedValue({
+        code: "ECONNREFUSED",
+        message: "Connection refused",
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/budgets",
+        {
+          ids: ["budget1"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(500);
+      expect(data.error.message).toBe("Database error");
+    });
+
+    it("should handle partial success with multiple not found ids", async () => {
+      vi.mocked(bulkDeleteBudgets).mockResolvedValue({
+        deletedCount: 1,
+        failedIds: ["budget999", "budget888"],
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/budgets",
+        {
+          ids: ["budget1", "budget999", "budget888"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(400);
+      expect(data.error.issues.details.deletedCount).toBe(1);
+      expect(data.error.issues.details.failedIds).toEqual(["budget999", "budget888"]);
+    });
+
+    it("should delete single budget successfully", async () => {
+      vi.mocked(bulkDeleteBudgets).mockResolvedValue({
+        deletedCount: 1,
+        failedIds: [],
+      });
+
+      const request = createMockRequest(
+        "DELETE",
+        "http://localhost:3000/api/budgets",
+        {
+          ids: ["budget1"],
+        },
+      );
+
+      const response = await DELETE(request);
+      const { status, data } = await parseResponse(response);
+
+      expect(status).toBe(200);
+      expect(data.deletedCount).toBe(1);
     });
   });
 });

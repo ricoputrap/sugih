@@ -5,6 +5,7 @@ import { BudgetsPageHeader } from "@/modules/Budget/components/BudgetsPageHeader
 import { BudgetsPageSkeleton } from "@/modules/Budget/components/BudgetsPageSkeleton";
 import { CopyBudgetDialog } from "@/modules/Budget/components/CopyBudgetDialog";
 import { CopyResultModal } from "@/modules/Budget/components/CopyResultModal";
+import { BudgetBulkDeleteDialog } from "@/modules/Budget/components/BudgetBulkDeleteDialog";
 
 export default function BudgetsPage() {
   return (
@@ -20,6 +21,7 @@ export default function BudgetsPage() {
         <BudgetDialogForm />
         <CopyBudgetDialog />
         <CopyResultModal />
+        <BudgetBulkDeleteDialog />
       </div>
     </Suspense>
   );

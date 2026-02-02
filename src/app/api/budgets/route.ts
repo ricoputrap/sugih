@@ -3,6 +3,7 @@ import {
   listBudgets,
   createBudget,
   getBudgetSummary,
+  bulkDeleteBudgets,
 } from "@/modules/Budget/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
 import { formatPostgresError } from "@/db/drizzle-client";
@@ -189,6 +190,93 @@ async function handlePost(request: NextRequest) {
 
 export const POST = withRouteLogging(handlePost, {
   operation: "api.budgets.create",
+  logQuery: false,
+  logBodyMetadata: true,
+});
+
+/**
+ * DELETE /api/budgets
+ * Bulk delete multiple budgets
+ *
+ * Body:
+ * - ids: array of budget IDs to delete (max 100)
+ *
+ * Returns:
+ * - Success: { message, deletedCount }
+ * - Partial failure: { error: { code, message, details: { deletedCount, failedIds } } }
+ */
+async function handleDelete(request: NextRequest) {
+  try {
+    // Parse request body
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return badRequest("Invalid JSON body");
+    }
+
+    const { ids } = body;
+
+    if (!ids) {
+      return badRequest("Missing required field: ids");
+    }
+
+    if (!Array.isArray(ids)) {
+      return badRequest("Field 'ids' must be an array");
+    }
+
+    // Call the bulk delete action
+    const result = await bulkDeleteBudgets(ids);
+
+    // If there are failed IDs, return partial failure
+    if (result.failedIds.length > 0) {
+      // Some budgets could not be deleted (not found)
+      return badRequest("Some budgets could not be deleted", {
+        code: "VALIDATION_ERROR",
+        message: "Some budgets could not be deleted",
+        details: {
+          deletedCount: result.deletedCount,
+          failedIds: result.failedIds,
+        },
+      });
+    }
+
+    // All budgets deleted successfully
+    return ok({
+      message: "Budgets deleted successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error: any) {
+    console.error("Error bulk deleting budgets:", error);
+
+    // Handle validation errors (already formatted as Response)
+    if (error instanceof Response) {
+      return error;
+    }
+
+    // Handle Zod validation errors
+    if (error.status === 422) {
+      return error;
+    }
+
+    // Handle not found errors
+    if (error.message?.includes("not found")) {
+      return notFound(error.message);
+    }
+
+    // Handle PostgreSQL-specific errors
+    if (error.code) {
+      const formattedError = formatPostgresError(error);
+      console.error("PostgreSQL error:", formattedError);
+      return serverError("Database error");
+    }
+
+    return serverError("Failed to delete budgets");
+  }
+}
+
+export const DELETE = withRouteLogging(handleDelete, {
+  operation: "api.budgets.bulk-delete",
   logQuery: false,
   logBodyMetadata: true,
 });

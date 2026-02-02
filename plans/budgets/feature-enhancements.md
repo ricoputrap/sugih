@@ -24,3 +24,23 @@ The "List View" should be the default view. But I have an issue with the "Grid V
 - **Orange Gradient** (80-99%): Near limit - Warning that budget limit is approaching
 - **Yellow Gradient** (100%): Reached limit - Indicates budget limit has been reached
 - **Red Gradient** (>100%): Over budget - Alert that budget has been exceeded
+
+## 6. Multiple Deletion [IN PROGRESS]
+
+User should be able to delete multiple budgets at once by selecting them and clicking the delete button. Similar to what we have in the Transactions page (src: `src/app/transactions/page.tsx`). The user interfaces and backend functionalities should be updated accordingly.
+
+## 7. Incorrect "Remaining" Column Value [TODO]
+
+It seems all of my budgets are still displaying the initial budget amount instead of the remaining budget amount. This is incorrect. The remaining budget amount should be calculated as the difference between the budget amount and the spent amount. The "Spent" column is already displaying correctly. Focus on fixing the "Remaining" column value calculation. That's it.
+
+## 8. Invalid Summary Calculation [TODO]
+
+It seems the summary calculation data is fetched only once (when the page is initially opened). This is incorrect. The summary calculation data should be fetched every time the page is opened (including when the user moves to a different page and go back to the Budgets page). Ensure that the summary calculation data is fetched every time the page is opened.
+
+## 9. Incorrect Row Data Calculation [TODO]
+
+It seems the row data calculation is not being updated correctly. This is incorrect. The row data should be updated every time the page is opened (including when the user moves to a different page and go back to the Budgets page). Ensure that the row data is updated every time the page is opened.
+
+## 10. Archiving Budgets [TODO]
+
+User should be able to archive budgets by selecting them and clicking the archive button. However, direct hard deletion is still allowed. Not required to be archived before hard deletion.

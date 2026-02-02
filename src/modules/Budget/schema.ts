@@ -150,6 +150,13 @@ export const BudgetIdSchema = z.object({
   id: z.string().min(1, "Budget ID is required").max(50, "Budget ID too long"),
 });
 
+export const BulkDeleteBudgetsSchema = z.object({
+  ids: z
+    .array(z.string().min(1).max(50, "Budget ID too long"))
+    .min(1, "At least one budget ID is required")
+    .max(100, "Maximum 100 budgets can be deleted at once"),
+});
+
 /**
  * Legacy Budget Item Schema (backward compatible)
  *

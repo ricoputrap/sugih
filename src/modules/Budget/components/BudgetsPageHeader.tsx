@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Plus } from "lucide-react";
+import { Copy, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBudgetMonth, useBudgetsData } from "@/modules/Budget/hooks";
 import { useBudgetsPageStore } from "@/modules/Budget/stores";
@@ -8,7 +8,7 @@ import { useBudgetsPageStore } from "@/modules/Budget/stores";
 export function BudgetsPageHeader() {
   const [month] = useBudgetMonth();
   const { isLoading } = useBudgetsData(month);
-  const { openCopyDialog, openCreateDialog } = useBudgetsPageStore();
+  const { openCopyDialog, openCreateDialog, openBulkDeleteDialog, selectedBudgetIds } = useBudgetsPageStore();
 
   return (
     <div className="flex items-center justify-between">
@@ -19,6 +19,17 @@ export function BudgetsPageHeader() {
         </p>
       </div>
       <div className="flex gap-2">
+        {selectedBudgetIds.size > 0 && (
+          <Button
+            variant="destructive"
+            onClick={openBulkDeleteDialog}
+            disabled={isLoading}
+            data-testid="delete-selected-budgets"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete ({selectedBudgetIds.size})
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={openCopyDialog}

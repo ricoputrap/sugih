@@ -15,6 +15,7 @@ import {
   BudgetQuerySchema,
   BudgetIdSchema,
   BudgetMonthSchema,
+  BulkDeleteBudgetsSchema,
   BudgetWithCategory,
 } from "./schema";
 import { getDb, getPool, sql } from "@/db/drizzle-client";
@@ -605,6 +606,61 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
       throw unprocessableEntity("Invalid month format", formatZodError(error));
     }
     throw error;
+  }
+}
+
+/**
+ * Bulk delete multiple budgets by ID
+ */
+export async function bulkDeleteBudgets(
+  ids: string[],
+): Promise<{ deletedCount: number; failedIds: string[] }> {
+  const pool = getPool();
+
+  // Validate input
+  const validatedInput = BulkDeleteBudgetsSchema.parse({ ids });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Check which budgets exist
+    const checkQuery = `
+      SELECT id
+      FROM budgets
+      WHERE id = ANY($1)
+    `;
+    const checkResult = await client.query(checkQuery, [validatedInput.ids]);
+    const budgets = checkResult.rows;
+
+    // Identify failed IDs
+    const foundIds = new Set(budgets.map((b) => b.id));
+    const notFoundIds = validatedInput.ids.filter((id) => !foundIds.has(id));
+
+    const deletableIds = Array.from(foundIds);
+
+    // Perform hard delete for valid budgets
+    let deletedCount = 0;
+    if (deletableIds.length > 0) {
+      const deleteQuery = `
+        DELETE FROM budgets
+        WHERE id = ANY($1)
+      `;
+      const deleteResult = await client.query(deleteQuery, [deletableIds]);
+      deletedCount = deleteResult.rowCount || 0;
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      deletedCount,
+      failedIds: notFoundIds,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
 }
 

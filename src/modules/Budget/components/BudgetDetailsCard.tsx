@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -42,7 +43,7 @@ export function BudgetDetailsCard() {
   const summary = data?.summary ?? null;
 
   // UI state (Zustand)
-  const { openEditDialog } = useBudgetsPageStore();
+  const { openEditDialog, selectedBudgetIds, setSelectedBudgetIds, clearSelection } = useBudgetsPageStore();
 
   // Mutations
   const { deleteBudget } = useBudgetMutations();
@@ -51,6 +52,11 @@ export function BudgetDetailsCard() {
   const handleDeleteBudget = async (id: string) => {
     await deleteBudget.mutateAsync({ id, month });
   };
+
+  // Clear selection when month changes
+  useEffect(() => {
+    clearSelection();
+  }, [month, clearSelection]);
 
   return (
     <Card>
@@ -87,6 +93,8 @@ export function BudgetDetailsCard() {
             onEdit={openEditDialog}
             onDelete={handleDeleteBudget}
             isLoading={isLoading}
+            selectedIds={Array.from(selectedBudgetIds)}
+            onSelectionChange={setSelectedBudgetIds}
           />
         ) : (
           <BudgetCardGrid
@@ -95,6 +103,8 @@ export function BudgetDetailsCard() {
             onEdit={openEditDialog}
             onDelete={handleDeleteBudget}
             isLoading={isLoading}
+            selectedIds={Array.from(selectedBudgetIds)}
+            onSelectionChange={setSelectedBudgetIds}
           />
         )}
       </CardContent>

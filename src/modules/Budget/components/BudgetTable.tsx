@@ -1,6 +1,6 @@
 "use client";
 
-import type { ColumnDef, HeaderContext } from "@tanstack/react-table";
+import type { ColumnDef, HeaderContext, RowSelectionState } from "@tanstack/react-table";
 import {
   AlertCircle,
   ArrowUpDown,
@@ -51,6 +51,8 @@ interface BudgetTableProps {
   onEdit?: (budget: BudgetWithCategory) => void;
   onDelete?: (id: string) => Promise<void>;
   isLoading?: boolean;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 export function BudgetTable({
@@ -59,8 +61,29 @@ export function BudgetTable({
   onEdit,
   onDelete,
   isLoading = false,
+  selectedIds: externalSelectedIds,
+  onSelectionChange,
 }: BudgetTableProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Bridge selectedIds string[] <-> RowSelectionState
+  const rowSelection = useMemo(() => {
+    const state: RowSelectionState = {};
+    if (externalSelectedIds) {
+      for (const id of externalSelectedIds) {
+        state[id] = true;
+      }
+    }
+    return state;
+  }, [externalSelectedIds]);
+
+  const handleRowSelectionChange = (updaterOrValue: RowSelectionState | ((old: RowSelectionState) => RowSelectionState)) => {
+    const newState = typeof updaterOrValue === 'function' ? updaterOrValue(rowSelection) : updaterOrValue;
+    const newIds = Object.keys(newState).filter(k => newState[k]);
+    if (onSelectionChange) {
+      onSelectionChange(newIds);
+    }
+  };
 
   // Create maps of summary data by category ID and savings bucket ID for quick lookup
   const categorySummaryMap = useMemo(
@@ -153,6 +176,43 @@ export function BudgetTable({
 
   const columns = useMemo<ColumnDef<BudgetWithCategory>[]>(
     () => [
+      {
+        id: "select",
+        header: ({ table }) => {
+          const isAllSelected = table.getIsAllPageRowsSelected();
+          const isSomeSelected = table.getIsSomePageRowsSelected();
+          return (
+            <button
+              onClick={() => table.toggleAllPageRowsSelected()}
+              className="flex items-center justify-center"
+              title="Select all"
+            >
+              <input
+                type="checkbox"
+                ref={(el) => {
+                  if (el) {
+                    el.indeterminate = isSomeSelected && !isAllSelected;
+                  }
+                }}
+                checked={isAllSelected || isSomeSelected}
+                onChange={(e) => table.toggleAllPageRowsSelected(!!e.target.checked)}
+                className="cursor-pointer"
+                aria-label="Select all budgets"
+              />
+            </button>
+          );
+        },
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            checked={row.getIsSelected()}
+            onChange={(e) => row.toggleSelected(!!e.target.checked)}
+            className="cursor-pointer"
+            aria-label={`Select budget ${row.original.id}`}
+          />
+        ),
+        size: 50,
+      },
       {
         accessorKey: "display_name",
         header: ({ column }) => {
@@ -487,6 +547,9 @@ export function BudgetTable({
         data={budgets}
         searchKey="display_name"
         searchPlaceholder="Filter categories..."
+        rowSelection={rowSelection}
+        onRowSelectionChange={handleRowSelectionChange}
+        getRowId={(row) => row.id}
       />
     </div>
   );
