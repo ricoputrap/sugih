@@ -144,6 +144,7 @@ Monthly budget allocations for expense categories or savings buckets.
 | `savings_bucket_id` | `text` | FOREIGN KEY (RESTRICT) | References `savings_buckets(id)` (nullable) |
 | `amount_idr` | `bigint` | NOT NULL | Budget amount in Rupiah |
 | `note` | `text` | | Optional description |
+| `archived` | `boolean` | NOT NULL, DEFAULT false | Soft delete flag |
 | `created_at` | `timestamp with time zone` | | Creation timestamp |
 | `updated_at` | `timestamp with time zone` | | Last update timestamp |
 
@@ -270,7 +271,7 @@ Different tables use different soft delete mechanisms:
 | `savings_buckets` | Boolean flag + timestamp | `archived`, `deleted_at` |
 | `transaction_events` | Timestamp | `deleted_at` |
 | `postings` | Inherited from event | N/A (linked via `event_id`) |
-| `budgets` | Hard delete | N/A |
+| `budgets` | Boolean flag | `archived` |
 
 **Why Different Mechanisms?**
 - **Boolean flags** (`archived`) are used for resources that should remain visible in historical contexts but not active lists
@@ -358,7 +359,7 @@ WHERE te.category_id = ?
 
 ## Schema Evolution
 
-The database schema has evolved through 8 migrations:
+The database schema has evolved through 10 migrations:
 
 1. `0000_curious_spirit.sql` - Initial schema with core tables
 2. `0001_grey_yellowjacket.sql` - Column type refinements (varchar lengths)
@@ -369,6 +370,7 @@ The database schema has evolved through 8 migrations:
 7. `0006_add_savings_bucket_to_budgets.sql` - Budget support for savings buckets
 8. `0007_freezing_thena.sql` - Added explicit foreign key constraints (CASCADE/RESTRICT)
 9. `0008_handy_diamondback.sql` - Made `idempotency_key` NOT NULL with auto-generation
+10. `0009_add_archived_to_budgets.sql` - Added `archived` boolean flag to budgets for soft delete
 
 ## Currency and Precision
 
@@ -406,3 +408,426 @@ Response: Transaction created with id="tx_xyz"
 Request 2: POST /api/transactions/expense with same body & idempotencyKey="client-key-123"
 Response: Same transaction with id="tx_xyz" (no duplicate created)
 ```
+
+## Complete SQL DDL for Schema Recreation
+
+Use this SQL to recreate the complete database schema from scratch. This is useful when building backends in NestJS, FastAPI, or other frameworks.
+
+### 1. Enum Types
+
+```sql
+-- Category type enum
+CREATE TYPE category_type AS ENUM ('income', 'expense');
+```
+
+### 2. Tables
+
+```sql
+-- ============================================================
+-- WALLETS TABLE
+-- ============================================================
+CREATE TABLE wallets (
+    id TEXT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    type VARCHAR(32) NOT NULL DEFAULT 'bank',
+    currency VARCHAR(3) NOT NULL DEFAULT 'IDR',
+    archived BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Valid wallet types: 'cash', 'bank', 'ewallet', 'other'
+
+-- ============================================================
+-- CATEGORIES TABLE
+-- ============================================================
+CREATE TABLE categories (
+    id TEXT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    type category_type NOT NULL,
+    archived BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+
+-- ============================================================
+-- SAVINGS_BUCKETS TABLE
+-- ============================================================
+CREATE TABLE savings_buckets (
+    id TEXT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    archived BOOLEAN NOT NULL DEFAULT false,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+
+-- ============================================================
+-- TRANSACTION_EVENTS TABLE
+-- ============================================================
+CREATE TABLE transaction_events (
+    id TEXT PRIMARY KEY,
+    occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    type VARCHAR(32) NOT NULL,
+    note TEXT,
+    payee TEXT,
+    category_id TEXT,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    idempotency_key VARCHAR(36) NOT NULL UNIQUE
+);
+
+-- Valid transaction types: 'expense', 'income', 'transfer', 'savings_contribution', 'savings_withdrawal'
+
+-- ============================================================
+-- POSTINGS TABLE (Double-Entry Ledger)
+-- ============================================================
+CREATE TABLE postings (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL,
+    wallet_id TEXT,
+    savings_bucket_id TEXT,
+    amount_idr BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE
+);
+
+-- ============================================================
+-- BUDGETS TABLE
+-- ============================================================
+CREATE TABLE budgets (
+    id TEXT PRIMARY KEY,
+    month VARCHAR(10) NOT NULL,
+    category_id TEXT,
+    savings_bucket_id TEXT,
+    amount_idr BIGINT NOT NULL,
+    note TEXT,
+    archived BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+### 3. Foreign Key Constraints
+
+```sql
+-- Postings foreign keys
+ALTER TABLE postings
+    ADD CONSTRAINT postings_event_id_fk
+    FOREIGN KEY (event_id) REFERENCES transaction_events(id)
+    ON DELETE CASCADE ON UPDATE NO ACTION;
+
+ALTER TABLE postings
+    ADD CONSTRAINT postings_wallet_id_fk
+    FOREIGN KEY (wallet_id) REFERENCES wallets(id)
+    ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+ALTER TABLE postings
+    ADD CONSTRAINT postings_savings_bucket_id_fk
+    FOREIGN KEY (savings_bucket_id) REFERENCES savings_buckets(id)
+    ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+-- Transaction events foreign keys
+ALTER TABLE transaction_events
+    ADD CONSTRAINT transaction_events_category_id_fk
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+    ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+-- Budgets foreign keys
+ALTER TABLE budgets
+    ADD CONSTRAINT budgets_category_id_fk
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+    ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+ALTER TABLE budgets
+    ADD CONSTRAINT budgets_savings_bucket_id_fk
+    FOREIGN KEY (savings_bucket_id) REFERENCES savings_buckets(id)
+    ON DELETE RESTRICT ON UPDATE NO ACTION;
+```
+
+### 4. Check Constraints
+
+```sql
+-- Budget must target exactly one: category OR savings bucket
+ALTER TABLE budgets
+    ADD CONSTRAINT budget_target_check
+    CHECK (
+        (category_id IS NOT NULL AND savings_bucket_id IS NULL) OR
+        (category_id IS NULL AND savings_bucket_id IS NOT NULL)
+    );
+```
+
+### 5. Indexes
+
+```sql
+-- Transaction events indexes (for time-range and filtering queries)
+CREATE INDEX idx_transaction_events_occurred_at
+    ON transaction_events USING btree (occurred_at);
+
+CREATE INDEX idx_transaction_events_type_occurred_at
+    ON transaction_events USING btree (type, occurred_at);
+
+CREATE INDEX idx_transaction_events_category_id_occurred_at
+    ON transaction_events USING btree (category_id, occurred_at);
+
+-- Postings indexes (for balance calculations)
+CREATE INDEX idx_postings_event_id
+    ON postings USING btree (event_id);
+
+CREATE INDEX idx_postings_wallet_id_created_at
+    ON postings USING btree (wallet_id, created_at);
+
+CREATE INDEX idx_postings_savings_bucket_id_created_at
+    ON postings USING btree (savings_bucket_id, created_at);
+
+-- Budgets indexes (partial unique - one budget per target per month)
+CREATE UNIQUE INDEX budget_month_category_idx
+    ON budgets (month, category_id)
+    WHERE category_id IS NOT NULL;
+
+CREATE UNIQUE INDEX budget_month_savings_bucket_idx
+    ON budgets (month, savings_bucket_id)
+    WHERE savings_bucket_id IS NOT NULL;
+```
+
+### 6. Complete DDL in One Script
+
+<details>
+<summary>Click to expand full DDL script</summary>
+
+```sql
+-- ============================================================
+-- SUGIH PERSONAL FINANCE DATABASE SCHEMA
+-- PostgreSQL 16+
+-- ============================================================
+
+-- Clean slate (use with caution)
+-- DROP TABLE IF EXISTS postings CASCADE;
+-- DROP TABLE IF EXISTS budgets CASCADE;
+-- DROP TABLE IF EXISTS transaction_events CASCADE;
+-- DROP TABLE IF EXISTS savings_buckets CASCADE;
+-- DROP TABLE IF EXISTS categories CASCADE;
+-- DROP TABLE IF EXISTS wallets CASCADE;
+-- DROP TYPE IF EXISTS category_type CASCADE;
+
+-- ============================================================
+-- 1. ENUM TYPES
+-- ============================================================
+
+CREATE TYPE category_type AS ENUM ('income', 'expense');
+
+-- ============================================================
+-- 2. TABLES
+-- ============================================================
+
+CREATE TABLE wallets (
+    id TEXT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    type VARCHAR(32) NOT NULL DEFAULT 'bank',
+    currency VARCHAR(3) NOT NULL DEFAULT 'IDR',
+    archived BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE categories (
+    id TEXT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    type category_type NOT NULL,
+    archived BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE savings_buckets (
+    id TEXT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    archived BOOLEAN NOT NULL DEFAULT false,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE transaction_events (
+    id TEXT PRIMARY KEY,
+    occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    type VARCHAR(32) NOT NULL,
+    note TEXT,
+    payee TEXT,
+    category_id TEXT,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    idempotency_key VARCHAR(36) NOT NULL UNIQUE
+);
+
+CREATE TABLE postings (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL,
+    wallet_id TEXT,
+    savings_bucket_id TEXT,
+    amount_idr BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE budgets (
+    id TEXT PRIMARY KEY,
+    month VARCHAR(10) NOT NULL,
+    category_id TEXT,
+    savings_bucket_id TEXT,
+    amount_idr BIGINT NOT NULL,
+    note TEXT,
+    archived BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+
+-- ============================================================
+-- 3. FOREIGN KEY CONSTRAINTS
+-- ============================================================
+
+ALTER TABLE postings
+    ADD CONSTRAINT postings_event_id_fk
+    FOREIGN KEY (event_id) REFERENCES transaction_events(id)
+    ON DELETE CASCADE ON UPDATE NO ACTION;
+
+ALTER TABLE postings
+    ADD CONSTRAINT postings_wallet_id_fk
+    FOREIGN KEY (wallet_id) REFERENCES wallets(id)
+    ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+ALTER TABLE postings
+    ADD CONSTRAINT postings_savings_bucket_id_fk
+    FOREIGN KEY (savings_bucket_id) REFERENCES savings_buckets(id)
+    ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+ALTER TABLE transaction_events
+    ADD CONSTRAINT transaction_events_category_id_fk
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+    ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+ALTER TABLE budgets
+    ADD CONSTRAINT budgets_category_id_fk
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+    ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+ALTER TABLE budgets
+    ADD CONSTRAINT budgets_savings_bucket_id_fk
+    FOREIGN KEY (savings_bucket_id) REFERENCES savings_buckets(id)
+    ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+-- ============================================================
+-- 4. CHECK CONSTRAINTS
+-- ============================================================
+
+ALTER TABLE budgets
+    ADD CONSTRAINT budget_target_check
+    CHECK (
+        (category_id IS NOT NULL AND savings_bucket_id IS NULL) OR
+        (category_id IS NULL AND savings_bucket_id IS NOT NULL)
+    );
+
+-- ============================================================
+-- 5. INDEXES
+-- ============================================================
+
+-- Transaction events indexes
+CREATE INDEX idx_transaction_events_occurred_at
+    ON transaction_events USING btree (occurred_at);
+
+CREATE INDEX idx_transaction_events_type_occurred_at
+    ON transaction_events USING btree (type, occurred_at);
+
+CREATE INDEX idx_transaction_events_category_id_occurred_at
+    ON transaction_events USING btree (category_id, occurred_at);
+
+-- Postings indexes
+CREATE INDEX idx_postings_event_id
+    ON postings USING btree (event_id);
+
+CREATE INDEX idx_postings_wallet_id_created_at
+    ON postings USING btree (wallet_id, created_at);
+
+CREATE INDEX idx_postings_savings_bucket_id_created_at
+    ON postings USING btree (savings_bucket_id, created_at);
+
+-- Budgets indexes (partial unique)
+CREATE UNIQUE INDEX budget_month_category_idx
+    ON budgets (month, category_id)
+    WHERE category_id IS NOT NULL;
+
+CREATE UNIQUE INDEX budget_month_savings_bucket_idx
+    ON budgets (month, savings_bucket_id)
+    WHERE savings_bucket_id IS NOT NULL;
+```
+
+</details>
+
+## ORM/Framework Migration Notes
+
+When implementing this schema in another framework:
+
+### NestJS/TypeORM
+
+- Use `@PrimaryColumn('text')` for UUIDs as text
+- Use `@Column('bigint')` for `amount_idr` (returns string in TypeORM, needs parsing)
+- Create a custom `category_type` enum: `@Column({ type: 'enum', enum: CategoryType })`
+- Use `@ManyToOne()` with `{ onDelete: 'RESTRICT' }` or `{ onDelete: 'CASCADE' }` as appropriate
+
+### NestJS/Prisma
+
+```prisma
+enum CategoryType {
+  income
+  expense
+}
+
+model Wallet {
+  id        String   @id
+  name      String   @unique @db.VarChar(255)
+  type      String   @default("bank") @db.VarChar(32)
+  currency  String   @default("IDR") @db.VarChar(3)
+  archived  Boolean  @default(false)
+  createdAt DateTime? @map("created_at") @db.Timestamptz
+  updatedAt DateTime? @map("updated_at") @db.Timestamptz
+  postings  Posting[]
+
+  @@map("wallets")
+}
+```
+
+### FastAPI/SQLAlchemy
+
+```python
+from sqlalchemy import Column, String, Boolean, BigInteger, ForeignKey, Enum
+from sqlalchemy.dialects.postgresql import TIMESTAMP
+
+class Wallet(Base):
+    __tablename__ = "wallets"
+
+    id = Column(String, primary_key=True)
+    name = Column(String(255), unique=True, nullable=False)
+    type = Column(String(32), nullable=False, default="bank")
+    currency = Column(String(3), nullable=False, default="IDR")
+    archived = Column(Boolean, nullable=False, default=False)
+    created_at = Column(TIMESTAMP(timezone=True))
+    updated_at = Column(TIMESTAMP(timezone=True))
+```
+
+### Key Implementation Notes
+
+1. **UUIDs as Text**: All IDs are UUIDs stored as `TEXT`. Generate UUIDs in application code (e.g., `uuid.uuid4()`, `crypto.randomUUID()`, `nanoid()`)
+
+2. **BigInt for Money**: `amount_idr` uses `BIGINT` to avoid floating-point precision issues. Some ORMs return bigint as string; handle parsing in your application
+
+3. **Partial Unique Indexes**: The budget table's conditional unique indexes (`WHERE category_id IS NOT NULL`) may require raw SQL or native queries in some ORMs
+
+4. **Check Constraints**: The `budget_target_check` constraint ensures exactly one target. Some ORMs don't support check constraints declaratively; add via raw migration
+
+5. **Soft Deletes**: Implement soft delete filters in your queries:
+   - Wallets/Categories/Budgets: `WHERE archived = false`
+   - Transaction Events: `WHERE deleted_at IS NULL`
+
+6. **Timestamp Timezone**: All timestamps use `TIMESTAMP WITH TIME ZONE`. Store in UTC, convert to local time in the application layer
