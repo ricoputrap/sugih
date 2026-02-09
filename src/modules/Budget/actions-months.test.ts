@@ -90,6 +90,7 @@ describe("getMonthsWithBudgets", () => {
     expect(mockQuery).toHaveBeenCalledWith(
       `SELECT DISTINCT b.month, COUNT(*) as budget_count
        FROM budgets b
+       WHERE b.archived = false
        GROUP BY b.month
        ORDER BY b.month DESC`,
     );

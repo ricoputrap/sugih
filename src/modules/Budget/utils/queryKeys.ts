@@ -8,7 +8,8 @@ export const budgetKeys = {
   all: ["budgets"] as const,
 
   /** Key for fetching budgets and summary for a specific month */
-  month: (month: string) => [...budgetKeys.all, "month", month] as const,
+  month: (month: string, status: string = "active") =>
+    [...budgetKeys.all, "month", month, status] as const,
 
   /** Key for fetching months that have budgets (used in copy dialog) */
   monthsWithBudgets: () => [...budgetKeys.all, "months-with-budgets"] as const,

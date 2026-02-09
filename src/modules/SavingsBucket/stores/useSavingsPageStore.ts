@@ -42,8 +42,7 @@ export const useSavingsPageStore = create<SavingsPageState>((set) => ({
 
   openEditDialog: (bucket) =>
     set({ selectedBucket: bucket, isEditDialogOpen: true }),
-  closeEditDialog: () =>
-    set({ selectedBucket: null, isEditDialogOpen: false }),
+  closeEditDialog: () => set({ selectedBucket: null, isEditDialogOpen: false }),
 
   openDeleteDialog: () => set({ isDeleteDialogOpen: true }),
   closeDeleteDialog: () => set({ isDeleteDialogOpen: false }),

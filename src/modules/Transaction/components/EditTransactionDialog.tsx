@@ -42,7 +42,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useTransactionsPageStore } from "@/modules/Transaction/stores";
-import { useTransactionReferenceData, type Transaction } from "@/modules/Transaction/hooks";
+import {
+  useTransactionReferenceData,
+  type Transaction,
+} from "@/modules/Transaction/hooks";
 import { transactionKeys } from "@/modules/Transaction/utils/queryKeys";
 
 interface Posting {
@@ -563,64 +566,64 @@ export function EditTransactionDialog() {
             {/* Savings Contribution/Withdrawal Fields */}
             {(transaction.type === "savings_contribution" ||
               transaction.type === "savings_withdrawal") && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="walletId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Wallet</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select wallet" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {wallets.map((wallet) => (
-                              <SelectItem key={wallet.id} value={wallet.id}>
-                                {wallet.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <>
+                <FormField
+                  control={form.control}
+                  name="walletId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Wallet</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select wallet" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {wallets.map((wallet) => (
+                            <SelectItem key={wallet.id} value={wallet.id}>
+                              {wallet.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <FormField
-                    control={form.control}
-                    name="bucketId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Savings Bucket</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select savings bucket" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {savingsBuckets.map((bucket) => (
-                              <SelectItem key={bucket.id} value={bucket.id}>
-                                {bucket.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
+                <FormField
+                  control={form.control}
+                  name="bucketId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Savings Bucket</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select savings bucket" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {savingsBuckets.map((bucket) => (
+                            <SelectItem key={bucket.id} value={bucket.id}>
+                              {bucket.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
 
             {/* Amount Field - Common to all types */}
             <FormField

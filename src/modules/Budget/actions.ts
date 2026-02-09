@@ -16,6 +16,7 @@ import {
   BudgetIdSchema,
   BudgetMonthSchema,
   BulkDeleteBudgetsSchema,
+  BulkArchiveBudgetsSchema,
   BudgetWithCategory,
 } from "./schema";
 import { getDb, getPool, sql } from "@/db/drizzle-client";
@@ -68,6 +69,7 @@ function mapRowToBudgetWithCategory(
     savings_bucket_id: savingsBucketId,
     amount_idr: row.amount_idr as number,
     note: row.note as string | null,
+    archived: row.archived as boolean,
     created_at: row.created_at as Date | null,
     updated_at: row.updated_at as Date | null,
     category_name: row.category_name as string | null,
@@ -77,8 +79,11 @@ function mapRowToBudgetWithCategory(
 }
 
 /**
- * List all budgets with optional month filter
+ * List all budgets with optional month and status filter
  * Includes both category and savings bucket budgets
+ *
+ * @param query - Query object with optional month and archived (status) fields
+ * @returns List of budgets, filtered by archived status (defaults to active only)
  */
 export async function listBudgets(
   query: unknown = {},
@@ -87,6 +92,9 @@ export async function listBudgets(
 
   try {
     const validatedQuery = BudgetQuerySchema.parse(query);
+    // Extract archived status from validated query (defaults to false for active budgets)
+    const queryObj = query as Record<string, unknown>;
+    const archived = queryObj.archived === true;
 
     let result;
 
@@ -99,6 +107,7 @@ export async function listBudgets(
           b.savings_bucket_id,
           b.amount_idr,
           b.note,
+          b.archived,
           b.created_at,
           b.updated_at,
           c.name as category_name,
@@ -106,7 +115,7 @@ export async function listBudgets(
         FROM budgets b
         LEFT JOIN categories c ON b.category_id = c.id
         LEFT JOIN savings_buckets sb ON b.savings_bucket_id = sb.id
-        WHERE b.month = ${validatedQuery.month}
+        WHERE b.month = ${validatedQuery.month} AND b.archived = ${archived}
         ORDER BY
           CASE WHEN b.category_id IS NOT NULL THEN 0 ELSE 1 END,
           COALESCE(c.name, sb.name) ASC`,
@@ -120,6 +129,7 @@ export async function listBudgets(
           b.savings_bucket_id,
           b.amount_idr,
           b.note,
+          b.archived,
           b.created_at,
           b.updated_at,
           c.name as category_name,
@@ -127,6 +137,7 @@ export async function listBudgets(
         FROM budgets b
         LEFT JOIN categories c ON b.category_id = c.id
         LEFT JOIN savings_buckets sb ON b.savings_bucket_id = sb.id
+        WHERE b.archived = ${archived}
         ORDER BY
           b.month DESC,
           CASE WHEN b.category_id IS NOT NULL THEN 0 ELSE 1 END,
@@ -163,6 +174,7 @@ export async function getBudgetById(
         b.savings_bucket_id,
         b.amount_idr,
         b.note,
+        b.archived,
         b.created_at,
         b.updated_at,
         c.name as category_name,
@@ -188,9 +200,11 @@ export async function getBudgetById(
 /**
  * Get all budgets for a specific month
  * Includes both category and savings bucket budgets
+ * Only returns active (non-archived) budgets by default
  */
 export async function getBudgetsByMonth(
   month: string,
+  archived: boolean = false,
 ): Promise<BudgetWithCategory[]> {
   const db = getDb();
 
@@ -205,6 +219,7 @@ export async function getBudgetsByMonth(
         b.savings_bucket_id,
         b.amount_idr,
         b.note,
+        b.archived,
         b.created_at,
         b.updated_at,
         c.name as category_name,
@@ -212,7 +227,7 @@ export async function getBudgetsByMonth(
       FROM budgets b
       LEFT JOIN categories c ON b.category_id = c.id
       LEFT JOIN savings_buckets sb ON b.savings_bucket_id = sb.id
-      WHERE b.month = ${month}
+      WHERE b.month = ${month} AND b.archived = ${archived}
       ORDER BY
         CASE WHEN b.category_id IS NOT NULL THEN 0 ELSE 1 END,
         COALESCE(c.name, sb.name) ASC`,
@@ -331,6 +346,7 @@ export async function createBudget(input: {
         savings_bucket_id: null,
         amount_idr: input.amountIdr,
         note: noteValue,
+        archived: false,
         created_at: now,
         updated_at: now,
         category_name: targetName,
@@ -350,6 +366,7 @@ export async function createBudget(input: {
         savings_bucket_id: savingsBucketId,
         amount_idr: input.amountIdr,
         note: noteValue,
+        archived: false,
         created_at: now,
         updated_at: now,
         category_name: null,
@@ -397,6 +414,72 @@ export async function updateBudget(
       ...existing,
       amount_idr: amountIdr,
       note: noteValue,
+      updated_at: now,
+    };
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
+      throw unprocessableEntity("Invalid budget ID", formatZodError(error));
+    }
+    throw error;
+  }
+}
+
+/**
+ * Archive a budget by ID (soft delete)
+ * Sets archived = true and updates updated_at timestamp
+ */
+export async function archiveBudget(id: string): Promise<BudgetWithCategory> {
+  const db = getDb();
+
+  try {
+    BudgetIdSchema.parse({ id });
+
+    const existing = await getBudgetById(id);
+    if (!existing) {
+      throw new Error("Budget not found");
+    }
+
+    const now = new Date();
+    await db.execute(
+      sql`UPDATE budgets SET archived = true, updated_at = ${now} WHERE id = ${id}`,
+    );
+
+    return {
+      ...existing,
+      archived: true,
+      updated_at: now,
+    };
+  } catch (error: unknown) {
+    if (error instanceof ZodError) {
+      throw unprocessableEntity("Invalid budget ID", formatZodError(error));
+    }
+    throw error;
+  }
+}
+
+/**
+ * Restore a budget by ID (undo soft delete)
+ * Sets archived = false and updates updated_at timestamp
+ */
+export async function restoreBudget(id: string): Promise<BudgetWithCategory> {
+  const db = getDb();
+
+  try {
+    BudgetIdSchema.parse({ id });
+
+    const existing = await getBudgetById(id);
+    if (!existing) {
+      throw new Error("Budget not found");
+    }
+
+    const now = new Date();
+    await db.execute(
+      sql`UPDATE budgets SET archived = false, updated_at = ${now} WHERE id = ${id}`,
+    );
+
+    return {
+      ...existing,
+      archived: false,
       updated_at: now,
     };
   } catch (error: unknown) {
@@ -476,7 +559,7 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
     const startDateISO = startDate.toISOString();
     const endDateISO = endDate.toISOString();
 
-    // Get all budgets for the month (both category and savings bucket)
+    // Get all active budgets for the month (both category and savings bucket)
     const budgetResult = await pool.query(
       `SELECT
         b.category_id,
@@ -487,7 +570,7 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummary> {
       FROM budgets b
       LEFT JOIN categories c ON b.category_id = c.id
       LEFT JOIN savings_buckets sb ON b.savings_bucket_id = sb.id
-      WHERE b.month = $1`,
+      WHERE b.month = $1 AND b.archived = false`,
       [month],
     );
 
@@ -665,6 +748,126 @@ export async function bulkDeleteBudgets(
 }
 
 /**
+ * Bulk archive multiple budgets by ID
+ */
+export async function bulkArchiveBudgets(
+  ids: string[],
+): Promise<{ archivedCount: number; failedIds: string[] }> {
+  const pool = getPool();
+
+  // Validate input
+  const validatedInput = BulkArchiveBudgetsSchema.parse({ ids });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Check which budgets exist
+    const checkQuery = `
+      SELECT id
+      FROM budgets
+      WHERE id = ANY($1)
+    `;
+    const checkResult = await client.query(checkQuery, [validatedInput.ids]);
+    const budgets = checkResult.rows;
+
+    // Identify failed IDs
+    const foundIds = new Set(budgets.map((b) => b.id));
+    const notFoundIds = validatedInput.ids.filter((id) => !foundIds.has(id));
+
+    const archivableIds = Array.from(foundIds);
+
+    // Perform archive for valid budgets
+    let archivedCount = 0;
+    if (archivableIds.length > 0) {
+      const now = new Date();
+      const archiveQuery = `
+        UPDATE budgets
+        SET archived = true, updated_at = $2
+        WHERE id = ANY($1)
+      `;
+      const archiveResult = await client.query(archiveQuery, [
+        archivableIds,
+        now,
+      ]);
+      archivedCount = archiveResult.rowCount || 0;
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      archivedCount,
+      failedIds: notFoundIds,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Bulk restore multiple archived budgets by ID
+ */
+export async function bulkRestoreBudgets(
+  ids: string[],
+): Promise<{ restoredCount: number; failedIds: string[] }> {
+  const pool = getPool();
+
+  // Validate input
+  const validatedInput = BulkArchiveBudgetsSchema.parse({ ids });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Check which budgets exist
+    const checkQuery = `
+      SELECT id
+      FROM budgets
+      WHERE id = ANY($1)
+    `;
+    const checkResult = await client.query(checkQuery, [validatedInput.ids]);
+    const budgets = checkResult.rows;
+
+    // Identify failed IDs
+    const foundIds = new Set(budgets.map((b) => b.id));
+    const notFoundIds = validatedInput.ids.filter((id) => !foundIds.has(id));
+
+    const restorableIds = Array.from(foundIds);
+
+    // Perform restore for valid budgets
+    let restoredCount = 0;
+    if (restorableIds.length > 0) {
+      const now = new Date();
+      const restoreQuery = `
+        UPDATE budgets
+        SET archived = false, updated_at = $2
+        WHERE id = ANY($1)
+      `;
+      const restoreResult = await client.query(restoreQuery, [
+        restorableIds,
+        now,
+      ]);
+      restoredCount = restoreResult.rowCount || 0;
+    }
+
+    await client.query("COMMIT");
+
+    return {
+      restoredCount,
+      failedIds: notFoundIds,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * Get all distinct months that have budgets, sorted in descending order
  * Returns array of months with budget count
  */
@@ -677,6 +880,7 @@ export async function getMonthsWithBudgets(): Promise<
     const result = await pool.query(
       `SELECT DISTINCT b.month, COUNT(*) as budget_count
        FROM budgets b
+       WHERE b.archived = false
        GROUP BY b.month
        ORDER BY b.month DESC`,
     );
@@ -812,6 +1016,7 @@ export async function copyBudgets(
           savings_bucket_id: budget.savings_bucket_id,
           amount_idr: budget.amount_idr,
           note: budget.note ?? null,
+          archived: false,
           created_at: now,
           updated_at: now,
           category_name: budget.category_name,

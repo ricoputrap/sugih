@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSavingsBucketsData } from "@/modules/SavingsBucket/hooks";
 
@@ -36,9 +31,7 @@ export function SavingsStatsCards() {
     <div className="grid gap-4 md:grid-cols-2">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Active Buckets
-          </CardTitle>
+          <CardTitle className="text-sm font-medium">Active Buckets</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{activeBuckets.length}</div>

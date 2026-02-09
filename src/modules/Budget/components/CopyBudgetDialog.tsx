@@ -234,9 +234,14 @@ export function CopyBudgetDialog() {
                   </div>
                 ) : (
                   sourceMonths.map((monthOption) => (
-                    <SelectItem key={monthOption.value} value={monthOption.value}>
+                    <SelectItem
+                      key={monthOption.value}
+                      value={monthOption.value}
+                    >
                       {monthOption.label}
-                      {monthOption.budgetCount ? ` (${monthOption.budgetCount})` : ""}
+                      {monthOption.budgetCount
+                        ? ` (${monthOption.budgetCount})`
+                        : ""}
                     </SelectItem>
                   ))
                 )}

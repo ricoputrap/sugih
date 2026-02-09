@@ -42,8 +42,8 @@ export function SavingsBulkDeleteDialog() {
         <AlertDialogHeader>
           <AlertDialogTitle>Delete savings buckets?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will move {selectedBucketIds.length} savings bucket(s) to
-            trash (soft delete). You can restore them later if needed.
+            This will move {selectedBucketIds.length} savings bucket(s) to trash
+            (soft delete). You can restore them later if needed.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

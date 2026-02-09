@@ -85,7 +85,9 @@ describe("useBudgetsData", () => {
     });
 
     expect(result.current.data).toEqual(mockBudgetsResponse);
-    expect(mockFetch).toHaveBeenCalledWith("/api/budgets?month=2026-01-01");
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/budgets?month=2026-01-01&status=active",
+    );
   });
 
   it("handles fetch error", async () => {

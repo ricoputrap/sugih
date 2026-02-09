@@ -64,6 +64,13 @@
       "when": 1769873440030,
       "tag": "0008_handy_diamondback",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1770038400000,
+      "tag": "0009_add_archived_to_budgets",
+      "breakpoints": true
     }
   ]
 }

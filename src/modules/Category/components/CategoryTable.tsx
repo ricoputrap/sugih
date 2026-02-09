@@ -180,9 +180,7 @@ export function CategoryTable({
                   )}
                   {onArchive && (
                     <DropdownMenuItem
-                      onClick={() =>
-                        handleArchive(category.id, category.name)
-                      }
+                      onClick={() => handleArchive(category.id, category.name)}
                       disabled={actionLoading === category.id}
                     >
                       <Archive className="mr-2 h-4 w-4" />
@@ -194,9 +192,7 @@ export function CategoryTable({
                 <>
                   {onArchive && (
                     <DropdownMenuItem
-                      onClick={() =>
-                        handleArchive(category.id, category.name)
-                      }
+                      onClick={() => handleArchive(category.id, category.name)}
                       disabled={actionLoading === category.id}
                     >
                       <ArchiveRestore className="mr-2 h-4 w-4" />
@@ -208,13 +204,9 @@ export function CategoryTable({
               <DropdownMenuSeparator />
               {onDelete && (
                 <DropdownMenuItem
-                  onClick={() =>
-                    handleDelete(category.id, category.name)
-                  }
+                  onClick={() => handleDelete(category.id, category.name)}
                   className="text-red-600"
-                  disabled={
-                    actionLoading === category.id || !category.archived
-                  }
+                  disabled={actionLoading === category.id || !category.archived}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete

@@ -8,7 +8,12 @@ import { useBudgetsPageStore } from "@/modules/Budget/stores";
 export function BudgetsPageHeader() {
   const [month] = useBudgetMonth();
   const { isLoading } = useBudgetsData(month);
-  const { openCopyDialog, openCreateDialog, openBulkDeleteDialog, selectedBudgetIds } = useBudgetsPageStore();
+  const {
+    openCopyDialog,
+    openCreateDialog,
+    openBulkDeleteDialog,
+    selectedBudgetIds,
+  } = useBudgetsPageStore();
 
   return (
     <div className="flex items-center justify-between">

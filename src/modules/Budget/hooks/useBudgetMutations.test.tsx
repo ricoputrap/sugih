@@ -84,7 +84,7 @@ describe("useBudgetMutations", () => {
       });
 
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["budgets", "month", "2026-01-01"],
+        queryKey: ["budgets", "month", "2026-01-01", "active"],
       });
     });
 
@@ -139,7 +139,7 @@ describe("useBudgetMutations", () => {
       });
 
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["budgets", "month", "2026-01-01"],
+        queryKey: ["budgets", "month", "2026-01-01", "active"],
       });
     });
   });
@@ -168,7 +168,7 @@ describe("useBudgetMutations", () => {
       });
 
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["budgets", "month", "2026-01-01"],
+        queryKey: ["budgets", "month", "2026-01-01", "active"],
       });
     });
   });
@@ -206,10 +206,10 @@ describe("useBudgetMutations", () => {
       });
 
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["budgets", "month", "2026-01-01"],
+        queryKey: ["budgets", "month", "2026-01-01", "active"],
       });
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ["budgets", "month", "2026-02-01"],
+        queryKey: ["budgets", "month", "2026-02-01", "active"],
       });
     });
 

@@ -61,9 +61,7 @@
         "wallets_name_unique": {
           "name": "wallets_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -120,9 +118,7 @@
         "categories_name_unique": {
           "name": "categories_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -184,9 +180,7 @@
         "savings_buckets_name_unique": {
           "name": "savings_buckets_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -298,12 +292,8 @@
           "name": "postings_event_id_transaction_events_id_fk",
           "tableFrom": "postings",
           "tableTo": "transaction_events",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -311,12 +301,8 @@
           "name": "postings_wallet_id_wallets_id_fk",
           "tableFrom": "postings",
           "tableTo": "wallets",
-          "columnsFrom": [
-            "wallet_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["wallet_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -324,12 +310,8 @@
           "name": "postings_savings_bucket_id_savings_buckets_id_fk",
           "tableFrom": "postings",
           "tableTo": "savings_buckets",
-          "columnsFrom": [
-            "savings_bucket_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["savings_bucket_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -469,12 +451,8 @@
           "name": "transaction_events_category_id_categories_id_fk",
           "tableFrom": "transaction_events",
           "tableTo": "categories",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["category_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -484,9 +462,7 @@
         "transaction_events_idempotency_key_unique": {
           "name": "transaction_events_idempotency_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "idempotency_key"
-          ]
+          "columns": ["idempotency_key"]
         }
       },
       "policies": {},
@@ -597,12 +573,8 @@
           "name": "budgets_category_id_categories_id_fk",
           "tableFrom": "budgets",
           "tableTo": "categories",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["category_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -610,12 +582,8 @@
           "name": "budgets_savings_bucket_id_savings_buckets_id_fk",
           "tableFrom": "budgets",
           "tableTo": "savings_buckets",
-          "columnsFrom": [
-            "savings_bucket_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["savings_bucket_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -636,10 +604,7 @@
     "public.category_type": {
       "name": "category_type",
       "schema": "public",
-      "values": [
-        "income",
-        "expense"
-      ]
+      "values": ["income", "expense"]
     }
   },
   "schemas": {},

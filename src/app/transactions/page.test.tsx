@@ -61,7 +61,12 @@ vi.mock("@/modules/Transaction/hooks", () => ({
         { id: "wallet_2", name: "Savings Wallet", archived: false },
       ],
       categories: [
-        { id: "cat_1", name: "Food & Dining", type: "expense", archived: false },
+        {
+          id: "cat_1",
+          name: "Food & Dining",
+          type: "expense",
+          archived: false,
+        },
         { id: "cat_2", name: "Salary", type: "income", archived: false },
       ],
       savingsBuckets: [
@@ -137,9 +142,7 @@ const renderWithProviders = (component: React.ReactElement) => {
     },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      {component}
-    </QueryClientProvider>,
+    <QueryClientProvider client={queryClient}>{component}</QueryClientProvider>,
   );
 };
 

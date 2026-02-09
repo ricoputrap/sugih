@@ -9,4 +9,5 @@ export {
   useBudgetMutations,
 } from "./useBudgetMutations";
 export { type BudgetsResponse, useBudgetsData } from "./useBudgetsData";
+export { useBudgetStatus } from "./useBudgetStatus";
 export { useBudgetView } from "./useBudgetView";

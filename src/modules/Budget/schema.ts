@@ -17,6 +17,7 @@ export interface Budget {
   savings_bucket_id: string | null;
   amount_idr: number;
   note?: string | null;
+  archived: boolean;
   created_at: Date | null;
   updated_at: Date | null;
 }
@@ -27,6 +28,11 @@ export interface BudgetWithCategory extends Budget {
   savings_bucket_name?: string | null;
   target_type: "category" | "savings_bucket";
 }
+
+// Schema for archiving/restoring budgets
+export const BudgetArchiveInputSchema = z.object({
+  archived: z.boolean(),
+});
 
 // Zod schemas for validation
 export const BudgetMonthSchema = z
@@ -155,6 +161,13 @@ export const BulkDeleteBudgetsSchema = z.object({
     .array(z.string().min(1).max(50, "Budget ID too long"))
     .min(1, "At least one budget ID is required")
     .max(100, "Maximum 100 budgets can be deleted at once"),
+});
+
+export const BulkArchiveBudgetsSchema = z.object({
+  ids: z
+    .array(z.string().min(1).max(50, "Budget ID too long"))
+    .min(1, "At least one budget ID is required")
+    .max(100, "Maximum 100 budgets can be archived at once"),
 });
 
 /**

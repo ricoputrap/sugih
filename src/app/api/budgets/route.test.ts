@@ -220,7 +220,10 @@ describe("Budgets API Routes", () => {
       const { status } = await parseResponse(response);
 
       expect(status).toBe(200);
-      expect(listBudgets).toHaveBeenCalledWith({ month: "2024-01-01" });
+      expect(listBudgets).toHaveBeenCalledWith({
+        month: "2024-01-01",
+        archived: false,
+      });
     });
 
     it("should return unified response with budgets and summary when month is provided", async () => {
@@ -239,7 +242,10 @@ describe("Budgets API Routes", () => {
         budgets: [mockBudget1, mockBudget2],
         summary: mockBudgetSummary,
       });
-      expect(listBudgets).toHaveBeenCalledWith({ month: "2024-01-01" });
+      expect(listBudgets).toHaveBeenCalledWith({
+        month: "2024-01-01",
+        archived: false,
+      });
       expect(getBudgetSummary).toHaveBeenCalledWith("2024-01-01");
     });
 
@@ -920,7 +926,10 @@ describe("Budgets API Routes", () => {
 
       expect(status).toBe(400);
       expect(data.error.issues.details.deletedCount).toBe(1);
-      expect(data.error.issues.details.failedIds).toEqual(["budget999", "budget888"]);
+      expect(data.error.issues.details.failedIds).toEqual([
+        "budget999",
+        "budget888",
+      ]);
     });
 
     it("should delete single budget successfully", async () => {

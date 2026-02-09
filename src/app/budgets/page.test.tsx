@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import BudgetsPage from "./page";
 
 // Mock NUQS hooks
 vi.mock("@/modules/Budget/hooks", () => ({
   useBudgetMonth: () => ["2026-01-01", vi.fn()],
   useBudgetView: () => ["list", vi.fn()],
+  useBudgetStatus: () => ["active", vi.fn()],
   useBudgetMonthOptions: () => [
     {
       value: "2026-01-01",
@@ -31,6 +33,16 @@ vi.mock("@/modules/Budget/hooks", () => ({
     updateBudget: { mutateAsync: vi.fn(), isPending: false },
     deleteBudget: { mutateAsync: vi.fn(), isPending: false },
     copyBudgets: { mutateAsync: vi.fn(), isPending: false },
+    archiveBudget: { mutateAsync: vi.fn(), isPending: false },
+    restoreBudget: { mutateAsync: vi.fn(), isPending: false },
+    bulkArchiveBudgets: { mutateAsync: vi.fn(), isPending: false },
+    bulkRestoreBudgets: { mutateAsync: vi.fn(), isPending: false },
+  }),
+  useBudgetMonthNavigation: () => ({
+    canGoPrevious: true,
+    canGoNext: true,
+    goToPreviousMonth: vi.fn(),
+    goToNextMonth: vi.fn(),
   }),
 }));
 
@@ -106,6 +118,15 @@ vi.mock("@/modules/Budget/components/CopyBudgetDialog", () => ({
   CopyBudgetDialog: () => <div data-testid="copy-budget-dialog" />,
 }));
 
+// Helper function to render with NUQS adapter
+function renderWithAdapter(component: React.ReactElement) {
+  return render(
+    <NuqsTestingAdapter searchParams={{ month: "2026-01-01" }}>
+      {component}
+    </NuqsTestingAdapter>,
+  );
+}
+
 describe("BudgetsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -113,7 +134,7 @@ describe("BudgetsPage", () => {
 
   describe("Month Selector Relocation", () => {
     it("should display month selector in Budget Details card header", async () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Find the month selector
       const monthSelect = screen.getByTestId("month-select");
@@ -125,7 +146,7 @@ describe("BudgetsPage", () => {
     });
 
     it("should have month selector in the same container as Budget Details title", async () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Find the month select element
       const monthSelect = screen.getByTestId("month-select");
@@ -137,7 +158,7 @@ describe("BudgetsPage", () => {
     });
 
     it("should maintain month selector functionality", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Find the month select
       const monthSelect = screen.getByTestId("month-select");
@@ -148,7 +169,7 @@ describe("BudgetsPage", () => {
     });
 
     it("should display month label before the selector", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Find the month select
       const monthSelect = screen.getByTestId("month-select");
@@ -168,7 +189,7 @@ describe("BudgetsPage", () => {
 
   describe("Budget Details Card", () => {
     it("should render Budget Details card", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Check that Budget Details text is present
       const budgetDetailsText = screen.getByText("Budget Details");
@@ -176,14 +197,14 @@ describe("BudgetsPage", () => {
     });
 
     it("should display budget table content within Budget Details card", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       const budgetTable = screen.getByTestId("budget-table");
       expect(budgetTable).toBeInTheDocument();
     });
 
     it("should display budget description when month is selected", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // The description should contain "Budget breakdown for"
       const descriptions = screen.queryAllByText(/budget breakdown for/i);
@@ -193,7 +214,7 @@ describe("BudgetsPage", () => {
 
   describe("Header Layout", () => {
     it("should render page header with title and buttons", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Check for page title
       const title = screen.getByText("Budgets");
@@ -205,7 +226,7 @@ describe("BudgetsPage", () => {
     });
 
     it("should render Add Budget button", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Check for Add Budget button
       const addButton = screen.getByText(/Add Budget/i);
@@ -213,7 +234,7 @@ describe("BudgetsPage", () => {
     });
 
     it("should display month selector with proper label", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Find the Month label
       const monthLabel = screen.getByText("Month:");
@@ -225,7 +246,7 @@ describe("BudgetsPage", () => {
     });
 
     it("should have proper label styling for Month", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Find the Month label
       const monthLabel = screen.getByText("Month:");
@@ -236,7 +257,7 @@ describe("BudgetsPage", () => {
     });
 
     it("should maintain CardTitle styling", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Find Budget Details title
       const budgetDetailsTitle = screen.getByText("Budget Details");
@@ -246,28 +267,28 @@ describe("BudgetsPage", () => {
     });
 
     it("should have ViewToggle rendered", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       const viewToggle = screen.getByTestId("view-toggle");
       expect(viewToggle).toBeInTheDocument();
     });
 
     it("should have BudgetTable rendered", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       const budgetTable = screen.getByTestId("budget-table");
       expect(budgetTable).toBeInTheDocument();
     });
 
     it("should have BudgetDialogForm rendered", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       const dialogForm = screen.getByTestId("budget-dialog-form");
       expect(dialogForm).toBeInTheDocument();
     });
 
     it("should have CopyBudgetDialog rendered", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       const copyDialog = screen.getByTestId("copy-budget-dialog");
       expect(copyDialog).toBeInTheDocument();
@@ -276,7 +297,7 @@ describe("BudgetsPage", () => {
 
   describe("Component Integration", () => {
     it("should render all major components", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Page elements
       expect(screen.getByText("Budgets")).toBeInTheDocument();
@@ -297,7 +318,7 @@ describe("BudgetsPage", () => {
     });
 
     it("should have responsive month selector container", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       // Find the Month label
       const monthLabel = screen.getByText("Month:");
@@ -310,7 +331,7 @@ describe("BudgetsPage", () => {
     });
 
     it("should have responsive width for month selector", () => {
-      render(<BudgetsPage />);
+      renderWithAdapter(<BudgetsPage />);
 
       const monthSelect = screen.getByTestId("month-select");
 

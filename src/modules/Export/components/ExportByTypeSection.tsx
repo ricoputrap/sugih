@@ -2,13 +2,7 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Wallet,
-  Tags,
-  PiggyBank,
-  Receipt,
-  PieChart,
-} from "lucide-react";
+import { Wallet, Tags, PiggyBank, Receipt, PieChart } from "lucide-react";
 import { ExportCard } from "./ExportCard";
 import { useExportStats } from "../hooks";
 

@@ -30,8 +30,9 @@ export const transactionEvents = pgTable(
     }).notNull(),
     note: text("note"),
     payee: text("payee"),
-    category_id: text("category_id")
-      .references(() => categories.id, { onDelete: "restrict" }), // Foreign key to categories (nullable)
+    category_id: text("category_id").references(() => categories.id, {
+      onDelete: "restrict",
+    }), // Foreign key to categories (nullable)
     deleted_at: timestamp("deleted_at", { withTimezone: true }),
     created_at: timestamp("created_at", { withTimezone: true }).$default(
       () => new Date(),
@@ -64,10 +65,13 @@ export const postings = pgTable(
     event_id: text("event_id")
       .notNull()
       .references(() => transactionEvents.id, { onDelete: "cascade" }),
-    wallet_id: text("wallet_id")
-      .references(() => wallets.id, { onDelete: "restrict" }), // Foreign key to wallets (nullable)
-    savings_bucket_id: text("savings_bucket_id")
-      .references(() => savingsBuckets.id, { onDelete: "restrict" }), // Foreign key to savings_buckets (nullable)
+    wallet_id: text("wallet_id").references(() => wallets.id, {
+      onDelete: "restrict",
+    }), // Foreign key to wallets (nullable)
+    savings_bucket_id: text("savings_bucket_id").references(
+      () => savingsBuckets.id,
+      { onDelete: "restrict" },
+    ), // Foreign key to savings_buckets (nullable)
     amount_idr: bigint("amount_idr", { mode: "number" }).notNull(), // Signed bigint for Rupiah amounts
     created_at: timestamp("created_at", { withTimezone: true }).$default(
       () => new Date(),

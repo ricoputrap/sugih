@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCategoriesData } from "@/modules/Category/hooks";
 
@@ -63,9 +58,7 @@ export function CategoriesStatsCards() {
           <div className="text-2xl font-bold text-blue-600">
             {expenseCategories.length}
           </div>
-          <p className="text-xs text-muted-foreground">
-            For spending & costs
-          </p>
+          <p className="text-xs text-muted-foreground">For spending & costs</p>
         </CardContent>
       </Card>
       <Card>
@@ -86,9 +79,7 @@ export function CategoriesStatsCards() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
-            {archivedCategories.length}
-          </div>
+          <div className="text-2xl font-bold">{archivedCategories.length}</div>
           <p className="text-xs text-muted-foreground">Hidden from forms</p>
         </CardContent>
       </Card>

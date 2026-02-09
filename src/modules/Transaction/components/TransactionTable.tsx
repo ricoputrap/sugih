@@ -28,11 +28,11 @@ interface Transaction {
   id: string;
   occurred_at: string | Date;
   type:
-  | "expense"
-  | "income"
-  | "transfer"
-  | "savings_contribution"
-  | "savings_withdrawal";
+    | "expense"
+    | "income"
+    | "transfer"
+    | "savings_contribution"
+    | "savings_withdrawal";
   note: string | null;
   payee: string | null;
   category_id: string | null;
@@ -106,7 +106,7 @@ export function TransactionTable({
   }, [externalSelectedIds]);
 
   const handleRowSelectionChange = (newState: RowSelectionState) => {
-    const newIds = Object.keys(newState).filter(k => newState[k]);
+    const newIds = Object.keys(newState).filter((k) => newState[k]);
     if (onSelectionChange) {
       onSelectionChange(newIds);
     }
@@ -130,7 +130,9 @@ export function TransactionTable({
                   ? "indeterminate"
                   : false
             }
-            onChange={(e) => table.toggleAllPageRowsSelected(!!e.target.checked)}
+            onChange={(e) =>
+              table.toggleAllPageRowsSelected(!!e.target.checked)
+            }
             className="cursor-pointer"
             aria-label="Select all transactions"
           />
@@ -162,9 +164,7 @@ export function TransactionTable({
       cell: ({ row }) => {
         const type = row.getValue("type") as Transaction["type"];
         return (
-          <Badge variant={typeColors[type] as any}>
-            {typeLabels[type]}
-          </Badge>
+          <Badge variant={typeColors[type] as any}>{typeLabels[type]}</Badge>
         );
       },
     },

@@ -14,9 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  useBudgetsPageStore,
-} from "@/modules/Budget/stores";
+import { useBudgetsPageStore } from "@/modules/Budget/stores";
 import { useBudgetMutations } from "@/modules/Budget/hooks";
 import { useState } from "react";
 
@@ -43,13 +41,17 @@ export function BudgetBulkDeleteDialog() {
   };
 
   return (
-    <AlertDialog open={isBulkDeleteDialogOpen} onOpenChange={closeBulkDeleteDialog}>
+    <AlertDialog
+      open={isBulkDeleteDialogOpen}
+      onOpenChange={closeBulkDeleteDialog}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete budgets?</AlertDialogTitle>
           <AlertDialogDescription>
             This will permanently delete {selectedBudgetIds.size} budget
-            {selectedBudgetIds.size !== 1 ? "s" : ""}. This action cannot be undone.
+            {selectedBudgetIds.size !== 1 ? "s" : ""}. This action cannot be
+            undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

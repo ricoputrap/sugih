@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWalletsData } from "@/modules/Wallet/hooks";
 
@@ -67,8 +62,7 @@ export function WalletsSummaryCards() {
         <CardContent>
           <div className="text-2xl font-bold">{activeWallets.length}</div>
           <p className="text-xs text-muted-foreground">
-            {archivedWallets.length > 0 &&
-              `${archivedWallets.length} archived`}
+            {archivedWallets.length > 0 && `${archivedWallets.length} archived`}
           </p>
         </CardContent>
       </Card>
@@ -81,9 +75,7 @@ export function WalletsSummaryCards() {
           <div className="text-2xl font-bold">
             {activeWallets.filter((w) => w.type === "bank").length}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Active bank accounts
-          </p>
+          <p className="text-xs text-muted-foreground">Active bank accounts</p>
         </CardContent>
       </Card>
 
@@ -95,9 +87,7 @@ export function WalletsSummaryCards() {
           <div className="text-2xl font-bold">
             {activeWallets.filter((w) => w.type === "cash").length}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Physical cash on hand
-          </p>
+          <p className="text-xs text-muted-foreground">Physical cash on hand</p>
         </CardContent>
       </Card>
 

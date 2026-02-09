@@ -273,7 +273,6 @@ export function BudgetCardGrid({
                 isSavingsBucket && "border-emerald-200",
               )}
             >
-
               {/* Card Header with Menu */}
               <div
                 className={cn(

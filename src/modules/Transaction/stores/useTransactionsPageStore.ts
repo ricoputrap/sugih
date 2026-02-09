@@ -45,8 +45,7 @@ export const useTransactionsPageStore = create<TransactionsPageState>(
       }),
     openDeleteDialog: () => set({ isDeleteDialogOpen: true }),
     closeDeleteDialog: () => set({ isDeleteDialogOpen: false }),
-    setSelectedTransactionIds: (ids) =>
-      set({ selectedTransactionIds: ids }),
+    setSelectedTransactionIds: (ids) => set({ selectedTransactionIds: ids }),
     clearSelection: () => set({ selectedTransactionIds: [] }),
     reset: () =>
       set({

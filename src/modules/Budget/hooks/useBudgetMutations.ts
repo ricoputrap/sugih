@@ -33,6 +33,22 @@ export interface DeleteBudgetInput {
 }
 
 /**
+ * Input for archiving a budget
+ */
+export interface ArchiveBudgetInput {
+  id: string;
+  month: string;
+}
+
+/**
+ * Input for restoring a budget
+ */
+export interface RestoreBudgetInput {
+  id: string;
+  month: string;
+}
+
+/**
  * Input for copying budgets between months
  */
 export interface CopyBudgetsInput {
@@ -204,11 +220,163 @@ export function useBudgetMutations() {
     },
   });
 
+  const archiveBudget = useMutation({
+    mutationFn: async (
+      values: ArchiveBudgetInput,
+    ): Promise<BudgetWithCategory> => {
+      const response = await fetch(`/api/budgets/${values.id}/archive`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "archive" }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to archive budget");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: budgetKeys.month(variables.month),
+      });
+      toast.success("Budget archived successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to archive budget");
+    },
+  });
+
+  const restoreBudget = useMutation({
+    mutationFn: async (
+      values: RestoreBudgetInput,
+    ): Promise<BudgetWithCategory> => {
+      const response = await fetch(`/api/budgets/${values.id}/archive`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore" }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to restore budget");
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: budgetKeys.month(variables.month),
+      });
+      toast.success("Budget restored successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to restore budget");
+    },
+  });
+
+  const bulkArchiveBudgets = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const response = await fetch(`/api/budgets/archive`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Check if this is a partial failure
+        if (response.status === 400 && data.error?.details?.failedIds) {
+          return data;
+        }
+        throw new Error(data.error?.message || "Failed to archive budgets");
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: budgetKeys.all });
+
+      if (data.archivedCount > 0) {
+        toast.success(
+          `Successfully archived ${data.archivedCount} budget${
+            data.archivedCount !== 1 ? "s" : ""
+          }`,
+        );
+      }
+
+      if (data.error?.details?.failedIds?.length > 0) {
+        toast.error(
+          `Failed to archive ${data.error.details.failedIds.length} budget${
+            data.error.details.failedIds.length !== 1 ? "s" : ""
+          } (not found)`,
+        );
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to archive budgets");
+    },
+  });
+
+  const bulkRestoreBudgets = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const response = await fetch(`/api/budgets/restore`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Check if this is a partial failure
+        if (response.status === 400 && data.error?.details?.failedIds) {
+          return data;
+        }
+        throw new Error(data.error?.message || "Failed to restore budgets");
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: budgetKeys.all });
+
+      if (data.restoredCount > 0) {
+        toast.success(
+          `Successfully restored ${data.restoredCount} budget${
+            data.restoredCount !== 1 ? "s" : ""
+          }`,
+        );
+      }
+
+      if (data.error?.details?.failedIds?.length > 0) {
+        toast.error(
+          `Failed to restore ${data.error.details.failedIds.length} budget${
+            data.error.details.failedIds.length !== 1 ? "s" : ""
+          } (not found)`,
+        );
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to restore budgets");
+    },
+  });
+
   return {
     createBudget,
     updateBudget,
     deleteBudget,
     copyBudgets,
     bulkDeleteBudgets,
+    archiveBudget,
+    restoreBudget,
+    bulkArchiveBudgets,
+    bulkRestoreBudgets,
   };
 }

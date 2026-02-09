@@ -124,7 +124,7 @@ export function WalletTable({ wallets, isLoading = false }: WalletTableProps) {
       header: "Balance",
       cell: ({ row }) => (
         <span className="font-medium">
-          {formatCurrency(row.getValue("balance") as number || 0)}
+          {formatCurrency((row.getValue("balance") as number) || 0)}
         </span>
       ),
     },
@@ -153,9 +153,7 @@ export function WalletTable({ wallets, isLoading = false }: WalletTableProps) {
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleArchive(wallet)}
-              >
+              <DropdownMenuItem onClick={() => handleArchive(wallet)}>
                 <Archive className="mr-2 h-4 w-4" />
                 Archive
               </DropdownMenuItem>
@@ -194,7 +192,7 @@ export function WalletTable({ wallets, isLoading = false }: WalletTableProps) {
       header: "Balance",
       cell: ({ row }) => (
         <span className="font-medium">
-          {formatCurrency(row.getValue("balance") as number || 0)}
+          {formatCurrency((row.getValue("balance") as number) || 0)}
         </span>
       ),
     },
@@ -219,9 +217,7 @@ export function WalletTable({ wallets, isLoading = false }: WalletTableProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => handleRestore(wallet)}
-              >
+              <DropdownMenuItem onClick={() => handleRestore(wallet)}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Restore
               </DropdownMenuItem>
@@ -244,7 +240,10 @@ export function WalletTable({ wallets, isLoading = false }: WalletTableProps) {
     return (
       <div className="space-y-2">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-12 w-full animate-pulse rounded bg-gray-200" />
+          <div
+            key={i}
+            className="h-12 w-full animate-pulse rounded bg-gray-200"
+          />
         ))}
       </div>
     );

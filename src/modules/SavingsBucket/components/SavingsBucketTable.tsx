@@ -125,7 +125,7 @@ export function SavingsBucketTable({
   }, [selectedIds]);
 
   const handleRowSelectionChange = (newState: RowSelectionState) => {
-    const newIds = Object.keys(newState).filter(k => newState[k]);
+    const newIds = Object.keys(newState).filter((k) => newState[k]);
     setSelectedIds(newIds);
   };
 
@@ -147,7 +147,9 @@ export function SavingsBucketTable({
                   ? "indeterminate"
                   : false
             }
-            onChange={(e) => table.toggleAllPageRowsSelected(!!e.target.checked)}
+            onChange={(e) =>
+              table.toggleAllPageRowsSelected(!!e.target.checked)
+            }
             className="cursor-pointer"
             aria-label="Select all savings buckets"
           />
@@ -233,9 +235,7 @@ export function SavingsBucketTable({
                   )}
                   {onArchive && (
                     <DropdownMenuItem
-                      onClick={() =>
-                        handleArchive(bucket.id, bucket.name)
-                      }
+                      onClick={() => handleArchive(bucket.id, bucket.name)}
                       disabled={actionLoading === bucket.id}
                     >
                       <Archive className="mr-2 h-4 w-4" />
@@ -247,9 +247,7 @@ export function SavingsBucketTable({
                 <>
                   {onArchive && (
                     <DropdownMenuItem
-                      onClick={() =>
-                        handleArchive(bucket.id, bucket.name)
-                      }
+                      onClick={() => handleArchive(bucket.id, bucket.name)}
                       disabled={actionLoading === bucket.id}
                     >
                       <ArchiveRestore className="mr-2 h-4 w-4" />
@@ -263,9 +261,7 @@ export function SavingsBucketTable({
                 <DropdownMenuItem
                   onClick={() => handleDelete(bucket.id, bucket.name)}
                   className="text-red-600"
-                  disabled={
-                    actionLoading === bucket.id || !bucket.archived
-                  }
+                  disabled={actionLoading === bucket.id || !bucket.archived}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete

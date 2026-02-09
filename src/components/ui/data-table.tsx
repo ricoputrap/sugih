@@ -38,6 +38,7 @@ interface DataTableProps<TData, TValue> {
   getRowId?: (originalRow: TData, index: number) => string;
   rowClassName?: (row: Row<TData>) => string;
   initialSorting?: SortingState;
+  toolbarActions?: React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
@@ -50,6 +51,7 @@ export function DataTable<TData, TValue>({
   getRowId,
   rowClassName,
   initialSorting,
+  toolbarActions,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>(
     initialSorting || [],
@@ -108,21 +110,24 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      {searchKey && (
+      {(searchKey || toolbarActions) && (
         <div className="flex items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={searchPlaceholder}
-              value={
-                (table.getColumn(searchKey)?.getFilterValue() as string) ?? ""
-              }
-              onChange={(event) =>
-                table.getColumn(searchKey)?.setFilterValue(event.target.value)
-              }
-              className="pl-8"
-            />
-          </div>
+          {toolbarActions}
+          {searchKey && (
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={searchPlaceholder}
+                value={
+                  (table.getColumn(searchKey)?.getFilterValue() as string) ?? ""
+                }
+                onChange={(event) =>
+                  table.getColumn(searchKey)?.setFilterValue(event.target.value)
+                }
+                className="pl-8"
+              />
+            </div>
+          )}
         </div>
       )}
       <div className="rounded-md border">

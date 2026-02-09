@@ -43,12 +43,12 @@ export function useTransactionReferenceData() {
       const wallets = (walletsRes.ok ? await walletsRes.json() : []).filter(
         (w: Wallet) => !w.archived,
       );
-      const categories = (categoriesRes.ok ? await categoriesRes.json() : []).filter(
-        (c: Category) => !c.archived,
-      );
-      const savingsBuckets = (bucketsRes.ok ? await bucketsRes.json() : []).filter(
-        (b: SavingsBucket) => !b.archived,
-      );
+      const categories = (
+        categoriesRes.ok ? await categoriesRes.json() : []
+      ).filter((c: Category) => !c.archived);
+      const savingsBuckets = (
+        bucketsRes.ok ? await bucketsRes.json() : []
+      ).filter((b: SavingsBucket) => !b.archived);
 
       return { wallets, categories, savingsBuckets };
     },

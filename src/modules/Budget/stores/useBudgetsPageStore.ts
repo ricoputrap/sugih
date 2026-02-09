@@ -25,6 +25,8 @@ interface BudgetsPageState {
   copyDialogOpen: boolean;
   copyResultModalOpen: boolean;
   isBulkDeleteDialogOpen: boolean;
+  isArchiveDialogOpen: boolean;
+  isBulkArchiveDialogOpen: boolean;
 
   // Selection state
   selectedBudget: BudgetWithCategory | null;
@@ -47,6 +49,10 @@ interface BudgetsPageState {
   clearSelection: () => void;
   openBulkDeleteDialog: () => void;
   closeBulkDeleteDialog: () => void;
+  openArchiveDialog: () => void;
+  closeArchiveDialog: () => void;
+  openBulkArchiveDialog: () => void;
+  closeBulkArchiveDialog: () => void;
   reset: () => void;
 }
 
@@ -56,6 +62,8 @@ const initialState = {
   copyDialogOpen: false,
   copyResultModalOpen: false,
   isBulkDeleteDialogOpen: false,
+  isArchiveDialogOpen: false,
+  isBulkArchiveDialogOpen: false,
   selectedBudget: null,
   copyResult: null,
   selectedBudgetIds: new Set<string>(),
@@ -99,6 +107,12 @@ export const useBudgetsPageStore = create<BudgetsPageState>((set) => ({
 
   openBulkDeleteDialog: () => set({ isBulkDeleteDialogOpen: true }),
   closeBulkDeleteDialog: () => set({ isBulkDeleteDialogOpen: false }),
+
+  openArchiveDialog: () => set({ isArchiveDialogOpen: true }),
+  closeArchiveDialog: () => set({ isArchiveDialogOpen: false }),
+
+  openBulkArchiveDialog: () => set({ isBulkArchiveDialogOpen: true }),
+  closeBulkArchiveDialog: () => set({ isBulkArchiveDialogOpen: false }),
 
   reset: () => set(initialState),
 }));

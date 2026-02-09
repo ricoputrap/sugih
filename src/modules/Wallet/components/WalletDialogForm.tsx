@@ -87,7 +87,9 @@ export function WalletDialogForm() {
         });
         toast.success(`Wallet "${selectedWallet.name}" updated successfully`);
       } else {
-        const result = await createWallet.mutateAsync(data as WalletCreateInput);
+        const result = await createWallet.mutateAsync(
+          data as WalletCreateInput,
+        );
         toast.success(`Wallet "${result.name}" created successfully`);
       }
 

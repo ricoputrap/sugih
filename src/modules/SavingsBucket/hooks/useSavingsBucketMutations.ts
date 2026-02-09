@@ -1,8 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type {
-  SavingsBucketCreateInput,
-  SavingsBucket,
-} from "../schema";
+import type { SavingsBucketCreateInput, SavingsBucket } from "../schema";
 import { savingsBucketKeys } from "../utils/queryKeys";
 
 /**
@@ -62,9 +59,12 @@ export function useSavingsBucketMutations() {
 
   const archiveBucket = useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const response = await fetch(`/api/savings-buckets/${id}?action=archive`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/savings-buckets/${id}?action=archive`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (!response.ok) {
         const error = await response.json();

@@ -34,8 +34,7 @@ export const useWalletsPageStore = create<WalletsPageState>((set) => ({
 
   openEditDialog: (wallet) =>
     set({ selectedWallet: wallet, isEditDialogOpen: true }),
-  closeEditDialog: () =>
-    set({ selectedWallet: null, isEditDialogOpen: false }),
+  closeEditDialog: () => set({ selectedWallet: null, isEditDialogOpen: false }),
 
   reset: () => set(initialState),
 }));

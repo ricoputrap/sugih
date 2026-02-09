@@ -4,6 +4,8 @@ import {
   createBudget,
   getBudgetSummary,
   bulkDeleteBudgets,
+  bulkArchiveBudgets,
+  bulkRestoreBudgets,
 } from "@/modules/Budget/actions";
 import { ok, badRequest, serverError, conflict, notFound } from "@/lib/http";
 import { formatPostgresError } from "@/db/drizzle-client";
@@ -17,6 +19,7 @@ import { ZodError } from "zod";
  *
  * Query params:
  * - month: YYYY-MM-01 format (optional)
+ * - status: "active" or "archived" (optional, defaults to "active")
  * - summary: boolean - DEPRECATED, included automatically when month is provided
  *
  * Response when month is provided (unified response):
@@ -32,11 +35,13 @@ async function handleGet(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const month = url.searchParams.get("month") || undefined;
+    const status = url.searchParams.get("status") || "active"; // Default to active
     const summary = url.searchParams.get("summary") === "true";
+    const archived = status === "archived";
 
     // If month is provided, return unified response with both budgets and summary
     if (month) {
-      const budgets = await listBudgets({ month });
+      const budgets = await listBudgets({ month, archived });
       const budgetSummary = await getBudgetSummary(month);
       return ok({
         budgets,
@@ -50,7 +55,7 @@ async function handleGet(request: NextRequest) {
     }
 
     // Return all budgets if no month specified
-    const budgets = await listBudgets({});
+    const budgets = await listBudgets({ archived });
     return ok(budgets);
   } catch (error: any) {
     console.error("Error fetching budgets:", error);
@@ -280,3 +285,165 @@ export const DELETE = withRouteLogging(handleDelete, {
   logQuery: false,
   logBodyMetadata: true,
 });
+
+/**
+ * POST /api/budgets/archive
+ * Bulk archive multiple budgets
+ *
+ * Body:
+ * - ids: array of budget IDs to archive (max 100)
+ *
+ * Returns:
+ * - Success: { message, archivedCount }
+ * - Partial failure: { error: { code, message, details: { archivedCount, failedIds } } }
+ */
+async function handleArchive(request: NextRequest) {
+  try {
+    // Parse request body
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return badRequest("Invalid JSON body");
+    }
+
+    const { ids } = body;
+
+    if (!ids) {
+      return badRequest("Missing required field: ids");
+    }
+
+    if (!Array.isArray(ids)) {
+      return badRequest("Field 'ids' must be an array");
+    }
+
+    // Call the bulk archive action
+    const result = await bulkArchiveBudgets(ids);
+
+    // If there are failed IDs, return partial failure
+    if (result.failedIds.length > 0) {
+      // Some budgets could not be archived (not found)
+      return badRequest("Some budgets could not be archived", {
+        code: "VALIDATION_ERROR",
+        message: "Some budgets could not be archived",
+        details: {
+          archivedCount: result.archivedCount,
+          failedIds: result.failedIds,
+        },
+      });
+    }
+
+    // All budgets archived successfully
+    return ok({
+      message: "Budgets archived successfully",
+      archivedCount: result.archivedCount,
+    });
+  } catch (error: any) {
+    console.error("Error bulk archiving budgets:", error);
+
+    // Handle validation errors (already formatted as Response)
+    if (error instanceof Response) {
+      return error;
+    }
+
+    // Handle Zod validation errors
+    if (error.status === 422) {
+      return error;
+    }
+
+    // Handle not found errors
+    if (error.message?.includes("not found")) {
+      return notFound(error.message);
+    }
+
+    // Handle PostgreSQL-specific errors
+    if (error.code) {
+      const formattedError = formatPostgresError(error);
+      console.error("PostgreSQL error:", formattedError);
+      return serverError("Database error");
+    }
+
+    return serverError("Failed to archive budgets");
+  }
+}
+
+/**
+ * POST /api/budgets/restore
+ * Bulk restore multiple archived budgets
+ *
+ * Body:
+ * - ids: array of budget IDs to restore (max 100)
+ *
+ * Returns:
+ * - Success: { message, restoredCount }
+ * - Partial failure: { error: { code, message, details: { restoredCount, failedIds } } }
+ */
+async function handleRestore(request: NextRequest) {
+  try {
+    // Parse request body
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return badRequest("Invalid JSON body");
+    }
+
+    const { ids } = body;
+
+    if (!ids) {
+      return badRequest("Missing required field: ids");
+    }
+
+    if (!Array.isArray(ids)) {
+      return badRequest("Field 'ids' must be an array");
+    }
+
+    // Call the bulk restore action
+    const result = await bulkRestoreBudgets(ids);
+
+    // If there are failed IDs, return partial failure
+    if (result.failedIds.length > 0) {
+      // Some budgets could not be restored (not found)
+      return badRequest("Some budgets could not be restored", {
+        code: "VALIDATION_ERROR",
+        message: "Some budgets could not be restored",
+        details: {
+          restoredCount: result.restoredCount,
+          failedIds: result.failedIds,
+        },
+      });
+    }
+
+    // All budgets restored successfully
+    return ok({
+      message: "Budgets restored successfully",
+      restoredCount: result.restoredCount,
+    });
+  } catch (error: any) {
+    console.error("Error bulk restoring budgets:", error);
+
+    // Handle validation errors (already formatted as Response)
+    if (error instanceof Response) {
+      return error;
+    }
+
+    // Handle Zod validation errors
+    if (error.status === 422) {
+      return error;
+    }
+
+    // Handle not found errors
+    if (error.message?.includes("not found")) {
+      return notFound(error.message);
+    }
+
+    // Handle PostgreSQL-specific errors
+    if (error.code) {
+      const formattedError = formatPostgresError(error);
+      console.error("PostgreSQL error:", formattedError);
+      return serverError("Database error");
+    }
+
+    return serverError("Failed to restore budgets");
+  }
+}

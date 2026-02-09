@@ -1,6 +1,10 @@
 "use client";
 
-import type { ColumnDef, HeaderContext, RowSelectionState } from "@tanstack/react-table";
+import type {
+  ColumnDef,
+  HeaderContext,
+  RowSelectionState,
+} from "@tanstack/react-table";
 import {
   AlertCircle,
   ArrowUpDown,
@@ -9,6 +13,8 @@ import {
   Pencil,
   PiggyBank,
   Trash2,
+  Undo2,
+  Archive,
   Wallet,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
@@ -27,6 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { BudgetWithCategory } from "../schema";
 import { getBudgetStatus, getStatusBadgeConfig } from "../utils/gradients";
+import { BudgetStatusTabs } from "./BudgetStatusTabs";
 
 interface BudgetSummaryItem {
   categoryId: string | null;
@@ -50,9 +57,13 @@ interface BudgetTableProps {
   };
   onEdit?: (budget: BudgetWithCategory) => void;
   onDelete?: (id: string) => Promise<void>;
+  onArchive?: (budget: BudgetWithCategory) => void;
+  onRestore?: (budget: BudgetWithCategory) => void;
   isLoading?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
+  status?: "active" | "archived";
+  onStatusChange?: (status: "active" | "archived") => void;
 }
 
 export function BudgetTable({
@@ -60,9 +71,13 @@ export function BudgetTable({
   summary,
   onEdit,
   onDelete,
+  onArchive,
+  onRestore,
   isLoading = false,
   selectedIds: externalSelectedIds,
   onSelectionChange,
+  status = "active",
+  onStatusChange,
 }: BudgetTableProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -77,9 +92,16 @@ export function BudgetTable({
     return state;
   }, [externalSelectedIds]);
 
-  const handleRowSelectionChange = (updaterOrValue: RowSelectionState | ((old: RowSelectionState) => RowSelectionState)) => {
-    const newState = typeof updaterOrValue === 'function' ? updaterOrValue(rowSelection) : updaterOrValue;
-    const newIds = Object.keys(newState).filter(k => newState[k]);
+  const handleRowSelectionChange = (
+    updaterOrValue:
+      | RowSelectionState
+      | ((old: RowSelectionState) => RowSelectionState),
+  ) => {
+    const newState =
+      typeof updaterOrValue === "function"
+        ? updaterOrValue(rowSelection)
+        : updaterOrValue;
+    const newIds = Object.keys(newState).filter((k) => newState[k]);
     if (onSelectionChange) {
       onSelectionChange(newIds);
     }
@@ -142,6 +164,24 @@ export function BudgetTable({
     [onEdit],
   );
 
+  const handleArchive = useCallback(
+    (budget: BudgetWithCategory) => {
+      if (onArchive) {
+        onArchive(budget);
+      }
+    },
+    [onArchive],
+  );
+
+  const handleRestore = useCallback(
+    (budget: BudgetWithCategory) => {
+      if (onRestore) {
+        onRestore(budget);
+      }
+    },
+    [onRestore],
+  );
+
   const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -195,7 +235,9 @@ export function BudgetTable({
                   }
                 }}
                 checked={isAllSelected || isSomeSelected}
-                onChange={(e) => table.toggleAllPageRowsSelected(!!e.target.checked)}
+                onChange={(e) =>
+                  table.toggleAllPageRowsSelected(!!e.target.checked)
+                }
                 className="cursor-pointer"
                 aria-label="Select all budgets"
               />
@@ -431,6 +473,32 @@ export function BudgetTable({
                   <Pencil className="mr-2 h-4 w-4" />
                   Edit Budget
                 </DropdownMenuItem>
+                {status === "active" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => handleArchive(budget)}
+                      disabled={actionLoading === budget.id}
+                      className="text-blue-600"
+                    >
+                      <Archive className="mr-2 h-4 w-4" />
+                      Archive Budget
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {status === "archived" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => handleRestore(budget)}
+                      disabled={actionLoading === budget.id}
+                      className="text-green-600"
+                    >
+                      <Undo2 className="mr-2 h-4 w-4" />
+                      Restore Budget
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => handleDelete(budget.id, displayName)}
@@ -438,7 +506,9 @@ export function BudgetTable({
                   className="text-red-600"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Budget
+                  {status === "archived"
+                    ? "Delete Permanently"
+                    : "Delete Budget"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -452,9 +522,12 @@ export function BudgetTable({
       categorySummaryMap,
       bucketSummaryMap,
       handleEdit,
+      handleArchive,
+      handleRestore,
       handleDelete,
       formatCurrency,
       getStatusBadge,
+      status,
     ],
   );
 
@@ -550,6 +623,15 @@ export function BudgetTable({
         rowSelection={rowSelection}
         onRowSelectionChange={handleRowSelectionChange}
         getRowId={(row) => row.id}
+        toolbarActions={
+          onStatusChange && (
+            <BudgetStatusTabs
+              status={status}
+              onStatusChange={onStatusChange}
+              disabled={isLoading}
+            />
+          )
+        }
       />
     </div>
   );

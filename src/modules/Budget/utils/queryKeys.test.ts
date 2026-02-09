@@ -14,6 +14,7 @@ describe("budgetKeys", () => {
         "budgets",
         "month",
         "2026-01-01",
+        "active",
       ]);
     });
 

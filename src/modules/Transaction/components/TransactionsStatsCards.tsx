@@ -89,9 +89,7 @@ export function TransactionsStatsCards() {
                 : "text-red-600"
             }`}
           >
-            {formatCurrency(
-              stats.totalIncomeAmount - stats.totalExpenseAmount,
-            )}
+            {formatCurrency(stats.totalIncomeAmount - stats.totalExpenseAmount)}
           </CardTitle>
         </CardHeader>
       </Card>

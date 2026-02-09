@@ -8,13 +8,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { SavingsBucketTable } from "./SavingsBucketTable";
-import { useSavingsBucketsData, useSavingsBucketMutations } from "@/modules/SavingsBucket/hooks";
+import {
+  useSavingsBucketsData,
+  useSavingsBucketMutations,
+} from "@/modules/SavingsBucket/hooks";
 import { useSavingsPageStore } from "@/modules/SavingsBucket/stores";
 
 export function SavingsContent() {
   const { data: buckets, isLoading } = useSavingsBucketsData();
   const { archiveBucket, deleteBucket } = useSavingsBucketMutations();
-  const { openEditDialog, selectedBucketIds, setSelectedBucketIds } = useSavingsPageStore();
+  const { openEditDialog, selectedBucketIds, setSelectedBucketIds } =
+    useSavingsPageStore();
 
   return (
     <Card>
